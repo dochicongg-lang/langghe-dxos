@@ -2,7 +2,7 @@
 // Chạy: cd services/trace-api && npm test   (dùng node:test có sẵn, không cần cài thêm gì)
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { IotError, parseWindow, keyTime, folderOf, dayPrefixes, selectKeys, collectPoints, summarize, createS3Client, buildEvidence } = require("../iot");
+const { IotError, parseWindow, keyTime, folderOf, dayPrefixes, selectKeys, collectPoints, assess, summarize, createS3Client, buildEvidence } = require("../iot");
 
 const NOW = Date.parse("2026-11-12T16:00:00Z");
 const win = (o = {}) => ({ deviceId: "kiln-01", from: "2026-11-12T15:00:00Z", to: "2026-11-12T15:30:00Z", ...o });
@@ -179,4 +179,80 @@ test("createS3Client: lỗi HTTP được ném ra", async () => {
   const fetchImpl = async () => ({ ok: false, status: 403, text: async () => "" });
   const c = createS3Client({ endpoint: "http://minio:9000", accessKey: "AK", secretKey: "SK", bucket: "b", fetchImpl });
   await assert.rejects(c.getObject("iot/x.ndjson"), /403/);
+});
+
+// ---------- đánh giá chất lượng ----------
+const T0 = Date.parse("2026-11-12T15:00:00Z");
+const series = (secs, f = () => 500) => secs.map((s) => ({ t: T0 + s * 1000, v: f(s), name: "Lò", unit: "°C" }));
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+
+test("assess: dữ liệu liên tục -> độ phủ ~100%, không cờ", () => {
+  const { accepted, quality } = assess(series(range(0, 100)), T0, T0 + 100000);
+  assert.equal(accepted.length, 101);
+  assert.ok(quality.coverage >= 0.99);
+  assert.deepEqual(quality.flags, []);
+  assert.equal(quality.rejected, 0);
+});
+
+test("assess: khoảng trống 40 giây giữa chừng -> cờ low-coverage và maxGapSec", () => {
+  const { quality } = assess(series([...range(0, 30), ...range(70, 100)]), T0, T0 + 100000);
+  assert.equal(quality.maxGapSec, 40);
+  assert.ok(quality.coverage < 0.8 && quality.coverage > 0.5, "độ phủ " + quality.coverage);
+  assert.ok(quality.flags.includes("low-coverage"));
+});
+
+test("assess: mất dữ liệu ở đầu hoặc cuối cửa sổ cũng bị tính", () => {
+  const { quality } = assess(series(range(50, 100)), T0, T0 + 100000); // 50 giây đầu không có gì
+  assert.equal(quality.maxGapSec, 50);
+  assert.ok(quality.flags.includes("low-coverage"));
+});
+
+test("assess: mẫu ngoài khoảng [min,max] bị loại và báo out-of-range", () => {
+  const { accepted, quality } = assess(series(range(0, 10), (s) => (s === 5 ? 9999 : 500)), T0, T0 + 10000, { min: 0, max: 1400 });
+  assert.equal(accepted.length, 10);
+  assert.ok(accepted.every((p) => p.v <= 1400));
+  assert.equal(quality.rejected, 1);
+  assert.ok(quality.flags.includes("out-of-range"));
+});
+
+test("assess: đổi nhanh quá maxRatePerSec -> cờ rapid-change, mẫu vẫn giữ", () => {
+  const { accepted, quality } = assess(series(range(0, 10), (s) => (s < 5 ? 500 : 700)), T0, T0 + 10000, { maxRatePerSec: 50 });
+  assert.equal(accepted.length, 11);
+  assert.equal(quality.jumps, 1);
+  assert.ok(quality.flags.includes("rapid-change"));
+});
+
+test("assess: không có giới hạn thì không loại mẫu nào", () => {
+  const { accepted, quality } = assess(series(range(0, 10), () => 123456), T0, T0 + 10000);
+  assert.equal(accepted.length, 11);
+  assert.equal(quality.rejected, 0);
+});
+
+test("assess: quá ít mẫu -> cờ few-samples, độ phủ 0", () => {
+  const { quality } = assess(series([5]), T0, T0 + 10000);
+  assert.ok(quality.flags.includes("few-samples"));
+  assert.equal(quality.coverage, 0);
+});
+
+test("buildEvidence: số liệu giả 9999 trong thư mục của chính gateway bị loại khi có giới hạn, và có cờ", async () => {
+  const key = "iot/service-account-gw1/2026-11-12/2026-11-12T15-00-30-000Z.ndjson";
+  const base = Date.parse("2026-11-12T15:00:00Z");
+  const lines = range(0, 60).map((i) => reading(base + i * 1000, i === 30 ? 9999 : 900 + i));
+  const s3 = { listKeys: async (p) => (p === "iot/service-account-gw1/2026-11-12/" ? [key] : []), getObject: async () => lines.join("\n") };
+  const w = { deviceId: "kiln-01", from: base, to: base + 60000 };
+  const ev = await buildEvidence(w, s3, "gw1", { min: 0, max: 1400 });
+  assert.equal(ev.max, 960);
+  assert.equal(ev.quality.rejected, 1);
+  assert.ok(ev.quality.flags.includes("out-of-range"));
+  assert.equal(ev.count, 60);
+});
+
+test("buildEvidence: toàn bộ mẫu ngoài khoảng hợp lý -> 422 nêu rõ lý do", async () => {
+  const key = "iot/service-account-gw1/2026-11-12/2026-11-12T15-00-30-000Z.ndjson";
+  const base = Date.parse("2026-11-12T15:00:00Z");
+  const s3 = { listKeys: async () => [key], getObject: async () => [reading(base + 1000, 9999), reading(base + 2000, 9998)].join("\n") };
+  await assert.rejects(
+    buildEvidence({ deviceId: "kiln-01", from: base, to: base + 5000 }, s3, "gw1", { min: 0, max: 1400 }),
+    (e) => e instanceof IotError && e.status === 422 && /ngoài khoảng giá trị hợp lý/.test(e.message),
+  );
 });

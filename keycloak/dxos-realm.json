@@ -146,6 +146,16 @@
       "lastName": "User",
       "realmRoles": ["editor"],
       "credentials": [{ "type": "password", "value": "tester", "temporary": false }]
+    },
+    {
+      "username": "viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "viewer@dxos.local",
+      "firstName": "View",
+      "lastName": "Only",
+      "realmRoles": ["readonly"],
+      "credentials": [{ "type": "password", "value": "viewer", "temporary": false }]
     }
   ]
 }

@@ -53,9 +53,23 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const apiFetch = useCallback(async (path: string, init: RequestInit = {}) => {
     const kc = getKeycloak();
     await kc.updateToken(30);
-    const headers = new Headers(init.headers);
-    headers.set("Authorization", `Bearer ${kc.token}`);
-    return fetch(`${config.apiBaseUrl}${path}`, { ...init, headers });
+    const call = () => {
+      const headers = new Headers(init.headers);
+      headers.set("Authorization", `Bearer ${kc.token}`);
+      return fetch(`${config.apiBaseUrl}${path}`, { ...init, headers });
+    };
+    const res = await call();
+    if (res.status !== 403) return res;
+    // 403 có thể do vai trò vừa đổi: Keycloak tính lại vai trò khi làm mới token. Ép làm mới một lần,
+    // cập nhật vai trò hiển thị, rồi thử lại đúng một lần.
+    try {
+      await kc.updateToken(-1);
+    } catch {
+      return res;
+    }
+    const roles = ((kc.tokenParsed as Record<string, unknown> | undefined)?.policy as string[] | undefined) ?? [];
+    setUser((u) => (u && u.roles.join() !== roles.join() ? { ...u, roles: roles.slice() } : u));
+    return call();
   }, []);
 
   const value = useMemo(() => (user ? { user, logout, apiFetch } : null), [user, logout, apiFetch]);

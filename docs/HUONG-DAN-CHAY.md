@@ -40,6 +40,17 @@ File `.env` chứa mật khẩu mẫu, đủ để chạy thử trên máy bạn
 
 ## 3. Bật hệ thống Tầng 1
 
+> **Lối tắt (khuyên dùng): một lệnh làm cả bước 3, 4 và cài đặt Keycloak/MinIO.** Chạy trong **Git Bash** tại thư mục dự án:
+>
+> ```bash
+> bash scripts/upgrade.sh
+> ```
+>
+> Script tự tạo `.env` nếu chưa có (khóa `change_me_*` được sinh ngẫu nhiên), nếu đã có thì **chỉ bổ sung khóa còn thiếu** và không bao giờ ghi đè giá trị đang dùng; khởi động Docker, chờ các dịch vụ sẵn sàng, thiết lập vai trò/route/policy rồi chạy kiểm tra phân quyền thật.
+> Chạy lại bất cứ lúc nào (cài mới hay nâng cấp sau khi kéo code mới) đều an toàn. Có thêm `--no-build` (không dựng lại image) và `--skip-check`.
+> Nếu thành công, bạn có thể bỏ qua phần còn lại của bước 3 và bước 4 bên dưới (chúng là cách làm từng bước để hiểu hệ thống), rồi sang bước chạy giao diện.
+> Nếu một bước lỗi, script dừng và nói rõ lỗi ở bước nào; sửa nguyên nhân rồi chạy lại.
+
 ```bash
 docker compose up -d --build
 ```
@@ -213,6 +224,8 @@ Trang chỉ hiện thông tin được phép công bố: **không** có tên ng�
 | Có role `editor` (như `tester`) | Có | Có |
 | Thiết bị IoT (role `iot-writer`, client `dxos-iot`) | Không (403) | Không (403) |
 
+Tài khoản thử có sẵn: `tester`/`tester` (role `editor`) và `viewer`/`viewer` (role `readonly`, chỉ xem). Đổi hoặc xóa chúng trước khi triển khai thật.
+
 Role gán cho người dùng trong Keycloak (http://localhost:8080, đăng nhập `admin`/`admin`, realm **dxos** → Users → Role mapping).
 
 **Dữ liệu cảm biến (thư mục `iot/` trong MinIO) có quyền riêng**, tách khỏi quyền ghi dữ liệu ứng dụng:
@@ -250,7 +263,7 @@ bash scripts/setup-keycloak-roles.sh
 bash scripts/setup-apisix-routes.sh
 ```
 
-Bước `setup-apisix-routes.sh` cũng tự chuyển dữ liệu IoT cũ (`iot/<ngày>/`) vào thư mục của gateway mặc định, và cần `docker compose up -d --build trace-api` để nạp danh bạ thiết bị. Sau đó **đăng xuất rồi đăng nhập lại** trên web để nhận token có role mới. Kiểm tra việc tách quyền bằng `bash scripts/check-iot-permissions.sh` (cuối dòng phải thấy `TẤT CẢ ĐẠT`).
+Bước `setup-apisix-routes.sh` cũng tự chuyển dữ liệu IoT cũ (`iot/<ngày>/`) vào thư mục của gateway mặc định, và cần `docker compose up -d --build trace-api` để nạp danh bạ thiết bị. Trên web **không cần đăng nhập lại** để nhận vai trò mới: Keycloak tính lại vai trò mỗi khi làm mới token, và khi gặp lỗi 403 giao diện tự làm mới token một lần rồi thử lại (token cũ tối đa vài phút là cũng tự đổi). Nếu vẫn thấy lỗi quyền, hãy đăng xuất rồi đăng nhập lại. Kiểm tra việc tách quyền bằng `bash scripts/check-iot-permissions.sh` (cuối dòng phải thấy `TẤT CẢ ĐẠT`).
 
 ### 11d. Thử bằng dòng lệnh (tùy chọn)
 
@@ -275,6 +288,12 @@ Tuyến công khai bị giới hạn 5 yêu cầu/giây mỗi địa chỉ để
 2. Trong trang chi tiết sản phẩm, ở form **Thêm công đoạn** chọn *Nung / hoàn thiện*; hiện thêm mục **Gắn dữ liệu cảm biến lò**. Nhập mã thiết bị (`kiln-01`), giờ bắt đầu và giờ kết thúc nằm trong lúc simulator đang chạy, rồi bấm *Ghi nhận công đoạn*.
 3. Máy chủ tự đọc nhiệt độ lò trong khoảng đó từ MinIO bằng một tài khoản **chỉ đọc** (`trace-reader`) và tính nhiệt độ thấp nhất/trung bình/cao nhất cùng đường cong. Trình duyệt không gửi số liệu nào lên, nên không thể khai khống. Kết quả hiện cả ở trang nhân viên và trang `/verify`.
 
+**Chất lượng số liệu.** Khi dựng bằng chứng, máy chủ còn đánh giá dữ liệu và hiện kết quả ngay dưới biểu đồ (cả ở trang `/verify`):
+- *Độ phủ dữ liệu* và *khoảng trống lớn nhất*: nếu cảm biến mất kết nối nhiều (độ phủ dưới 80%) thì có cờ cảnh báo màu vàng.
+- Mẫu nằm **ngoài khoảng giá trị hợp lý** của thiết bị (`min`/`max` trong `config/iot-devices.json`, ví dụ lò nung 0–1400 °C) bị **loại** khỏi tóm tắt và được báo số lượng; giá trị đổi nhanh quá `maxRatePerSec` được gắn cờ.
+Nhờ đó số liệu giả lộ liễu (như 9999 °C) không lọt vào bằng chứng, kể cả khi gateway bị lộ khóa. Giới hạn: số liệu giả nhưng trông hợp lý thì chưa phát hiện được.
+Sửa giới hạn trong `config/iot-devices.json` rồi chạy `docker compose restart trace-api`.
+
 Nếu báo *"Chưa cấu hình tài khoản đọc MinIO"*: thêm hai dòng `TRACE_S3_USER=trace-reader` và `TRACE_S3_PASSWORD=...` vào file `.env` (xem `.env.example`), chạy `bash scripts/setup-apisix-routes.sh` rồi `docker compose up -d --build trace-api`.
 
-Chạy test của backend Tầng 3: `cd services/trace-api` rồi `npm test`.
+Chạy test của backend Tầng 3: `cd services/trace-api` rồi `npm test`. Kiểm thử script đồng bộ `.env`: `bash scripts/tests/test-env-sync.sh`. Kiểm tra phân quyền thật: `bash scripts/check-iot-permissions.sh`.

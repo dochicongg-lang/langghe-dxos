@@ -255,10 +255,10 @@ async function addEvent(code, body, user) {
     if (stage !== "nung-hoan-thien") throw new HttpError(400, "Chỉ gắn dữ liệu IoT vào công đoạn nung-hoan-thien");
     if (!s3) throw new HttpError(503, "Chưa cấu hình tài khoản đọc MinIO cho trace-api (S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY)");
     const win = parseWindow(body.iot); // chỉ nhận { deviceId, from, to }; số liệu do máy chủ tự đọc và tính
-    const gateway = devices.get(win.deviceId);
-    if (!gateway) throw new HttpError(400, `Thiết bị "${win.deviceId}" chưa được đăng ký trong danh bạ thiết bị (config/iot-devices.json)`);
+    const device = devices.get(win.deviceId);
+    if (!device) throw new HttpError(400, `Thiết bị "${win.deviceId}" chưa được đăng ký trong danh bạ thiết bị (config/iot-devices.json)`);
     try {
-      iot = await buildEvidence(win, s3, gateway);
+      iot = await buildEvidence(win, s3, device.gateway, device);
     } catch (e) {
       if (e instanceof IotError) throw new HttpError(e.status, e.message);
       console.error("[trace-api] lỗi đọc dữ liệu IoT:", e.message);
