@@ -8,12 +8,15 @@ set -a; . ./.env; set +a
 ADMIN="http://localhost:${APISIX_ADMIN_PORT}/apisix/admin"
 FLOWABLE_BASIC=$(printf '%s:%s' "$FLOWABLE_ADMIN_USER" "$FLOWABLE_ADMIN_PASSWORD" | base64 | tr -d '\n')
 
+# Hai route bắt buộc JWT còn có plugin serverless-pre-function chỉ cho qua token có vai trò editor hoặc readonly
+# (claim "policy"): token của thiết bị IoT (iot-writer) chỉ dùng để ghi dữ liệu cảm biến, không gọi được các API này.
 # Route /api/workflow/* -> Flowable REST (Flowable chỉ nhận qua gateway, gateway tự gắn basic auth nội bộ)
 curl -fsS -X PUT "$ADMIN/routes/workflow" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JSON
 {
   "name": "workflow-api",
   "uri": "/api/workflow/*",
   "plugins": {
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ok = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' or r == 'readonly' then ok = true end end end end; if not ok then return 403, {error = 'Can vai tro editor hoac readonly'} end end"] },
     "cors": {
       "allow_origins": "${FRONTEND_ORIGIN:-http://localhost:3000}",
       "allow_methods": "GET,POST,PUT,DELETE,OPTIONS",
@@ -64,6 +67,32 @@ POLICY
   && (mc admin policy attach local trace-iot-read --user '$TRACE_S3_USER' >/dev/null 2>&1 || true)"
 echo "OK: tài khoản chỉ đọc '$TRACE_S3_USER' cho trace-api (chỉ đọc tiền tố iot/ của bucket $MINIO_BUCKET)."
 
+# Policy MinIO cho các vai trò Keycloak (claim "policy" = tên role = tên policy), tách quyền ghi dữ liệu IoT:
+#   editor      đọc/ghi mọi bucket NHƯNG bị Deny ghi/xóa trong iot/  (khác policy dựng sẵn "readwrite" cho phép tất cả)
+#   iot-writer  chỉ PutObject vào iot/ (thiết bị); không đọc, không liệt kê
+#   readonly    dùng policy dựng sẵn của MinIO (đọc mọi bucket)
+docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
+  && cat > /tmp/editor.json <<'POLICY'
+{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:*\"], \"Resource\": [\"arn:aws:s3:::*\"] },
+    { \"Effect\": \"Deny\", \"Action\": [\"s3:PutObject\", \"s3:DeleteObject\", \"s3:DeleteObjectVersion\", \"s3:AbortMultipartUpload\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/*\"] }
+  ]
+}
+POLICY
+  cat > /tmp/iot-writer.json <<'POLICY'
+{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:PutObject\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/*\"] }
+  ]
+}
+POLICY
+  mc admin policy create local editor /tmp/editor.json >/dev/null \
+  && mc admin policy create local iot-writer /tmp/iot-writer.json >/dev/null"
+echo "OK: policy MinIO 'editor' (không ghi/xóa iot/) và 'iot-writer' (chỉ ghi iot/)."
+
 # Route cũ /api/storage/* (bucket public + JWT ở gateway) đã được thay thế bằng OIDC.
 curl -sS -o /dev/null -X DELETE "$ADMIN/routes/storage" -H "X-API-KEY: $APISIX_ADMIN_KEY" || true
 
@@ -87,6 +116,7 @@ curl -fsS -X PUT "$ADMIN/routes/trace" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <
   "name": "trace-api",
   "uri": "/api/trace/*",
   "plugins": {
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ok = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' or r == 'readonly' then ok = true end end end end; if not ok then return 403, {error = 'Can vai tro editor hoac readonly'} end end"] },
     "cors": {
       "allow_origins": "${CORS_ORIGIN}",
       "allow_methods": "GET,POST,OPTIONS",

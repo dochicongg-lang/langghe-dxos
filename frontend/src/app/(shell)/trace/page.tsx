@@ -13,7 +13,7 @@ const inputCls =
 export default function TracePage() {
   const { apiFetch, user } = useAuth();
   const router = useRouter();
-  const canWrite = user.roles.includes("readwrite");
+  const canWrite = user.roles.includes("editor");
   const [products, setProducts] = useState<ProductSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -109,7 +109,7 @@ export default function TracePage() {
 
         <Card title="Thêm sản phẩm">
           {!canWrite ? (
-            <p className="text-sm text-slate-500">Tài khoản của bạn chỉ có quyền xem (cần quyền readwrite để thêm).</p>
+            <p className="text-sm text-slate-500">Tài khoản của bạn chỉ có quyền xem (cần vai trò editor để thêm).</p>
           ) : (
             <form onSubmit={onCreate} className="space-y-3">
               <label className="block text-sm">

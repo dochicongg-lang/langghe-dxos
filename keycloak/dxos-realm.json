@@ -4,8 +4,9 @@
   "sslRequired": "none",
   "roles": {
     "realm": [
-      { "name": "readwrite", "description": "MinIO policy: đọc/ghi mọi bucket" },
-      { "name": "readonly", "description": "MinIO policy: chỉ đọc" }
+      { "name": "editor", "description": "Nhân viên: tạo/sửa dữ liệu ứng dụng; MinIO đọc/ghi mọi bucket NHƯNG KHÔNG ghi/xóa trong iot/" },
+      { "name": "readonly", "description": "Chỉ xem; MinIO policy readonly (đọc mọi bucket)" },
+      { "name": "iot-writer", "description": "Thiết bị IoT: chỉ ghi (PutObject) vào iot/, không đọc, không gọi API nghiệp vụ" }
     ]
   },
   "clients": [
@@ -20,6 +21,42 @@
       "serviceAccountsEnabled": true,
       "redirectUris": ["*"],
       "webOrigins": ["*"],
+      "protocolMappers": [
+        {
+          "name": "audience-dxos-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "${KEYCLOAK_CLIENT_ID}",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "minio-policy",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "policy",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "${KEYCLOAK_IOT_CLIENT_ID}",
+      "name": "Thiết bị IoT / gateway xưởng (chỉ ghi dữ liệu cảm biến)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${KEYCLOAK_IOT_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
       "protocolMappers": [
         {
           "name": "audience-dxos-api",
@@ -92,7 +129,13 @@
       "username": "service-account-${KEYCLOAK_CLIENT_ID}",
       "enabled": true,
       "serviceAccountClientId": "${KEYCLOAK_CLIENT_ID}",
-      "realmRoles": ["readwrite"]
+      "realmRoles": []
+    },
+    {
+      "username": "service-account-${KEYCLOAK_IOT_CLIENT_ID}",
+      "enabled": true,
+      "serviceAccountClientId": "${KEYCLOAK_IOT_CLIENT_ID}",
+      "realmRoles": ["iot-writer"]
     },
     {
       "username": "tester",
@@ -101,7 +144,7 @@
       "email": "tester@dxos.local",
       "firstName": "Test",
       "lastName": "User",
-      "realmRoles": ["readwrite"],
+      "realmRoles": ["editor"],
       "credentials": [{ "type": "password", "value": "tester", "temporary": false }]
     }
   ]
