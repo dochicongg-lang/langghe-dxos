@@ -59,3 +59,53 @@ curl -fsS -X PUT "$ADMIN/routes/s3" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JS
 }
 JSON
 echo "OK: S3/STS qua http://s3.localhost:${APISIX_GATEWAY_PORT} (bucket ${MINIO_BUCKET} riêng tư, JWT xác thực bằng MinIO OIDC)."
+
+# ---- Tầng 3: API truy xuất nguồn gốc ----
+# /api/trace/*          -> trace-api, bắt buộc JWT Keycloak (phân quyền ghi theo role readwrite nằm trong dịch vụ)
+# /api/public/trace/*   -> trace-api (chỉ tuyến /public/:code, không cần đăng nhập, ẩn thông tin nội bộ), giới hạn tần suất
+CORS_ORIGIN="${FRONTEND_ORIGIN:-http://localhost:3000}"
+
+curl -fsS -X PUT "$ADMIN/routes/trace" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JSON >/dev/null
+{
+  "name": "trace-api",
+  "uri": "/api/trace/*",
+  "plugins": {
+    "cors": {
+      "allow_origins": "${CORS_ORIGIN}",
+      "allow_methods": "GET,POST,OPTIONS",
+      "allow_headers": "Authorization,Content-Type",
+      "max_age": 3600
+    },
+    "openid-connect": {
+      "discovery": "http://keycloak:8080/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration",
+      "client_id": "${KEYCLOAK_CLIENT_ID}",
+      "client_secret": "${KEYCLOAK_CLIENT_SECRET}",
+      "bearer_only": true,
+      "use_jwks": true,
+      "ssl_verify": false
+    },
+    "proxy-rewrite": { "regex_uri": ["^/api/trace/(.*)", "/\$1"] }
+  },
+  "upstream": { "type": "roundrobin", "nodes": { "trace-api:3000": 1 } }
+}
+JSON
+
+curl -fsS -X PUT "$ADMIN/routes/trace-public" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JSON >/dev/null
+{
+  "name": "trace-public",
+  "uri": "/api/public/trace/*",
+  "methods": ["GET", "OPTIONS"],
+  "plugins": {
+    "cors": {
+      "allow_origins": "${CORS_ORIGIN}",
+      "allow_methods": "GET,OPTIONS",
+      "allow_headers": "Content-Type",
+      "max_age": 3600
+    },
+    "limit-req": { "rate": 5, "burst": 10, "key_type": "var", "key": "remote_addr", "rejected_code": 429 },
+    "proxy-rewrite": { "regex_uri": ["^/api/public/trace/(.*)", "/public/\$1"] }
+  },
+  "upstream": { "type": "roundrobin", "nodes": { "trace-api:3000": 1 } }
+}
+JSON
+echo "OK: route /api/trace/* (JWT) và /api/public/trace/* (công khai, giới hạn tần suất) đã sẵn sàng."

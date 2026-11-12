@@ -41,7 +41,7 @@ File `.env` chứa mật khẩu mẫu, đủ để chạy thử trên máy bạn
 ## 3. Bật hệ thống Tầng 1
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
 Lần đầu Docker tải các image nên mất vài phút. Sau đó kiểm tra:
@@ -50,7 +50,7 @@ Lần đầu Docker tải các image nên mất vài phút. Sau đó kiểm tra:
 docker compose ps
 ```
 
-**Kết quả đúng:** có 6 dòng (`dxos-postgres`, `dxos-minio`, `dxos-keycloak`, `dxos-flowable`, `dxos-etcd`, `dxos-apisix`); các dòng postgres, minio, keycloak, etcd ghi `(healthy)`, còn lại ghi `Up`.
+**Kết quả đúng:** có 7 dòng (`dxos-postgres`, `dxos-minio`, `dxos-keycloak`, `dxos-flowable`, `dxos-etcd`, `dxos-apisix`, `dxos-trace-api`); các dòng postgres, minio, keycloak, etcd ghi `(healthy)`, còn lại ghi `Up`.
 Keycloak cần khoảng 30–60 giây mới `healthy`. Nếu chưa, chờ rồi chạy lại `docker compose ps`.
 
 ## 4. Tạo các tuyến đường (route) trên cổng gác APISIX
@@ -176,8 +176,57 @@ Realm chỉ được nạp **một lần** khi chưa tồn tại. Khi file `keyc
 
 ```bash
 docker compose down -v
-docker compose up -d
+docker compose up -d --build
 bash scripts/setup-apisix-routes.sh
 ```
 
 (Lệnh `down -v` xóa toàn bộ dữ liệu Docker của dự án, kể cả số liệu IoT đã ghi.)
+
+## 11. Tầng 3: Truy xuất nguồn gốc sản phẩm làng nghề
+
+Đây là ứng dụng nghiệp vụ đầu tiên của dự án: theo dõi một sản phẩm (ví dụ bình gốm) qua 7 công đoạn
+**Nguyên liệu → Sơ chế → Tạo hình → Nung/hoàn thiện → Kiểm định → Đóng gói → Phân phối**.
+Dịch vụ `trace-api` chạy trong Docker, lưu dữ liệu ở PostgreSQL (database `traceability`, tự tạo, tự nạp 2 sản phẩm mẫu).
+
+### 11a. Xem phía nhân viên (cần đăng nhập)
+
+1. Bật hệ thống và frontend như các bước 3–6 ở trên (nhớ `docker compose up -d --build` lần đầu để dựng `trace-api`, và chạy `bash scripts/setup-apisix-routes.sh`).
+2. Mở http://localhost:3000, đăng nhập `tester` / `tester`, bấm **Truy xuất nguồn gốc** (mục "Nghiệp vụ · Tầng 3" ở thanh bên trái).
+
+**Kết quả đúng:** bảng có 2 sản phẩm mẫu `GOM-BT-0001` (Bình gốm men rạn Bát Tràng) và `LUA-VP-0007` (Khăn lụa tơ tằm).
+
+- Bấm vào một mã để xem **tiến trình công đoạn** (✓ là đã có), **dòng thời gian** và thông tin sản phẩm.
+- Form **Thêm sản phẩm** (bên phải trang danh sách): nhập tên, bấm *Tạo sản phẩm*; để trống ô mã thì hệ thống tự sinh mã.
+- Form **Thêm công đoạn** (trong trang chi tiết): chọn công đoạn, địa điểm, ghi chú rồi bấm *Ghi nhận công đoạn*; dòng mới hiện ngay trên dòng thời gian.
+
+### 11b. Xem phía người mua (không cần đăng nhập)
+
+Mở http://localhost:3000/verify/GOM-BT-0001. Đây là trang bạn có thể in thành mã QR dán lên sản phẩm.
+Trang chỉ hiện thông tin được phép công bố: **không** có tên người ghi nhận hay thông tin nội bộ.
+
+### 11c. Phân quyền (để hiểu cách hệ thống bảo vệ dữ liệu)
+
+| Người dùng | Xem danh sách/chi tiết | Tạo sản phẩm, thêm công đoạn |
+|---|---|---|
+| Chưa đăng nhập | Không (401), chỉ dùng được trang `/verify/...` | Không |
+| Có role `readonly` | Có | Không (403) |
+| Có role `readwrite` (như `tester`) | Có | Có |
+
+Role gán cho người dùng trong Keycloak (http://localhost:8080, đăng nhập `admin`/`admin`, realm **dxos** → Users → Role mapping).
+
+### 11d. Thử bằng dòng lệnh (tùy chọn)
+
+Tra cứu công khai, không cần token (đúng sẽ thấy JSON của sản phẩm):
+
+```bash
+curl http://localhost:9080/api/public/trace/GOM-BT-0001
+```
+
+Gọi API nội bộ không có token (đúng sẽ trả về `401`, cổng gác chặn):
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:9080/api/trace/products
+```
+
+Dịch vụ `trace-api` **không mở cổng ra máy bạn**; chỉ vào được qua APISIX, nên mọi truy cập đều qua kiểm tra của cổng gác.
+Tuyến công khai bị giới hạn 5 yêu cầu/giây mỗi địa chỉ để tránh bị dò quét mã.
