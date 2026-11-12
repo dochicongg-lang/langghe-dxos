@@ -6,8 +6,9 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
 import KilnEvidence from "@/components/KilnEvidence";
-import { fetchEvidence } from "@/lib/iot";
-import { fmtDate, stageLabels, stageOrder, type IotEvidence, type ProductDetail } from "@/lib/trace";
+import QrCode from "@/components/QrCode";
+import { config } from "@/lib/config";
+import { fmtDate, stageLabels, stageOrder, type ProductDetail } from "@/lib/trace";
 
 const inputCls =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500";
@@ -21,6 +22,13 @@ function Product() {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [stage, setStage] = useState("");
+  const [origin, setOrigin] = useState(config.publicBaseUrl);
+
+  useEffect(() => {
+    if (config.publicBaseUrl) return;
+    const t = setTimeout(() => setOrigin(window.location.origin), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -47,15 +55,14 @@ function Product() {
     setSaving(true);
     setFormError(null);
     try {
-      let iot: IotEvidence | undefined;
+      let iot: { deviceId: string; from: string; to: string } | undefined;
       if (fields.stage === "nung-hoan-thien" && (iotFrom || iotTo)) {
         const fromMs = Date.parse(iotFrom);
         const toMs = Date.parse(iotTo);
         if (Number.isNaN(fromMs) || Number.isNaN(toMs)) throw new Error("Cần nhập cả thời điểm bắt đầu và kết thúc nung.");
         if (toMs <= fromMs) throw new Error("Thời điểm kết thúc phải sau thời điểm bắt đầu.");
-        const found = await fetchEvidence((iotDevice || "kiln-01").trim(), "temperature", fromMs, toMs);
-        if (!found) throw new Error("Không có số liệu cảm biến lò trong khoảng thời gian này. Kiểm tra lại thiết bị và thời gian.");
-        iot = found;
+        // Chỉ gửi thiết bị và khoảng thời gian; máy chủ tự đọc số liệu từ MinIO và tính tóm tắt.
+        iot = { deviceId: (iotDevice || "kiln-01").trim(), from: new Date(fromMs).toISOString(), to: new Date(toMs).toISOString() };
       }
       const res = await apiFetch(`/api/trace/products/${encodeURIComponent(code)}/events`, {
         method: "POST",
@@ -160,6 +167,24 @@ function Product() {
             </Link>
           </Card>
 
+          <Card title="Mã QR tra cứu nguồn gốc">
+            {origin ? (
+              <>
+                <QrCode url={`${origin}${publicPath}`} filename={`qr-${product.code}`} />
+                <p className="mt-3 text-xs text-slate-500">
+                  In và dán lên sản phẩm: người mua quét để xem hành trình và dữ liệu nung, không cần đăng nhập.
+                </p>
+                {/localhost|127\.0\.0\.1/.test(origin) && (
+                  <p className="mt-2 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
+                    Đang dùng địa chỉ máy bạn nên điện thoại chưa quét được. Khi triển khai, đặt NEXT_PUBLIC_PUBLIC_BASE_URL thành tên miền thật.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-slate-500">Đang tạo mã…</p>
+            )}
+          </Card>
+
           <Card title="Thêm công đoạn">
             {!canWrite ? (
               <p className="text-sm text-slate-500">Tài khoản của bạn chỉ có quyền xem.</p>
@@ -194,7 +219,7 @@ function Product() {
                       <input name="iotTo" type="datetime-local" className={inputCls} />
                     </label>
                     <p className="text-xs text-slate-500">
-                      Hệ thống đọc nhiệt độ lò trong khoảng này từ MinIO và đính kèm đường cong nhiệt vào công đoạn. Bỏ trống nếu không cần.
+                      Máy chủ tự đọc nhiệt độ lò trong khoảng này từ MinIO và đính kèm đường cong nhiệt đã đối chiếu. Bỏ trống nếu không cần.
                     </p>
                   </fieldset>
                 )}

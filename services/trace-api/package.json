@@ -5,7 +5,8 @@
   "description": "API truy xuất nguồn gốc sản phẩm làng nghề (Tầng 3 - DX-OS)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/"
   },
   "engines": {
     "node": ">=20"

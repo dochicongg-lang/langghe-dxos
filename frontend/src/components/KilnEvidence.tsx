@@ -49,7 +49,10 @@ export default function KilnEvidence({ iot }: { iot: IotEvidence }) {
           </div>
         ))}
       </dl>
-      <p className="mt-2 text-xs text-slate-500">
+      {iot.verifiedAt && (
+        <p className="mt-2 text-xs font-medium text-emerald-700">✓ Máy chủ đã đối chiếu với dữ liệu cảm biến lưu trên hệ thống</p>
+      )}
+      <p className="mt-1 text-xs text-slate-500">
         {fmtTime(iot.from)} → {fmtTime(iot.to)} ({fmtDuration(iot.from, iot.to)})
       </p>
     </div>

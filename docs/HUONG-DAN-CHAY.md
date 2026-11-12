@@ -201,7 +201,7 @@ Dịch vụ `trace-api` chạy trong Docker, lưu dữ liệu ở PostgreSQL (da
 
 ### 11b. Xem phía người mua (không cần đăng nhập)
 
-Mở http://localhost:3000/verify/GOM-BT-0001. Đây là trang bạn có thể in thành mã QR dán lên sản phẩm.
+Mở http://localhost:3000/verify/GOM-BT-0001. Người mua quét mã QR dán trên sản phẩm sẽ vào đúng trang này. Mã QR nằm ở trang chi tiết sản phẩm phía nhân viên (thẻ **Mã QR tra cứu nguồn gốc**): bấm *Tải mã QR (SVG)* để lấy ảnh đem đi in. Khi chạy ở máy bạn, mã trỏ tới `localhost` nên điện thoại chưa quét được; khi triển khai thật, đặt biến `NEXT_PUBLIC_PUBLIC_BASE_URL` (ví dụ `https://truyxuat.ten-mien-cua-ban.vn`) trong môi trường chạy frontend.
 Trang chỉ hiện thông tin được phép công bố: **không** có tên người ghi nhận hay thông tin nội bộ.
 
 ### 11c. Phân quyền (để hiểu cách hệ thống bảo vệ dữ liệu)
@@ -230,3 +230,13 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:9080/api/trace/product
 
 Dịch vụ `trace-api` **không mở cổng ra máy bạn**; chỉ vào được qua APISIX, nên mọi truy cập đều qua kiểm tra của cổng gác.
 Tuyến công khai bị giới hạn 5 yêu cầu/giây mỗi địa chỉ để tránh bị dò quét mã.
+
+### 11e. Gắn dữ liệu cảm biến lò vào công đoạn nung
+
+1. Chạy simulator ghi lên MinIO để có dữ liệu: `node backend/simulate-iot.js --post` (để chạy vài phút rồi nhấn Ctrl+C).
+2. Trong trang chi tiết sản phẩm, ở form **Thêm công đoạn** chọn *Nung / hoàn thiện*; hiện thêm mục **Gắn dữ liệu cảm biến lò**. Nhập mã thiết bị (`kiln-01`), giờ bắt đầu và giờ kết thúc nằm trong lúc simulator đang chạy, rồi bấm *Ghi nhận công đoạn*.
+3. Máy chủ tự đọc nhiệt độ lò trong khoảng đó từ MinIO bằng một tài khoản **chỉ đọc** (`trace-reader`) và tính nhiệt độ thấp nhất/trung bình/cao nhất cùng đường cong. Trình duyệt không gửi số liệu nào lên, nên không thể khai khống. Kết quả hiện cả ở trang nhân viên và trang `/verify`.
+
+Nếu báo *"Chưa cấu hình tài khoản đọc MinIO"*: thêm hai dòng `TRACE_S3_USER=trace-reader` và `TRACE_S3_PASSWORD=...` vào file `.env` (xem `.env.example`), chạy `bash scripts/setup-apisix-routes.sh` rồi `docker compose up -d --build trace-api`.
+
+Chạy test của backend Tầng 3: `cd services/trace-api` rồi `npm test`.

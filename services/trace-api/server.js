@@ -11,13 +11,15 @@
  *   GET  /products                  danh sách sản phẩm            (đăng nhập)
  *   POST /products                  tạo sản phẩm                  (role readwrite)
  *   GET  /products/:code            chi tiết + dòng thời gian     (đăng nhập)
- *   POST /products/:code/events     thêm công đoạn                (role readwrite; công đoạn nung có thể kèm "iot")
+ *   POST /products/:code/events     thêm công đoạn                (role readwrite; công đoạn nung có thể kèm iot:{deviceId,from,to},
+ *                                                                  máy chủ tự đọc MinIO và tính tóm tắt)
  *   GET  /public/:code              tra cứu công khai cho người mua (không cần đăng nhập, ẩn thông tin nội bộ)
  *   GET  /healthz                   kiểm tra sống
  */
 
 const http = require("node:http");
 const { Pool, Client } = require("pg");
+const { IotError, parseWindow, createS3Client, buildEvidence } = require("./iot");
 
 const PORT = Number(process.env.PORT ?? 3000);
 const pgBase = {
@@ -28,6 +30,17 @@ const pgBase = {
 };
 const DB_NAME = process.env.TRACE_DB ?? "traceability";
 const SEED = (process.env.TRACE_SEED ?? "true") !== "false";
+
+// Tài khoản MinIO CHỈ ĐỌC (tiền tố iot/) để máy chủ tự đối chiếu số liệu cảm biến. Không cấu hình thì tắt tính năng IoT.
+const s3 =
+  process.env.S3_ENDPOINT && process.env.S3_ACCESS_KEY && process.env.S3_SECRET_KEY
+    ? createS3Client({
+        endpoint: process.env.S3_ENDPOINT,
+        accessKey: process.env.S3_ACCESS_KEY,
+        secretKey: process.env.S3_SECRET_KEY,
+        bucket: process.env.S3_BUCKET ?? "dxos-data",
+      })
+    : null;
 
 // Thứ tự các công đoạn của chuỗi sản xuất gốm/thủ công.
 const STAGES = ["nguyen-lieu", "so-che", "tao-hinh", "nung-hoan-thien", "kiem-dinh", "dong-goi", "phan-phoi"];
@@ -223,56 +236,24 @@ async function createProduct(body, user) {
   return getProduct(code);
 }
 
-/**
- * Bằng chứng IoT gắn vào công đoạn nung: số liệu cảm biến lò trong khoảng thời gian nung.
- * Giao diện đọc dữ liệu thô từ MinIO (kèm JWT), tóm tắt rồi gửi lên; dịch vụ này chỉ kiểm tra hình dạng và giới hạn.
- */
-function parseIot(v) {
-  if (v === undefined || v === null) return null;
-  if (typeof v !== "object" || Array.isArray(v)) throw new HttpError(400, "iot phải là một đối tượng");
-  const num = (x, f, limit = 100000) => {
-    if (typeof x !== "number" || !Number.isFinite(x) || Math.abs(x) > limit) throw new HttpError(400, `iot.${f} không hợp lệ`);
-    return x;
-  };
-  const time = (x, f) => {
-    const t = typeof x === "string" ? Date.parse(x) : NaN;
-    if (Number.isNaN(t)) throw new HttpError(400, `iot.${f} không phải thời gian hợp lệ`);
-    return t;
-  };
-  const from = time(v.from, "from");
-  const to = time(v.to, "to");
-  if (to <= from) throw new HttpError(400, "iot.to phải sau iot.from");
-  if (to - from > 72 * 3600 * 1000) throw new HttpError(400, "Khoảng thời gian nung tối đa 72 giờ");
-  if (to > Date.now() + 5 * 60 * 1000) throw new HttpError(400, "iot.to không được ở tương lai");
-  const count = num(v.count, "count");
-  if (!Number.isInteger(count) || count < 1) throw new HttpError(400, "iot.count phải là số nguyên dương");
-  if (!Array.isArray(v.curve) || v.curve.length < 1 || v.curve.length > 60) throw new HttpError(400, "iot.curve cần 1-60 điểm");
-  const curve = v.curve.map((p) => {
-    if (!Array.isArray(p) || p.length !== 2) throw new HttpError(400, "iot.curve sai định dạng [thời gian, giá trị]");
-    return [num(p[0], "curve.t", 1e14), num(p[1], "curve.v")];
-  });
-  return {
-    deviceId: str(v.deviceId, 60, "iot.deviceId", true),
-    deviceName: str(v.deviceName, 100, "iot.deviceName"),
-    metric: str(v.metric, 30, "iot.metric", true),
-    unit: str(v.unit, 10, "iot.unit"),
-    from: new Date(from).toISOString(),
-    to: new Date(to).toISOString(),
-    count,
-    min: num(v.min, "min"),
-    avg: num(v.avg, "avg"),
-    max: num(v.max, "max"),
-    curve,
-  };
-}
-
 async function addEvent(code, body, user) {
   const stage = str(body.stage, 40, "stage", true);
   if (!STAGES.includes(stage)) throw new HttpError(400, `Công đoạn không hợp lệ. Hợp lệ: ${STAGES.join(", ")}`);
   const note = str(body.note, 1000, "note");
   const location = str(body.location, 200, "location");
-  const iot = parseIot(body.iot);
-  if (iot && stage !== "nung-hoan-thien") throw new HttpError(400, "Chỉ gắn dữ liệu IoT vào công đoạn nung-hoan-thien");
+  let iot = null;
+  if (body.iot !== undefined && body.iot !== null) {
+    if (stage !== "nung-hoan-thien") throw new HttpError(400, "Chỉ gắn dữ liệu IoT vào công đoạn nung-hoan-thien");
+    if (!s3) throw new HttpError(503, "Chưa cấu hình tài khoản đọc MinIO cho trace-api (S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY)");
+    const win = parseWindow(body.iot); // chỉ nhận { deviceId, from, to }; số liệu do máy chủ tự đọc và tính
+    try {
+      iot = await buildEvidence(win, s3);
+    } catch (e) {
+      if (e instanceof IotError) throw new HttpError(e.status, e.message);
+      console.error("[trace-api] lỗi đọc dữ liệu IoT:", e.message);
+      throw new HttpError(502, "Không đọc được dữ liệu cảm biến từ MinIO");
+    }
+  }
   const { rows } = await pool.query("SELECT id FROM products WHERE lower(code) = lower($1)", [code]);
   if (!rows.length) throw new HttpError(404, "Không tìm thấy sản phẩm");
   await pool.query("INSERT INTO trace_events (product_id, stage, note, location, actor, iot) VALUES ($1,$2,$3,$4,$5,$6)", [
