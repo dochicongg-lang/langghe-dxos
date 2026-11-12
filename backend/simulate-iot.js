@@ -32,8 +32,8 @@ const cfg = {
   post: Boolean(args.post),
   keycloakUrl: process.env.KEYCLOAK_URL ?? `http://localhost:${process.env.KEYCLOAK_PORT ?? 8080}`,
   realm: process.env.KEYCLOAK_REALM ?? "dxos",
-  clientId: process.env.KEYCLOAK_CLIENT_ID ?? "dxos-api",
-  clientSecret: process.env.KEYCLOAK_CLIENT_SECRET ?? "",
+  clientId: process.env.KEYCLOAK_IOT_CLIENT_ID ?? "dxos-iot", // client riêng của thiết bị: chỉ có role iot-writer
+  clientSecret: process.env.KEYCLOAK_IOT_CLIENT_SECRET ?? "",
   gatewayHost: process.env.GATEWAY_HOST ?? "localhost",
   gatewayPort: Number(process.env.APISIX_GATEWAY_PORT ?? 9080),
   s3Host: process.env.S3_HOST ?? "s3.localhost",
@@ -153,7 +153,7 @@ function createUploader() {
 }
 
 async function getJwt() {
-  if (!cfg.clientSecret) throw new Error("thiếu KEYCLOAK_CLIENT_SECRET (đặt trong .env)");
+  if (!cfg.clientSecret) throw new Error("thiếu KEYCLOAK_IOT_CLIENT_SECRET (đặt trong .env; client thiết bị tạo bởi scripts/setup-keycloak-roles.sh)");
   const res = await fetch(`${cfg.keycloakUrl}/realms/${cfg.realm}/protocol/openid-connect/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },

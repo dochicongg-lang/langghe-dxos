@@ -165,7 +165,7 @@ Trang quản trị MinIO (xem tệp bằng giao diện): http://localhost:9001. 
 | `docker: command not found` | Chưa cài hoặc chưa mở Docker Desktop | Cài/mở Docker Desktop, mở lại terminal |
 | Trang web: "Không thể đăng nhập" | Keycloak chưa sẵn sàng | Chờ `docker compose ps` báo `(healthy)` rồi tải lại trang |
 | `[iot] ghi MinIO thất bại: STS 400 ... aud` hoặc `STS 4xx` | Realm Keycloak cũ, thiếu cấu hình mới | Xem mục "Cập nhật realm" bên dưới |
-| Simulator: `Keycloak trả về 401 khi lấy token` | Sai `KEYCLOAK_CLIENT_SECRET` | Đảm bảo `.env` khớp `.env.example` |
+| Simulator: `Keycloak trả về 401 khi lấy token` hoặc `thiếu KEYCLOAK_IOT_CLIENT_SECRET` | Thiếu hoặc sai `KEYCLOAK_IOT_CLIENT_ID/SECRET`, hoặc chưa tạo client thiết bị | Đảm bảo `.env` khớp `.env.example`, rồi chạy `bash scripts/setup-keycloak-roles.sh` |
 | Intelligence: "Không đọc được dữ liệu: Failed to fetch" | Route S3 chưa tạo, hoặc `s3.localhost` không phân giải được | Chạy lại bước 4; dùng Chrome/Edge (tự hiểu `*.localhost`) |
 | Cổng đã bị chiếm (port is already allocated) | Chương trình khác dùng cổng 8080/9080/9000/5432 | Tắt chương trình đó hoặc đổi cổng trong `.env` |
 | `bash: ... not found` khi chạy script | Không dùng Git Bash | Mở Git Bash rồi chạy lại |
@@ -210,9 +210,33 @@ Trang chỉ hiện thông tin được phép công bố: **không** có tên ng�
 |---|---|---|
 | Chưa đăng nhập | Không (401), chỉ dùng được trang `/verify/...` | Không |
 | Có role `readonly` | Có | Không (403) |
-| Có role `readwrite` (như `tester`) | Có | Có |
+| Có role `editor` (như `tester`) | Có | Có |
+| Thiết bị IoT (role `iot-writer`, client `dxos-iot`) | Không (403) | Không (403) |
 
 Role gán cho người dùng trong Keycloak (http://localhost:8080, đăng nhập `admin`/`admin`, realm **dxos** → Users → Role mapping).
+
+**Dữ liệu cảm biến (thư mục `iot/` trong MinIO) có quyền riêng**, tách khỏi quyền ghi dữ liệu ứng dụng:
+
+| Ai | Đọc `iot/` | Ghi/xóa trong `iot/` | Ghi dữ liệu ứng dụng ngoài `iot/` |
+|---|---|---|---|
+| `editor` (nhân viên) | Có | **Không** (không thể giả mạo hay xóa số liệu cảm biến) | Có |
+| `readonly` | Có | Không | Không |
+| `iot-writer` (thiết bị, client `dxos-iot`) | Không | **Chỉ ghi mới** | Không |
+
+Nhờ đó, bằng chứng nhiệt độ lò trên trang `/verify` không thể bị nhân viên sửa. Thiết bị dùng client Keycloak riêng `dxos-iot`
+(khóa `KEYCLOAK_IOT_CLIENT_SECRET` trong `.env`), mỗi gateway xưởng nên có client riêng để có thể thu hồi độc lập.
+Token của thiết bị cũng bị cổng gác chặn ở API Workflow và API truy xuất nguồn gốc.
+
+**Nếu bạn đã chạy hệ thống từ trước** (realm Keycloak cũ, role cũ `readwrite`): thêm `KEYCLOAK_IOT_CLIENT_ID=dxos-iot` và
+`KEYCLOAK_IOT_CLIENT_SECRET=...` vào `.env` (xem `.env.example`), rồi chạy lần lượt (không cần xóa dữ liệu):
+
+```bash
+docker compose up -d
+bash scripts/setup-keycloak-roles.sh
+bash scripts/setup-apisix-routes.sh
+```
+
+Sau đó **đăng xuất rồi đăng nhập lại** trên web để nhận token có role mới. Kiểm tra việc tách quyền bằng `bash scripts/check-iot-permissions.sh` (cuối dòng phải thấy `TẤT CẢ ĐẠT`).
 
 ### 11d. Thử bằng dòng lệnh (tùy chọn)
 

@@ -8,10 +8,10 @@
  * - Dữ liệu lưu ở PostgreSQL (database riêng "traceability", tự tạo khi khởi động).
  *
  * Tuyến (APISIX bỏ tiền tố /api/trace hoặc /api/public/trace):
- *   GET  /products                  danh sách sản phẩm            (đăng nhập)
- *   POST /products                  tạo sản phẩm                  (role readwrite)
- *   GET  /products/:code            chi tiết + dòng thời gian     (đăng nhập)
- *   POST /products/:code/events     thêm công đoạn                (role readwrite; công đoạn nung có thể kèm iot:{deviceId,from,to},
+ *   GET  /products                  danh sách sản phẩm            (role editor hoặc readonly)
+ *   POST /products                  tạo sản phẩm                  (role editor)
+ *   GET  /products/:code            chi tiết + dòng thời gian     (role editor hoặc readonly)
+ *   POST /products/:code/events     thêm công đoạn                (role editor; công đoạn nung có thể kèm iot:{deviceId,from,to},
  *                                                                  máy chủ tự đọc MinIO và tính tóm tắt)
  *   GET  /public/:code              tra cứu công khai cho người mua (không cần đăng nhập, ẩn thông tin nội bộ)
  *   GET  /healthz                   kiểm tra sống
@@ -19,6 +19,7 @@
 
 const http = require("node:http");
 const { Pool, Client } = require("pg");
+const { canRead, canWrite } = require("./roles");
 const { IotError, parseWindow, createS3Client, buildEvidence } = require("./iot");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -178,8 +179,12 @@ function getUser(req) {
   }
 }
 
+function requireReader(user) {
+  if (!canRead(user.roles)) throw new HttpError(403, "Cần vai trò editor hoặc readonly để xem dữ liệu này");
+}
+
 function requireWriter(user) {
-  if (!user.roles.includes("readwrite")) throw new HttpError(403, "Cần quyền readwrite để thực hiện thao tác này");
+  if (!canWrite(user.roles)) throw new HttpError(403, "Cần vai trò editor để thực hiện thao tác này");
 }
 
 const str = (v, max, field, required = false) => {
@@ -274,6 +279,7 @@ async function route(req, res) {
 
   if (parts[0] === "products") {
     const user = getUser(req);
+    requireReader(user); // token thiết bị (iot-writer) không đọc được dữ liệu nghiệp vụ
     if (parts.length === 1 && m === "GET") return send(res, 200, { stages: STAGES, products: await listProducts() });
     if (parts.length === 1 && m === "POST") {
       requireWriter(user);

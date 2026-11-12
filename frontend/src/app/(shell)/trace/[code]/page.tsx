@@ -16,7 +16,7 @@ const inputCls =
 function Product() {
   const { code } = useParams<{ code: string }>();
   const { apiFetch, user } = useAuth();
-  const canWrite = user.roles.includes("readwrite");
+  const canWrite = user.roles.includes("editor");
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
