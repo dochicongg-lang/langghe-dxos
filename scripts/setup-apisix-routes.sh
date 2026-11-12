@@ -14,6 +14,12 @@ curl -fsS -X PUT "$ADMIN/routes/workflow" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @
   "name": "workflow-api",
   "uri": "/api/workflow/*",
   "plugins": {
+    "cors": {
+      "allow_origins": "${FRONTEND_ORIGIN:-http://localhost:3000}",
+      "allow_methods": "GET,POST,PUT,DELETE,OPTIONS",
+      "allow_headers": "Authorization,Content-Type",
+      "max_age": 3600
+    },
     "openid-connect": {
       "discovery": "http://keycloak:8080/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration",
       "client_id": "${KEYCLOAK_CLIENT_ID}",
