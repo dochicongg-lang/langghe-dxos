@@ -32,7 +32,8 @@ mcas() { local cred=$1; shift; docker exec -e "MC_HOST_x=http://${cred}@localhos
 root() { docker exec dxos-minio sh -c "mc alias set r http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null && $*" >/dev/null 2>&1; }
 
 B="$MINIO_BUCKET"
-FILE_DEV="iot/perm-test-device-$TS.txt"; FILE_SEED="iot/perm-test-seed-$TS.txt"
+GWDIR="service-account-$KEYCLOAK_IOT_CLIENT_ID" # thư mục riêng của gateway (policy dùng ${jwt:preferred_username})
+FILE_DEV="iot/$GWDIR/perm-test-device-$TS.txt"; FILE_SEED="iot/$GWDIR/perm-test-seed-$TS.txt"
 check() { # mô tả, kỳ vọng (ok|deny), lệnh...
   local desc=$1 want=$2; shift 2
   if "$@"; then got=ok; else got=deny; fi
@@ -43,9 +44,11 @@ root "echo seed | mc pipe r/$B/$FILE_SEED"
 docker exec dxos-minio sh -c "echo dev > /tmp/p.txt"
 
 echo "== Thiết bị (role iot-writer) =="
-check "ghi vào iot/"              ok   mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/$FILE_DEV"
+check "ghi vào thư mục của chính gateway"  ok   mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/$FILE_DEV"
 check "đọc iot/"                  deny mcas "$DEVICE_CRED" cat "x/$B/$FILE_SEED"
 check "liệt kê iot/"              deny mcas "$DEVICE_CRED" ls "x/$B/iot/"
+check "ghi vào thư mục gateway KHÁC (giả mạo)" deny mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/iot/service-account-khac/perm-test-$TS.txt"
+check "ghi trực tiếp dưới iot/ (ngoài thư mục gateway)" deny mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/iot/perm-test-root-$TS.txt"
 check "ghi ngoài iot/"            deny mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/other-$TS.txt"
 check "xóa trong iot/"            deny mcas "$DEVICE_CRED" rm "x/$B/$FILE_SEED"
 

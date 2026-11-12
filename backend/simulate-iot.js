@@ -140,7 +140,8 @@ function createUploader() {
   async function put(records) {
     const c = await getCredentials();
     const now = new Date();
-    const key = `iot/${now.toISOString().slice(0, 10)}/${now.toISOString().replace(/[:.]/g, "-")}.ndjson`;
+    // Mỗi gateway chỉ ghi được vào thư mục riêng (policy iot-writer: ${jwt:preferred_username} = service-account-<client>)
+    const key = `iot/service-account-${cfg.clientId}/${now.toISOString().slice(0, 10)}/${now.toISOString().replace(/[:.]/g, "-")}.ndjson`;
     const payload = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
     const uri = `/${cfg.bucket}/${key}`;
     const headers = signV4("PUT", uri, payload, c, now);

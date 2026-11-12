@@ -1,0 +1,8 @@
+{
+  "_doc": "Danh bạ thiết bị IoT: deviceId -> client Keycloak của gateway sở hữu thiết bị. Mỗi gateway chỉ ghi được vào iot/service-account-<client>/ trong MinIO; trace-api chỉ đọc thư mục của gateway sở hữu thiết bị. Thêm gateway: bash scripts/add-iot-gateway.sh <client>; sửa file này rồi chạy: docker compose restart trace-api",
+  "devices": {
+    "kiln-01": "dxos-iot",
+    "workshop-01": "dxos-iot",
+    "clay-store-01": "dxos-iot"
+  }
+}

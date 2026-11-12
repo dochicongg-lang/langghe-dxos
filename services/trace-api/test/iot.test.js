@@ -2,7 +2,7 @@
 // Chạy: cd services/trace-api && npm test   (dùng node:test có sẵn, không cần cài thêm gì)
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { IotError, parseWindow, keyTime, dayPrefixes, selectKeys, collectPoints, summarize, createS3Client, buildEvidence } = require("../iot");
+const { IotError, parseWindow, keyTime, folderOf, dayPrefixes, selectKeys, collectPoints, summarize, createS3Client, buildEvidence } = require("../iot");
 
 const NOW = Date.parse("2026-11-12T16:00:00Z");
 const win = (o = {}) => ({ deviceId: "kiln-01", from: "2026-11-12T15:00:00Z", to: "2026-11-12T15:30:00Z", ...o });
@@ -41,9 +41,13 @@ test("keyTime đọc thời gian từ tên tệp", () => {
   assert.ok(Number.isNaN(keyTime("iot/2026-11-12/readme.txt")));
 });
 
-test("dayPrefixes phủ qua nửa đêm UTC", () => {
-  const p = dayPrefixes(Date.parse("2026-11-12T23:00:00Z"), Date.parse("2026-11-13T01:00:00Z"));
-  assert.deepEqual(p, ["iot/2026-11-12/", "iot/2026-11-13/"]);
+test("folderOf khớp ${jwt:preferred_username} của service account trong Keycloak", () => {
+  assert.equal(folderOf("dxos-iot"), "service-account-dxos-iot");
+});
+
+test("dayPrefixes: chỉ trong thư mục của gateway, phủ qua nửa đêm UTC", () => {
+  const p = dayPrefixes(Date.parse("2026-11-12T23:00:00Z"), Date.parse("2026-11-13T01:00:00Z"), "gw1");
+  assert.deepEqual(p, ["iot/service-account-gw1/2026-11-12/", "iot/service-account-gw1/2026-11-13/"]);
 });
 
 test("selectKeys giữ tệp trong khoảng (kèm đệm phía sau) và sắp xếp", () => {
@@ -107,31 +111,49 @@ test("summarize: không có mẫu -> null", () => {
 
 test("buildEvidence: đọc từ S3 giả lập, bỏ qua số liệu tự khai, đóng dấu verifiedAt", async () => {
   const from = Date.parse("2026-11-12T15:00:00Z");
-  const key = "iot/2026-11-12/2026-11-12T15-10-00-000Z.ndjson";
+  const key = "iot/service-account-gw1/2026-11-12/2026-11-12T15-10-00-000Z.ndjson";
   const s3 = {
-    listKeys: async (prefix) => (prefix === "iot/2026-11-12/" ? [key] : []),
+    listKeys: async (prefix) => (prefix === "iot/service-account-gw1/2026-11-12/" ? [key] : []),
     getObject: async (k) => {
       assert.equal(k, key);
       return [reading(from + 60000, 1000), reading(from + 120000, 1100)].join("\n");
     },
   };
   const w = parseWindow({ ...win(), max: 99999 }, NOW);
-  const ev = await buildEvidence(w, s3);
+  const ev = await buildEvidence(w, s3, "gw1");
   assert.equal(ev.max, 1100);
   assert.equal(ev.min, 1000);
   assert.equal(ev.count, 2);
+  assert.equal(ev.gateway, "gw1");
   assert.ok(ev.verifiedAt);
+});
+
+test("buildEvidence: chỉ đọc thư mục của gateway sở hữu, số liệu giả từ gateway khác bị bỏ qua", async () => {
+  const from = Date.parse("2026-11-12T15:00:00Z");
+  const listed = [];
+  const own = "iot/service-account-gw1/2026-11-12/2026-11-12T15-10-00-000Z.ndjson";
+  const forged = "iot/service-account-gw2/2026-11-12/2026-11-12T15-10-00-000Z.ndjson"; // gw2 ghi deviceId của gw1
+  const s3 = {
+    listKeys: async (prefix) => {
+      listed.push(prefix);
+      return [own, forged].filter((k) => k.startsWith(prefix));
+    },
+    getObject: async (k) => (k === own ? reading(from + 60000, 1000) : reading(from + 60000, 9999)),
+  };
+  const ev = await buildEvidence(parseWindow(win(), NOW), s3, "gw1");
+  assert.equal(ev.max, 1000);
+  assert.ok(listed.every((p) => p.startsWith("iot/service-account-gw1/")), "không được liệt kê thư mục gateway khác: " + listed);
 });
 
 test("buildEvidence: không có dữ liệu -> 422", async () => {
   const s3 = { listKeys: async () => [], getObject: async () => "" };
-  await assert.rejects(buildEvidence(parseWindow(win(), NOW), s3), (e) => e instanceof IotError && e.status === 422);
+  await assert.rejects(buildEvidence(parseWindow(win(), NOW), s3, "gw1"), (e) => e instanceof IotError && e.status === 422);
 });
 
 test("buildEvidence: quá nhiều tệp -> 400", async () => {
   const keys = Array.from({ length: 2001 }, (_, i) => `iot/2026-11-12/2026-11-12T15-${String(10 + Math.floor(i / 60) % 20).padStart(2, "0")}-${String(i % 60).padStart(2, "0")}-000Z.ndjson`);
   const s3 = { listKeys: async () => keys, getObject: async () => "" };
-  await assert.rejects(buildEvidence(parseWindow(win(), NOW), s3), (e) => e instanceof IotError && e.status === 400);
+  await assert.rejects(buildEvidence(parseWindow(win(), NOW), s3, "gw1"), (e) => e instanceof IotError && e.status === 400);
 });
 
 test("createS3Client: ký SigV4 đúng dạng, liệt kê có phân trang", async () => {

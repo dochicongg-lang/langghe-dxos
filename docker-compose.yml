@@ -191,6 +191,9 @@ services:
       S3_BUCKET: ${MINIO_BUCKET}
       S3_ACCESS_KEY: ${TRACE_S3_USER}
       S3_SECRET_KEY: ${TRACE_S3_PASSWORD}
+      IOT_DEVICES_FILE: /app/config/iot-devices.json
+    volumes:
+      - ./config/iot-devices.json:/app/config/iot-devices.json:ro
     depends_on:
       postgres:
         condition: service_healthy

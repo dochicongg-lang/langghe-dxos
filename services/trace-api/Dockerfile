@@ -3,7 +3,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
-COPY server.js iot.js roles.js ./
+COPY server.js iot.js roles.js devices.js ./
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]

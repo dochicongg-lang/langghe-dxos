@@ -20,6 +20,7 @@
 const http = require("node:http");
 const { Pool, Client } = require("pg");
 const { canRead, canWrite } = require("./roles");
+const { loadDevices } = require("./devices");
 const { IotError, parseWindow, createS3Client, buildEvidence } = require("./iot");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -31,6 +32,9 @@ const pgBase = {
 };
 const DB_NAME = process.env.TRACE_DB ?? "traceability";
 const SEED = (process.env.TRACE_SEED ?? "true") !== "false";
+
+// Danh bạ thiết bị -> gateway sở hữu (xem devices.js). Chỉ đọc số liệu từ thư mục của gateway sở hữu thiết bị.
+const devices = loadDevices(process.env.IOT_DEVICES_FILE ?? "/app/config/iot-devices.json");
 
 // Tài khoản MinIO CHỈ ĐỌC (tiền tố iot/) để máy chủ tự đối chiếu số liệu cảm biến. Không cấu hình thì tắt tính năng IoT.
 const s3 =
@@ -251,8 +255,10 @@ async function addEvent(code, body, user) {
     if (stage !== "nung-hoan-thien") throw new HttpError(400, "Chỉ gắn dữ liệu IoT vào công đoạn nung-hoan-thien");
     if (!s3) throw new HttpError(503, "Chưa cấu hình tài khoản đọc MinIO cho trace-api (S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY)");
     const win = parseWindow(body.iot); // chỉ nhận { deviceId, from, to }; số liệu do máy chủ tự đọc và tính
+    const gateway = devices.get(win.deviceId);
+    if (!gateway) throw new HttpError(400, `Thiết bị "${win.deviceId}" chưa được đăng ký trong danh bạ thiết bị (config/iot-devices.json)`);
     try {
-      iot = await buildEvidence(win, s3);
+      iot = await buildEvidence(win, s3, gateway);
     } catch (e) {
       if (e instanceof IotError) throw new HttpError(e.status, e.message);
       console.error("[trace-api] lỗi đọc dữ liệu IoT:", e.message);

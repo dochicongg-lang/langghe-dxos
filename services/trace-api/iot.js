@@ -50,10 +50,13 @@ function keyTime(key) {
   return m ? Date.parse(`${m[1]}T${m[2]}:${m[3]}:${m[4]}.${m[5]}Z`) : NaN;
 }
 
-/** Các tiền tố ngày (UTC) mà khoảng [from, to] có thể chạm tới. */
-function dayPrefixes(from, to) {
+/** Thư mục riêng của một gateway trong MinIO: khớp policy iot-writer (${jwt:preferred_username} của service account). */
+const folderOf = (gateway) => `service-account-${gateway}`;
+
+/** Các tiền tố ngày (UTC) của MỘT gateway mà khoảng [from, to] có thể chạm tới. */
+function dayPrefixes(from, to, gateway) {
   const out = [];
-  for (let t = Math.floor(from / DAY) * DAY; t <= to + SLACK_MS; t += DAY) out.push(`iot/${new Date(t).toISOString().slice(0, 10)}/`);
+  for (let t = Math.floor(from / DAY) * DAY; t <= to + SLACK_MS; t += DAY) out.push(`iot/${folderOf(gateway)}/${new Date(t).toISOString().slice(0, 10)}/`);
   return out;
 }
 
@@ -183,16 +186,19 @@ function createS3Client({ endpoint, accessKey, secretKey, bucket, region = "us-e
   };
 }
 
-/** Đọc MinIO và dựng bằng chứng cho cửa sổ đã được parseWindow kiểm tra. */
-async function buildEvidence(win, s3) {
-  const lists = await Promise.all(dayPrefixes(win.from, win.to).map((p) => s3.listKeys(p)));
+/**
+ * Đọc MinIO và dựng bằng chứng cho cửa sổ đã được parseWindow kiểm tra.
+ * `gateway` là gateway SỞ HỮU thiết bị (tra từ danh bạ): chỉ đọc thư mục của gateway đó.
+ */
+async function buildEvidence(win, s3, gateway) {
+  const lists = await Promise.all(dayPrefixes(win.from, win.to, gateway).map((p) => s3.listKeys(p)));
   const keys = selectKeys(lists.flat(), win.from, win.to);
   if (keys.length > MAX_OBJECTS) throw new IotError(400, "Khoảng thời gian có quá nhiều dữ liệu, hãy rút ngắn lại");
   const bodies = [];
   for (let i = 0; i < keys.length; i += 20) bodies.push(...(await Promise.all(keys.slice(i, i + 20).map((k) => s3.getObject(k)))));
   const evidence = summarize(collectPoints(bodies, win.deviceId, win.from, win.to), win.deviceId, win.from, win.to);
   if (!evidence) throw new IotError(422, "Không có số liệu cảm biến của thiết bị này trong khoảng thời gian đã nhập");
-  return { ...evidence, verifiedAt: new Date().toISOString() };
+  return { ...evidence, gateway, verifiedAt: new Date().toISOString() };
 }
 
-module.exports = { IotError, parseWindow, keyTime, dayPrefixes, selectKeys, collectPoints, summarize, createS3Client, buildEvidence };
+module.exports = { IotError, parseWindow, keyTime, folderOf, dayPrefixes, selectKeys, collectPoints, summarize, createS3Client, buildEvidence };

@@ -221,11 +221,25 @@ Role gán cho người dùng trong Keycloak (http://localhost:8080, đăng nhậ
 |---|---|---|---|
 | `editor` (nhân viên) | Có | **Không** (không thể giả mạo hay xóa số liệu cảm biến) | Có |
 | `readonly` | Có | Không | Không |
-| `iot-writer` (thiết bị, client `dxos-iot`) | Không | **Chỉ ghi mới** | Không |
+| `iot-writer` (thiết bị, client `dxos-iot`) | Không | **Chỉ ghi mới, và chỉ trong thư mục riêng của gateway đó** (`iot/service-account-<client>/`) | Không |
 
 Nhờ đó, bằng chứng nhiệt độ lò trên trang `/verify` không thể bị nhân viên sửa. Thiết bị dùng client Keycloak riêng `dxos-iot`
 (khóa `KEYCLOAK_IOT_CLIENT_SECRET` trong `.env`), mỗi gateway xưởng nên có client riêng để có thể thu hồi độc lập.
 Token của thiết bị cũng bị cổng gác chặn ở API Workflow và API truy xuất nguồn gốc.
+
+**Khóa theo từng gateway:** mỗi gateway chỉ ghi được vào thư mục riêng `iot/service-account-<client>/` (MinIO tự áp dụng bằng
+biến `${jwt:preferred_username}` trong policy). Danh bạ `config/iot-devices.json` cho biết mỗi thiết bị (`kiln-01`, ...) thuộc gateway nào,
+và khi dựng bằng chứng nung, `trace-api` **chỉ đọc thư mục của gateway sở hữu thiết bị đó**. Vì vậy một gateway bị lộ khóa không giả được số liệu
+của thiết bị thuộc gateway khác, kể cả khi nó ghi bản ghi mang `deviceId` trùng vào thư mục của chính nó.
+
+Thêm một gateway mới (ví dụ xưởng thứ hai):
+
+```bash
+bash scripts/add-iot-gateway.sh dxos-iot-xuong2      # tạo client riêng, in khóa MỘT lần: lưu vào cấu hình của gateway đó
+```
+
+Rồi khai báo thiết bị của gateway trong `config/iot-devices.json` (ví dụ `"kiln-02": "dxos-iot-xuong2"`) và chạy `docker compose restart trace-api`.
+Gateway đó đăng nhập bằng `KEYCLOAK_IOT_CLIENT_ID`/`KEYCLOAK_IOT_CLIENT_SECRET` của nó. Nếu một gateway bị lộ khóa: xóa client đó trong Keycloak (Clients → xóa) là thu hồi ngay, không ảnh hưởng gateway khác.
 
 **Nếu bạn đã chạy hệ thống từ trước** (realm Keycloak cũ, role cũ `readwrite`): thêm `KEYCLOAK_IOT_CLIENT_ID=dxos-iot` và
 `KEYCLOAK_IOT_CLIENT_SECRET=...` vào `.env` (xem `.env.example`), rồi chạy lần lượt (không cần xóa dữ liệu):
@@ -236,7 +250,7 @@ bash scripts/setup-keycloak-roles.sh
 bash scripts/setup-apisix-routes.sh
 ```
 
-Sau đó **đăng xuất rồi đăng nhập lại** trên web để nhận token có role mới. Kiểm tra việc tách quyền bằng `bash scripts/check-iot-permissions.sh` (cuối dòng phải thấy `TẤT CẢ ĐẠT`).
+Bước `setup-apisix-routes.sh` cũng tự chuyển dữ liệu IoT cũ (`iot/<ngày>/`) vào thư mục của gateway mặc định, và cần `docker compose up -d --build trace-api` để nạp danh bạ thiết bị. Sau đó **đăng xuất rồi đăng nhập lại** trên web để nhận token có role mới. Kiểm tra việc tách quyền bằng `bash scripts/check-iot-permissions.sh` (cuối dòng phải thấy `TẤT CẢ ĐẠT`).
 
 ### 11d. Thử bằng dòng lệnh (tùy chọn)
 
