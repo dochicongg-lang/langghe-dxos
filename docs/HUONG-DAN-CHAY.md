@@ -30,7 +30,7 @@ simulate-iot.js  ──ghi──▶   bucket dxos-data   ◀─đọc──  Tra
 
 ## 2. Chuẩn bị file cấu hình (chỉ làm lần đầu)
 
-Mở terminal tại thư mục dự án (`langghe-dxos`):
+Mở terminal tại thư mục dự án (`langnghe-dx-os`):
 
 ```bash
 cp .env.example .env
