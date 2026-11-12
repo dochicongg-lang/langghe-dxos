@@ -1,15 +1,161 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
+import { fetchReadings, toSeries, type Reading, type Series } from "@/lib/iot";
+
+const REFRESH_MS = 10_000;
+const metricLabel: Record<string, string> = { temperature: "Nhiệt độ", humidity: "Độ ẩm" };
+
+function Sparkline({ points }: { points: { t: number; v: number }[] }) {
+  if (points.length < 2) return <div className="h-14 text-xs text-slate-400">Chưa đủ điểm để vẽ</div>;
+  const w = 240;
+  const h = 56;
+  const vs = points.map((p) => p.v);
+  const min = Math.min(...vs);
+  const max = Math.max(...vs);
+  const span = max - min || 1;
+  const path = points
+    .map((p, i) => `${(i / (points.length - 1)) * w},${h - 4 - ((p.v - min) / span) * (h - 8)}`)
+    .join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-14 w-full" preserveAspectRatio="none" role="img" aria-label="Biểu đồ xu hướng">
+      <polyline points={path} fill="none" stroke="#6366f1" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+function SeriesCard({ s }: { s: Series }) {
+  const vs = s.points.map((p) => p.v);
+  const last = s.points[s.points.length - 1];
+  const avg = vs.reduce((a, b) => a + b, 0) / vs.length;
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-sm text-slate-500">{s.deviceName}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{metricLabel[s.metric] ?? s.metric}</p>
+      <p className="mt-2 text-3xl font-bold text-slate-900">
+        {last.v.toFixed(1)}
+        <span className="ml-1 text-base font-medium text-slate-500">{s.unit}</span>
+      </p>
+      <div className="mt-3">
+        <Sparkline points={s.points} />
+      </div>
+      <dl className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+        {[
+          ["Thấp nhất", Math.min(...vs)],
+          ["Trung bình", avg],
+          ["Cao nhất", Math.max(...vs)],
+        ].map(([label, value]) => (
+          <div key={label as string} className="rounded-lg bg-slate-50 py-2">
+            <dt className="text-slate-500">{label}</dt>
+            <dd className="font-semibold text-slate-800">{(value as number).toFixed(1)}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 text-xs text-slate-400">{s.points.length} điểm · cập nhật {new Date(last.t).toLocaleTimeString("vi-VN")}</p>
+    </section>
+  );
+}
 
 export default function IntelligencePage() {
+  const [readings, setReadings] = useState<Reading[] | null>(null);
+  const [objects, setObjects] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const { readings, objects } = await fetchReadings();
+      setReadings(readings);
+      setObjects(objects);
+      setError(null);
+      setUpdatedAt(new Date());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Lỗi không xác định");
+    }
+  }, []);
+
+  useEffect(() => {
+    const first = setTimeout(() => void load(), 0);
+    const id = setInterval(() => void load(), REFRESH_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
+  }, [load]);
+
+  const series = readings ? toSeries(readings) : [];
+  const recent = readings ? [...readings].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)).slice(0, 10) : [];
+
   return (
     <>
-      <PageTitle title="Intelligence" desc="Phân tích và hỗ trợ ra quyết định từ dữ liệu IoT và quy trình." />
-      <Card title="Chưa có dữ liệu">
-        <p className="text-sm text-slate-600">
-          Màn hình này sẽ hiển thị chỉ số từ dữ liệu cảm biến (<code className="rounded bg-slate-100 px-1">backend/simulate-iot.js</code>)
-          khi pipeline dữ liệu được xây dựng.
-        </p>
-      </Card>
+      <PageTitle title="Intelligence" desc="Số liệu cảm biến IoT từ MinIO, đọc qua API Gateway bằng JWT (STS + SigV4)." />
+
+      <div className="mb-4 flex items-center justify-between text-sm text-slate-500">
+        <span>
+          {updatedAt ? `Cập nhật lúc ${updatedAt.toLocaleTimeString("vi-VN")} · ${objects} tệp · tự làm mới mỗi ${REFRESH_MS / 1000}s` : "Đang tải…"}
+        </span>
+        <button onClick={() => void load()} className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100">
+          Làm mới
+        </button>
+      </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          Không đọc được dữ liệu: {error}
+        </div>
+      )}
+
+      {readings && series.length === 0 && !error && (
+        <Card title="Chưa có dữ liệu">
+          <p className="text-sm text-slate-600">
+            Bucket chưa có số liệu. Mở một terminal khác và chạy:
+          </p>
+          <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm text-slate-100">
+            node backend/simulate-iot.js --post --interval 2000 --batch 8
+          </pre>
+          <p className="mt-3 text-sm text-slate-500">Vài chục giây sau trang sẽ tự hiện số liệu.</p>
+        </Card>
+      )}
+
+      {series.length > 0 && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {series.map((s) => (
+              <SeriesCard key={s.id} s={s} />
+            ))}
+          </div>
+
+          <div className="mt-4">
+            <Card title="10 bản ghi mới nhất">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="pb-2">Thời gian</th>
+                      <th className="pb-2">Thiết bị</th>
+                      <th className="pb-2">Chỉ số</th>
+                      <th className="pb-2 text-right">Giá trị</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {recent.map((r, i) => (
+                      <tr key={`${r.timestamp}-${r.deviceId}-${r.metric}-${i}`}>
+                        <td className="py-2 text-slate-600">{new Date(r.timestamp).toLocaleTimeString("vi-VN")}</td>
+                        <td className="py-2 text-slate-800">{r.deviceName}</td>
+                        <td className="py-2 text-slate-600">{metricLabel[r.metric] ?? r.metric}</td>
+                        <td className="py-2 text-right font-mono text-slate-800">
+                          {r.value.toFixed(1)} {r.unit}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        </>
+      )}
     </>
   );
 }
