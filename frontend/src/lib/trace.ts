@@ -18,7 +18,9 @@ export interface IotQuality {
   maxGapSec: number; // khoảng trống lớn nhất giữa hai mẫu (kể cả đầu/cuối)
   rejected: number; // mẫu ngoài khoảng giá trị hợp lý đã bị loại
   jumps: number; // số lần giá trị đổi nhanh bất thường
-  flags: string[]; // low-coverage | out-of-range | rapid-change | few-samples
+  overwritten?: number; // số tệp bị ghi đè sau khi ghi (hệ thống dùng bản ghi đầu tiên)
+  deleted?: number; // số tệp bị yêu cầu xóa (bản gốc vẫn được giữ)
+  flags: string[]; // low-coverage | out-of-range | rapid-change | few-samples | object-overwritten | object-deleted
 }
 
 /** Bằng chứng IoT gắn vào công đoạn nung: tóm tắt số liệu cảm biến lò trong khoảng thời gian nung. */

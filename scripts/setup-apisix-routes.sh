@@ -4,6 +4,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
+IOT_BUCKET="${IOT_BUCKET:-dxos-iot}"
+IOT_LOCK_MODE="${IOT_LOCK_MODE:-GOVERNANCE}"
+IOT_RETENTION_DAYS="${IOT_RETENTION_DAYS:-1825}"
+case "$IOT_LOCK_MODE" in GOVERNANCE|COMPLIANCE) ;; *) echo "IOT_LOCK_MODE phải là GOVERNANCE hoặc COMPLIANCE"; exit 1 ;; esac
+[[ "$IOT_RETENTION_DAYS" =~ ^[0-9]+$ ]] && [ "$IOT_RETENTION_DAYS" -ge 1 ] || { echo "IOT_RETENTION_DAYS phải là số ngày nguyên dương"; exit 1; }
 
 ADMIN="http://localhost:${APISIX_ADMIN_PORT}/apisix/admin"
 FLOWABLE_BASIC=$(printf '%s:%s' "$FLOWABLE_ADMIN_USER" "$FLOWABLE_ADMIN_PASSWORD" | base64 | tr -d '\n')
@@ -43,6 +48,9 @@ echo
 echo "OK: route /api/workflow/* đã được bảo vệ bằng JWT Keycloak (realm ${KEYCLOAK_REALM})."
 
 # ---- MinIO: bucket riêng tư + S3/STS trên host s3.localhost (xác thực JWT bằng MinIO OIDC) ----
+# Route S3 chặn mọi yêu cầu đổi khóa dữ liệu (?retention, ?legal-hold, ?object-lock, tiêu đề bypass-governance-retention): bản MinIO này
+# cho BẤT KỲ tài khoản STS nào (kể cả chỉ đọc) gỡ hạn khóa Governance khi gửi PutObjectRetention rỗng kèm tiêu đề bypass, bất chấp policy
+# (đã kiểm chứng). Việc đổi khóa chỉ làm bằng quản trị viên (mc trong container MinIO), không qua cổng gác.
 # Client lấy JWT từ Keycloak -> gọi STS AssumeRoleWithWebIdentity (MinIO tự xác thực JWT, claim "policy"
 # ánh xạ sang policy MinIO) -> dùng thông tin tạm thời ký SigV4 gọi S3. Gateway giữ nguyên Host và
 # đường dẫn để chữ ký hợp lệ. Cổng API của MinIO không publish ra host nên chỉ vào được qua APISIX.
@@ -50,25 +58,38 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_R
   && mc mb --ignore-existing local/$MINIO_BUCKET \
   && mc anonymous set none local/$MINIO_BUCKET"
 
+# ---- Bucket IoT có Object Lock (WORM: ghi một lần, không sửa/xóa trong thời hạn giữ) ----
+# Object Lock chỉ bật được LÚC TẠO bucket (không bật được cho bucket đã có), và kéo theo bật versioning:
+#  - mỗi tệp cảm biến ghi vào được tự động khóa $IOT_RETENTION_DAYS ngày theo chế độ $IOT_LOCK_MODE;
+#  - ghi đè cùng tên chỉ tạo phiên bản mới, phiên bản cũ vẫn còn và vẫn bị khóa; xóa thường chỉ tạo "dấu xóa";
+#  - GOVERNANCE: người thường không phá được, root vẫn gỡ được bằng đặc quyền bypass (dùng để thử/dọn dẹp);
+#    COMPLIANCE: kể cả root cũng không phá được cho đến khi hết hạn, KHÔNG hoàn tác (dùng khi triển khai thật).
+# Đổi chế độ/số ngày chỉ áp dụng cho tệp ghi SAU đó, tệp đã khóa giữ nguyên hạn cũ.
+docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
+  && mc mb --ignore-existing --with-lock local/$IOT_BUCKET \
+  && mc anonymous set none local/$IOT_BUCKET \
+  && mc retention set --default $IOT_LOCK_MODE ${IOT_RETENTION_DAYS}d local/$IOT_BUCKET >/dev/null"
+echo "OK: bucket IoT '$IOT_BUCKET' có Object Lock ($IOT_LOCK_MODE, giữ $IOT_RETENTION_DAYS ngày)."
+
 # Tài khoản MinIO CHỈ ĐỌC cho trace-api: tự đối chiếu số liệu cảm biến khi gắn bằng chứng IoT vào công đoạn nung.
-# Chỉ được GetObject và ListBucket trên tiền tố iot/ của bucket; không ghi, không xóa, không đọc phần khác.
+# Chỉ được đọc/liệt kê (kể cả các phiên bản, để phát hiện ghi đè/xóa) trên tiền tố iot/ của bucket IoT; không ghi, không xóa.
 docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
   && cat > /tmp/trace-iot-read.json <<'POLICY'
 {
   \"Version\": \"2012-10-17\",
   \"Statement\": [
-    { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/*\"] },
-    { \"Effect\": \"Allow\", \"Action\": [\"s3:ListBucket\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET\"], \"Condition\": { \"StringLike\": { \"s3:prefix\": [\"iot/*\"] } } }
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:GetObjectVersion\"], \"Resource\": [\"arn:aws:s3:::$IOT_BUCKET/iot/*\"] },
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:ListBucket\", \"s3:ListBucketVersions\"], \"Resource\": [\"arn:aws:s3:::$IOT_BUCKET\"], \"Condition\": { \"StringLike\": { \"s3:prefix\": [\"iot/*\"] } } }
   ]
 }
 POLICY
   mc admin policy create local trace-iot-read /tmp/trace-iot-read.json >/dev/null \
   && (mc admin user add local '$TRACE_S3_USER' '$TRACE_S3_PASSWORD' >/dev/null) \
   && (mc admin policy attach local trace-iot-read --user '$TRACE_S3_USER' >/dev/null 2>&1 || true)"
-echo "OK: tài khoản chỉ đọc '$TRACE_S3_USER' cho trace-api (chỉ đọc tiền tố iot/ của bucket $MINIO_BUCKET)."
+echo "OK: tài khoản chỉ đọc '$TRACE_S3_USER' cho trace-api (chỉ đọc tiền tố iot/ của bucket $IOT_BUCKET, gồm cả các phiên bản)."
 
 # Policy MinIO cho các vai trò Keycloak (claim "policy" = tên role = tên policy), tách quyền ghi dữ liệu IoT:
-#   editor      đọc/ghi mọi bucket NHƯNG bị Deny ghi/xóa trong iot/  (khác policy dựng sẵn "readwrite" cho phép tất cả)
+#   editor      đọc/ghi mọi bucket NHƯNG bị Deny mọi thao tác ghi/xóa/đổi khóa/bypass trên bucket IoT (và ghi/xóa iot/ của bucket cũ)
 #   iot-writer  chỉ PutObject vào THƯ MỤC RIÊNG của gateway: iot/${jwt:preferred_username}/* (= service-account-<client>),
 #               nên một gateway bị lộ khóa không ghi đè/giả số liệu của gateway khác; không đọc, không liệt kê
 #   readonly    dùng policy dựng sẵn của MinIO (đọc mọi bucket)
@@ -78,7 +99,8 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_R
   \"Version\": \"2012-10-17\",
   \"Statement\": [
     { \"Effect\": \"Allow\", \"Action\": [\"s3:*\"], \"Resource\": [\"arn:aws:s3:::*\"] },
-    { \"Effect\": \"Deny\", \"Action\": [\"s3:PutObject\", \"s3:DeleteObject\", \"s3:DeleteObjectVersion\", \"s3:AbortMultipartUpload\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/*\"] }
+    { \"Effect\": \"Deny\", \"Action\": [\"s3:PutObject\", \"s3:DeleteObject\", \"s3:DeleteObjectVersion\", \"s3:AbortMultipartUpload\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/*\"] },
+    { \"Effect\": \"Deny\", \"Action\": [\"s3:Put*\", \"s3:Delete*\", \"s3:Abort*\", \"s3:Bypass*\"], \"Resource\": [\"arn:aws:s3:::$IOT_BUCKET\", \"arn:aws:s3:::$IOT_BUCKET/*\"] }
   ]
 }
 POLICY
@@ -86,7 +108,7 @@ POLICY
 {
   \"Version\": \"2012-10-17\",
   \"Statement\": [
-    { \"Effect\": \"Allow\", \"Action\": [\"s3:PutObject\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/\${jwt:preferred_username}/*\"] }
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:PutObject\"], \"Resource\": [\"arn:aws:s3:::$IOT_BUCKET/iot/\${jwt:preferred_username}/*\"] }
   ]
 }
 POLICY
@@ -95,7 +117,10 @@ POLICY
 # Di chuyển dữ liệu IoT cũ (iot/<ngày>/...) vào thư mục của gateway mặc định (chỉ chạy khi còn dữ liệu cũ, chạy lặp lại an toàn)
 # (container MinIO không có grep/awk nên dùng case của shell)
 docker exec dxos-minio sh -c "mc ls local/$MINIO_BUCKET/iot/ 2>/dev/null | while read -r _a _b _c _d name; do   case \"\$name\" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)     mc mv --recursive local/$MINIO_BUCKET/iot/\$name local/$MINIO_BUCKET/iot/service-account-$KEYCLOAK_IOT_CLIENT_ID/\$name >/dev/null;; esac; done"
-echo "OK: policy MinIO 'editor' (không ghi/xóa iot/) và 'iot-writer' (chỉ ghi vào thư mục riêng của gateway)."
+# Sao chép dữ liệu IoT cũ từ bucket ứng dụng sang bucket có khóa (chỉ khi bucket IoT còn trống, nên chạy lặp lại không tạo thêm phiên bản).
+# Bản cũ trong $MINIO_BUCKET/iot/ được GIỮ NGUYÊN: hãy tự xóa sau khi đã kiểm tra bucket mới (xem docs/HUONG-DAN-CHAY.md).
+docker exec dxos-minio sh -c "if [ -z \"\$(mc ls local/$IOT_BUCKET/iot/ 2>/dev/null)\" ] && [ -n \"\$(mc ls local/$MINIO_BUCKET/iot/ 2>/dev/null)\" ]; then mc mirror local/$MINIO_BUCKET/iot local/$IOT_BUCKET/iot >/dev/null && echo '  đã sao chép dữ liệu IoT cũ sang $IOT_BUCKET'; fi"
+echo "OK: policy MinIO 'editor' (không ghi/xóa/đổi khóa bucket IoT) và 'iot-writer' (chỉ ghi vào thư mục riêng của gateway trong bucket IoT)."
 
 # Route cũ /api/storage/* (bucket public + JWT ở gateway) đã được thay thế bằng OIDC.
 curl -sS -o /dev/null -X DELETE "$ADMIN/routes/storage" -H "X-API-KEY: $APISIX_ADMIN_KEY" || true
@@ -105,6 +130,9 @@ curl -fsS -X PUT "$ADMIN/routes/s3" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JS
   "name": "s3-sts",
   "uri": "/*",
   "hosts": ["s3.localhost", "apisix"],
+  "plugins": {
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local a = ngx.req.get_uri_args(); if a['retention'] ~= nil or a['legal-hold'] ~= nil or a['object-lock'] ~= nil or ngx.req.get_headers()['x-amz-bypass-governance-retention'] ~= nil then return 403, {error = 'Khong duoc phep thay doi khoa/giu du lieu (Object Lock) qua cong nay'} end end"] }
+  },
   "upstream": { "type": "roundrobin", "pass_host": "pass", "nodes": { "minio:9000": 1 } }
 }
 JSON

@@ -4,6 +4,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { IotError, parseWindow, keyTime, folderOf, dayPrefixes, selectKeys, collectPoints, assess, summarize, createS3Client, buildEvidence } = require("../iot");
 
+// Bộ chuyển đổi cho các fake S3 kiểu cũ (chỉ có listKeys): mỗi tệp có đúng một phiên bản.
+const asVersions = (s3) => ({
+  listVersions: async (p) => (await s3.listKeys(p)).map((key) => ({ key, versionId: "v1", lastModified: 1, isDeleteMarker: false })),
+  getObject: (k, id) => s3.getObject(k, id),
+});
+
 const NOW = Date.parse("2026-11-12T16:00:00Z");
 const win = (o = {}) => ({ deviceId: "kiln-01", from: "2026-11-12T15:00:00Z", to: "2026-11-12T15:30:00Z", ...o });
 const reading = (t, v, extra = {}) =>
@@ -120,7 +126,7 @@ test("buildEvidence: đọc từ S3 giả lập, bỏ qua số liệu tự khai,
     },
   };
   const w = parseWindow({ ...win(), max: 99999 }, NOW);
-  const ev = await buildEvidence(w, s3, "gw1");
+  const ev = await buildEvidence(w, asVersions(s3), "gw1");
   assert.equal(ev.max, 1100);
   assert.equal(ev.min, 1000);
   assert.equal(ev.count, 2);
@@ -140,39 +146,59 @@ test("buildEvidence: chỉ đọc thư mục của gateway sở hữu, số li�
     },
     getObject: async (k) => (k === own ? reading(from + 60000, 1000) : reading(from + 60000, 9999)),
   };
-  const ev = await buildEvidence(parseWindow(win(), NOW), s3, "gw1");
+  const ev = await buildEvidence(parseWindow(win(), NOW), asVersions(s3), "gw1");
   assert.equal(ev.max, 1000);
   assert.ok(listed.every((p) => p.startsWith("iot/service-account-gw1/")), "không được liệt kê thư mục gateway khác: " + listed);
 });
 
 test("buildEvidence: không có dữ liệu -> 422", async () => {
   const s3 = { listKeys: async () => [], getObject: async () => "" };
-  await assert.rejects(buildEvidence(parseWindow(win(), NOW), s3, "gw1"), (e) => e instanceof IotError && e.status === 422);
+  await assert.rejects(buildEvidence(parseWindow(win(), NOW), asVersions(s3), "gw1"), (e) => e instanceof IotError && e.status === 422);
 });
 
 test("buildEvidence: quá nhiều tệp -> 400", async () => {
-  const keys = Array.from({ length: 2001 }, (_, i) => `iot/2026-11-12/2026-11-12T15-${String(10 + Math.floor(i / 60) % 20).padStart(2, "0")}-${String(i % 60).padStart(2, "0")}-000Z.ndjson`);
+  const keys = Array.from({ length: 2001 }, (_, i) => `iot/service-account-gw1/2026-11-12/2026-11-12T15-${String(Math.floor(i / 60) % 30).padStart(2, "0")}-${String(i % 60).padStart(2, "0")}-${String(i % 1000).padStart(3, "0")}Z.ndjson`);
   const s3 = { listKeys: async () => keys, getObject: async () => "" };
-  await assert.rejects(buildEvidence(parseWindow(win(), NOW), s3, "gw1"), (e) => e instanceof IotError && e.status === 400);
+  await assert.rejects(buildEvidence(parseWindow(win(), NOW), asVersions(s3), "gw1"), (e) => e instanceof IotError && e.status === 400);
 });
 
-test("createS3Client: ký SigV4 đúng dạng, liệt kê có phân trang", async () => {
+test("createS3Client: ký SigV4 đúng dạng, liệt kê phiên bản có phân trang", async () => {
   const calls = [];
   const pages = [
-    "<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>tok&amp;1</NextContinuationToken><Contents><Key>iot/a&amp;b.ndjson</Key></Contents></ListBucketResult>",
-    "<ListBucketResult><IsTruncated>false</IsTruncated><Contents><Key>iot/c.ndjson</Key></Contents></ListBucketResult>",
+    "<ListVersionsResult><IsTruncated>true</IsTruncated><NextKeyMarker>iot/a&amp;b.ndjson</NextKeyMarker><NextVersionIdMarker>vm1</NextVersionIdMarker>" +
+      "<Version><Key>iot/a&amp;b.ndjson</Key><VersionId>v2</VersionId><IsLatest>true</IsLatest><LastModified>2026-11-12T15:00:02.000Z</LastModified></Version>" +
+      "<Version><Key>iot/a&amp;b.ndjson</Key><VersionId>v1</VersionId><IsLatest>false</IsLatest><LastModified>2026-11-12T15:00:01.000Z</LastModified></Version></ListVersionsResult>",
+    "<ListVersionsResult><IsTruncated>false</IsTruncated>" +
+      "<DeleteMarker><Key>iot/c.ndjson</Key><VersionId>d1</VersionId><IsLatest>true</IsLatest><LastModified>2026-11-12T15:00:03.000Z</LastModified></DeleteMarker>" +
+      "<Version><Key>iot/c.ndjson</Key><VersionId>c1</VersionId><IsLatest>false</IsLatest><LastModified>2026-11-12T15:00:00.000Z</LastModified></Version></ListVersionsResult>",
   ];
   const fetchImpl = async (url, opts) => {
     calls.push({ url, headers: opts.headers });
     return { ok: true, status: 200, text: async () => pages[calls.length - 1] };
   };
-  const c = createS3Client({ endpoint: "http://minio:9000", accessKey: "AK", secretKey: "SK", bucket: "dxos-data", fetchImpl });
-  const keys = await c.listKeys("iot/2026-11-12/");
-  assert.deepEqual(keys, ["iot/a&b.ndjson", "iot/c.ndjson"]); // đã giải mã &amp;
+  const c = createS3Client({ endpoint: "http://minio:9000", accessKey: "AK", secretKey: "SK", bucket: "dxos-iot", fetchImpl });
+  const vs = await c.listVersions("iot/service-account-gw1/2026-11-12/");
+  assert.deepEqual(
+    vs.map((v) => [v.key, v.versionId, v.isDeleteMarker]),
+    [["iot/a&b.ndjson", "v2", false], ["iot/a&b.ndjson", "v1", false], ["iot/c.ndjson", "d1", true], ["iot/c.ndjson", "c1", false]],
+  );
+  assert.equal(vs[1].lastModified, Date.parse("2026-11-12T15:00:01.000Z"));
   assert.equal(calls.length, 2);
-  assert.match(calls[0].url, /^http:\/\/minio:9000\/dxos-data\?list-type=2&prefix=iot%2F2026-11-12%2F$/);
-  assert.match(calls[1].url, /continuation-token=tok%261/); // token đã giải mã rồi mã hóa lại đúng
+  assert.match(calls[0].url, /^http:\/\/minio:9000\/dxos-iot\?prefix=iot%2Fservice-account-gw1%2F2026-11-12%2F&versions=$/);
+  assert.match(calls[1].url, /key-marker=iot%2Fa%26b\.ndjson&prefix=.*&version-id-marker=vm1&versions=$/); // dấu phân trang đã giải mã rồi mã hóa lại đúng
   assert.match(calls[0].headers.authorization, /^AWS4-HMAC-SHA256 Credential=AK\/\d{8}\/us-east-1\/s3\/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=[0-9a-f]{64}$/);
+});
+
+test("createS3Client: getObject gửi versionId khi có, bỏ qua khi là null", async () => {
+  const urls = [];
+  const fetchImpl = async (url) => (urls.push(url), { ok: true, status: 200, text: async () => "x" });
+  const c = createS3Client({ endpoint: "http://minio:9000", accessKey: "AK", secretKey: "SK", bucket: "dxos-iot", fetchImpl });
+  await c.getObject("iot/a.ndjson", "ver-1");
+  await c.getObject("iot/a.ndjson", "null");
+  await c.getObject("iot/a.ndjson");
+  assert.match(urls[0], /\/dxos-iot\/iot\/a\.ndjson\?versionId=ver-1$/);
+  assert.doesNotMatch(urls[1], /versionId/);
+  assert.doesNotMatch(urls[2], /versionId/);
 });
 
 test("createS3Client: lỗi HTTP được ném ra", async () => {
@@ -240,7 +266,7 @@ test("buildEvidence: số liệu giả 9999 trong thư mục của chính gatewa
   const lines = range(0, 60).map((i) => reading(base + i * 1000, i === 30 ? 9999 : 900 + i));
   const s3 = { listKeys: async (p) => (p === "iot/service-account-gw1/2026-11-12/" ? [key] : []), getObject: async () => lines.join("\n") };
   const w = { deviceId: "kiln-01", from: base, to: base + 60000 };
-  const ev = await buildEvidence(w, s3, "gw1", { min: 0, max: 1400 });
+  const ev = await buildEvidence(w, asVersions(s3), "gw1", { min: 0, max: 1400 });
   assert.equal(ev.max, 960);
   assert.equal(ev.quality.rejected, 1);
   assert.ok(ev.quality.flags.includes("out-of-range"));
@@ -252,7 +278,53 @@ test("buildEvidence: toàn bộ mẫu ngoài khoảng hợp lý -> 422 nêu rõ 
   const base = Date.parse("2026-11-12T15:00:00Z");
   const s3 = { listKeys: async () => [key], getObject: async () => [reading(base + 1000, 9999), reading(base + 2000, 9998)].join("\n") };
   await assert.rejects(
-    buildEvidence({ deviceId: "kiln-01", from: base, to: base + 5000 }, s3, "gw1", { min: 0, max: 1400 }),
+    buildEvidence({ deviceId: "kiln-01", from: base, to: base + 5000 }, asVersions(s3), "gw1", { min: 0, max: 1400 }),
     (e) => e instanceof IotError && e.status === 422 && /ngoài khoảng giá trị hợp lý/.test(e.message),
   );
+});
+
+// ---------- phát hiện ghi đè / dấu xóa (Object Lock + versioning) ----------
+const PUT = (key, id, t) => ({ key, versionId: id, lastModified: t, isDeleteMarker: false });
+const DEL = (key, id, t) => ({ key, versionId: id, lastModified: t, isDeleteMarker: true });
+const KEY = "iot/service-account-gw1/2026-11-12/2026-11-12T15-00-30-000Z.ndjson";
+const WBASE = Date.parse("2026-11-12T15:00:00Z");
+const good = () => range(0, 30).map((i) => reading(WBASE + i * 1000, 900 + i)).join("\n");
+const forged = () => range(0, 30).map((i) => reading(WBASE + i * 1000, 5000 + i)).join("\n");
+const W = { deviceId: "kiln-01", from: WBASE, to: WBASE + 30000 };
+
+test("buildEvidence: tệp bị ghi đè -> đọc phiên bản GHI ĐẦU TIÊN, gắn cờ object-overwritten", async () => {
+  const read = [];
+  const s3 = {
+    // liệt kê theo thứ tự mới nhất trước (đúng như S3), nhưng code phải tự sắp theo lastModified
+    listVersions: async () => [PUT(KEY, "v2-forged", 2000), PUT(KEY, "v1-orig", 1000)],
+    getObject: async (k, id) => (read.push(id), id === "v1-orig" ? good() : forged()),
+  };
+  const ev = await buildEvidence(W, s3, "gw1", { min: 0, max: 100000 });
+  assert.deepEqual(read, ["v1-orig"], "chỉ đọc bản gốc");
+  assert.equal(ev.max, 930, "số liệu từ bản gốc, không phải bản bị ghi đè (>=5000)");
+  assert.equal(ev.quality.overwritten, 1);
+  assert.ok(ev.quality.flags.includes("object-overwritten"));
+});
+
+test("buildEvidence: tệp bị 'xóa' (dấu xóa) vẫn đọc được bản bị khóa và gắn cờ object-deleted", async () => {
+  const s3 = { listVersions: async () => [DEL(KEY, "d1", 3000), PUT(KEY, "v1", 1000)], getObject: async () => good() };
+  const ev = await buildEvidence(W, s3, "gw1");
+  assert.equal(ev.max, 930);
+  assert.equal(ev.quality.deleted, 1);
+  assert.ok(ev.quality.flags.includes("object-deleted"));
+});
+
+test("buildEvidence: tệp nguyên vẹn (một phiên bản, không dấu xóa) -> không có cờ toàn vẹn", async () => {
+  const s3 = { listVersions: async () => [PUT(KEY, "v1", 1000)], getObject: async () => good() };
+  const ev = await buildEvidence(W, s3, "gw1");
+  assert.equal(ev.quality.overwritten, 0);
+  assert.equal(ev.quality.deleted, 0);
+  assert.ok(!ev.quality.flags.includes("object-overwritten") && !ev.quality.flags.includes("object-deleted"));
+});
+
+test("buildEvidence: tệp chỉ còn dấu xóa (không còn bản nào) không làm hỏng, chỉ được đếm", async () => {
+  const other = "iot/service-account-gw1/2026-11-12/2026-11-12T15-00-10-000Z.ndjson";
+  const s3 = { listVersions: async () => [PUT(KEY, "v1", 1000), DEL(other, "d9", 2000)], getObject: async () => good() };
+  const ev = await buildEvidence(W, s3, "gw1");
+  assert.equal(ev.quality.deleted, 1);
 });

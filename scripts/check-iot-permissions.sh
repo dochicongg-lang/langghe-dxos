@@ -31,7 +31,8 @@ EDITOR_CRED=$(sts "$EDITOR_JWT"); DEVICE_CRED=$(sts "$DEVICE_JWT")
 mcas() { local cred=$1; shift; docker exec -e "MC_HOST_x=http://${cred}@localhost:9000" dxos-minio mc "$@" >/dev/null 2>&1; }
 root() { docker exec dxos-minio sh -c "mc alias set r http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null && $*" >/dev/null 2>&1; }
 
-B="$MINIO_BUCKET"
+B="${IOT_BUCKET:-dxos-iot}"   # bucket IoT có Object Lock
+A="$MINIO_BUCKET"            # bucket dữ liệu ứng dụng (không khóa)
 GWDIR="service-account-$KEYCLOAK_IOT_CLIENT_ID" # thư mục riêng của gateway (policy dùng ${jwt:preferred_username})
 FILE_DEV="iot/$GWDIR/perm-test-device-$TS.txt"; FILE_SEED="iot/$GWDIR/perm-test-seed-$TS.txt"
 check() { # mô tả, kỳ vọng (ok|deny), lệnh...
@@ -39,25 +40,54 @@ check() { # mô tả, kỳ vọng (ok|deny), lệnh...
   if "$@"; then got=ok; else got=deny; fi
   if [ "$got" = "$want" ]; then echo "PASS  $desc"; else echo "FAIL  $desc (mong đợi $want, thực tế $got)"; FAIL=1; fi
 }
+# Liệt kê các phiên bản của một đối tượng (chạy bằng root) và lấy versionId đầu tiên
+rootls() { docker exec dxos-minio sh -c "mc alias set r http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null && mc ls --versions --json r/$B/$1" 2>/dev/null; }
 
+rootout() { docker exec dxos-minio sh -c "mc alias set r http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null && $1" 2>/dev/null; }
 root "echo seed | mc pipe r/$B/$FILE_SEED"
-docker exec dxos-minio sh -c "echo dev > /tmp/p.txt"
+docker exec dxos-minio sh -c "echo dev > /tmp/p.txt; echo dev2 > /tmp/p2.txt"
+
+echo "== Cấu hình Object Lock của bucket IoT =="
+check "bucket $B có Object Lock (giữ mặc định)" ok root "mc retention info --default r/$B"
 
 echo "== Thiết bị (role iot-writer) =="
 check "ghi vào thư mục của chính gateway"  ok   mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/$FILE_DEV"
+check "ghi đè cùng tên: được phép nhưng chỉ tạo phiên bản mới" ok mcas "$DEVICE_CRED" cp /tmp/p2.txt "x/$B/$FILE_DEV"
+check "...và bản gốc vẫn còn (có ít nhất 2 phiên bản)" ok test "$(rootls "$FILE_DEV" | wc -l)" -ge 2
 check "đọc iot/"                  deny mcas "$DEVICE_CRED" cat "x/$B/$FILE_SEED"
 check "liệt kê iot/"              deny mcas "$DEVICE_CRED" ls "x/$B/iot/"
 check "ghi vào thư mục gateway KHÁC (giả mạo)" deny mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/iot/service-account-khac/perm-test-$TS.txt"
 check "ghi trực tiếp dưới iot/ (ngoài thư mục gateway)" deny mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/iot/perm-test-root-$TS.txt"
-check "ghi ngoài iot/"            deny mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/other-$TS.txt"
-check "xóa trong iot/"            deny mcas "$DEVICE_CRED" rm "x/$B/$FILE_SEED"
+check "ghi ngoài iot/ trong bucket IoT" deny mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$B/other-$TS.txt"
+check "ghi vào bucket dữ liệu ứng dụng" deny mcas "$DEVICE_CRED" cp /tmp/p.txt "x/$A/other-$TS.txt"
+check "xóa trong bucket IoT"      deny mcas "$DEVICE_CRED" rm "x/$B/$FILE_SEED"
 
 echo "== Nhân viên (role editor) =="
-check "đọc iot/"                  ok   mcas "$EDITOR_CRED" cat "x/$B/$FILE_SEED"
-check "ghi vào iot/ (giả mạo số liệu)" deny mcas "$EDITOR_CRED" cp /tmp/p.txt "x/$B/iot/perm-test-forged-$TS.txt"
-check "ghi đè tệp trong iot/"     deny mcas "$EDITOR_CRED" cp /tmp/p.txt "x/$B/$FILE_SEED"
-check "xóa trong iot/"            deny mcas "$EDITOR_CRED" rm "x/$B/$FILE_SEED"
-check "ghi ngoài iot/ (dữ liệu ứng dụng)" ok mcas "$EDITOR_CRED" cp /tmp/p.txt "x/$B/app-data/perm-test-$TS.txt"
+check "đọc bucket IoT"            ok   mcas "$EDITOR_CRED" cat "x/$B/$FILE_SEED"
+check "ghi vào bucket IoT (giả mạo số liệu)" deny mcas "$EDITOR_CRED" cp /tmp/p.txt "x/$B/iot/perm-test-forged-$TS.txt"
+check "ghi đè tệp trong bucket IoT" deny mcas "$EDITOR_CRED" cp /tmp/p.txt "x/$B/$FILE_SEED"
+check "xóa trong bucket IoT"      deny mcas "$EDITOR_CRED" rm "x/$B/$FILE_SEED"
+check "xóa bằng đặc quyền bypass" deny mcas "$EDITOR_CRED" rm --bypass "x/$B/$FILE_SEED"
+check "đổi cấu hình khóa của bucket" deny mcas "$EDITOR_CRED" retention set --default GOVERNANCE 1d "x/$B"
+check "ghi dữ liệu ứng dụng ở bucket thường" ok mcas "$EDITOR_CRED" cp /tmp/p.txt "x/$A/app-data/perm-test-$TS.txt"
+
+echo "== Đối tượng đã khóa (Object Lock) =="
+VID=$(rootls "$FILE_SEED" | sed -n 's/.*"versionId":"\([^"]*\)".*/\1/p' | head -1)
+check "có versionId của tệp thử"  ok   test -n "$VID"
+check "root xóa vĩnh viễn phiên bản còn hạn khóa (không bypass) bị từ chối" deny root "mc rm --version-id $VID r/$B/$FILE_SEED"
+
+echo "== Chống gỡ hạn khóa qua cổng gác (MinIO bản này cho mọi tài khoản STS gỡ khóa Governance bằng tiêu đề bypass) =="
+RET='<Retention xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></Retention>'
+MD5=$(printf '%s' "$RET" | openssl dgst -md5 -binary | base64)
+unlock() { # tên-vai-trò cred ; gửi PutObjectRetention rỗng + bypass qua APISIX, in mã HTTP
+  local ak sk st; IFS=: read -r ak sk st <<< "$2"
+  curl -s -o /dev/null -w "%{http_code}" -X PUT --aws-sigv4 "aws:amz:us-east-1:s3" --user "$ak:$sk" \
+    -H "x-amz-security-token: $st" -H "x-amz-bypass-governance-retention: true" -H "Content-MD5: $MD5" \
+    --data "$RET" "http://s3.localhost:${APISIX_GATEWAY_PORT}/$B/$FILE_SEED?retention"
+}
+check "editor không gỡ được hạn khóa qua cổng gác"  ok test "$(unlock editor "$EDITOR_CRED")" = 403
+check "thiết bị không gỡ được hạn khóa qua cổng gác" ok test "$(unlock device "$DEVICE_CRED")" = 403
+check "hạn khóa của tệp thử vẫn còn nguyên"         ok test -n "$(rootout "mc retention info r/$B/$FILE_SEED" | sed -n -e '/GOVERNANCE/p' -e '/COMPLIANCE/p')"
 
 echo "== API nghiệp vụ (qua APISIX) =="
 code() { curl -s -o /dev/null -w "%{http_code}" "$@"; }
@@ -68,7 +98,9 @@ check "thiết bị xem danh sách bị chặn"   ok   test "$(code -H "Authoriz
 check "thiết bị tạo sản phẩm bị chặn"    ok   test "$(code -X POST -H "Authorization: Bearer $DEVICE_JWT" -H "Content-Type: application/json" -d '{"name":"x"}' "$GW/api/trace/products")" != 201
 check "thiết bị gọi workflow bị chặn"    ok   test "$(code -H "Authorization: Bearer $DEVICE_JWT" "$GW/api/workflow/repository/process-definitions")" != 200
 
-root "mc rm --force r/$B/$FILE_DEV r/$B/$FILE_SEED r/$B/iot/perm-test-forged-$TS.txt r/$B/app-data/perm-test-$TS.txt"
+# Dọn tệp thử: bucket IoT bị khóa nên cần đặc quyền bypass (chỉ có ở chế độ GOVERNANCE).
+root "mc rm --versions --force --bypass r/$B/$FILE_DEV r/$B/$FILE_SEED; mc rm --force r/$A/app-data/perm-test-$TS.txt"
+if [ "${IOT_LOCK_MODE:-GOVERNANCE}" = COMPLIANCE ]; then echo "(COMPLIANCE: các tệp perm-test-* trong $B sẽ tồn tại đến khi hết hạn giữ, không dọn được)"; fi
 echo
 [ "$FAIL" = 0 ] && echo "TẤT CẢ ĐẠT" || echo "CÓ MỤC KHÔNG ĐẠT"
 exit "$FAIL"
