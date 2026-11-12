@@ -25,3 +25,22 @@ Mục tiêu là xây dựng một mô hình thực hành số dựa trên Khung 
 - Khởi động hệ thống: `docker compose up -d`
 - Chạy frontend: `cd frontend && npm run dev`
 - Chạy script giả lập IoT: `node backend/simulate-iot.js`
+
+## Trạng thái hiện tại (cập nhật 2026-11-12)
+Hướng dẫn chạy từng bước cho người mới: `docs/HUONG-DAN-CHAY.md`. Người dùng là người mới, cần giải thích kỹ khi hướng dẫn chạy.
+
+**Đã có (đều đã merge vào `main`):**
+- **Tầng 1** (`docker-compose.yml`, mạng `dxos-net`, project `dxos-tier1`): PostgreSQL 16, MinIO (image `pgsty/minio` vì `minio/minio` đã bị gỡ khỏi Docker Hub), Keycloak 26.6.3, Flowable 7.0.1, etcd + APISIX 3.9.0, và `trace-api` (Tầng 3). Chỉ Keycloak, APISIX, Postgres và cổng console MinIO mở ra host; Flowable, MinIO API và `trace-api` chỉ truy cập qua APISIX.
+- **Keycloak**: realm `dxos` nạp từ `keycloak/dxos-realm.json` (client `dxos-api` bí mật, `dxos-web` công khai PKCE; role `readwrite`/`readonly` xuất ra claim `policy`; user thử `tester`/`tester`). Realm **chỉ import khi chưa tồn tại**: sửa file này thì phải xóa realm hoặc `docker compose down -v` rồi lên lại.
+- **APISIX**: route nằm trong etcd, tạo bằng `bash scripts/setup-apisix-routes.sh` (chạy lại sau khi xóa volume): `/api/workflow/*` (Flowable, JWT), `/api/trace/*` (JWT), `/api/public/trace/*` (công khai, giới hạn tần suất), host `s3.localhost` (S3/STS của MinIO).
+- **MinIO OIDC**: JWT Keycloak -> STS `AssumeRoleWithWebIdentity` -> SigV4. Bucket `dxos-data` riêng tư; CORS do MinIO xử lý (không dùng plugin cors ở route S3 để tránh header trùng).
+- **Tầng 2** (`frontend/`, Next.js 16, đăng nhập `keycloak-js` PKCE): trang Human, Process (Flowable), Data (chỉ mô tả), Intelligence (đọc dữ liệu IoT từ MinIO). Giao diện tự dựng theo phong cách TailAdmin, chưa dùng template gốc.
+- **Tầng 3** (`services/trace-api`, Node + PostgreSQL database `traceability`): truy xuất nguồn gốc 7 công đoạn; ghi cần role `readwrite`; trang công khai `/verify/<mã>`.
+- **IoT**: `backend/simulate-iot.js` (4 cảm biến xưởng gốm; `--post` ghi NDJSON lên MinIO qua APISIX).
+
+**Việc còn dở / ý tưởng tiếp theo:** mã QR cho `/verify`; liên kết dữ liệu IoT vào công đoạn nung; phân quyền theo từng làng nghề; trang Data chưa tải lên/xuống tệp; quy trình Flowable thực tế (kiểm định lô hàng); README giới thiệu và CI (lint/build); đổi hết mật khẩu và khóa mẫu `change_me_*` trước khi triển khai thật; chưa thử đăng nhập SSO ở console MinIO bằng trình duyệt.
+
+**Lưu ý kỹ thuật khi làm việc:**
+- Next.js 16.4 khác bản đã biết: đọc `frontend/AGENTS.md` và `node_modules/next/dist/docs/` trước khi viết code; `useParams` phải nằm trong `<Suspense>`; không export dữ liệu dùng chung từ file `"use client"` cho server component.
+- Windows: shell là PowerShell 5.1 (không có `&&`; truyền thân PR nhiều dòng bằng `--body-file`); script `.sh` chạy bằng Git Bash. Keycloak 26 yêu cầu user có email, họ, tên mới cấp được token.
+- Quy trình git: làm trên nhánh riêng, mở PR vào `main` rồi merge; không commit `.env`, `node_modules`. Repo GitHub: `dochicongg-lang/langnghe-dx-os` (công khai).
