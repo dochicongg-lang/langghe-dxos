@@ -3,6 +3,7 @@
 // Trang tra cứu công khai cho người mua: không đăng nhập, chỉ hiện thông tin được phép công bố.
 import { useParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import KilnEvidence from "@/components/KilnEvidence";
 import { config } from "@/lib/config";
 import { fmtDate, stageLabels, type ProductDetail } from "@/lib/trace";
 
@@ -65,6 +66,7 @@ function Verify() {
                       {ev.location ? ` · ${ev.location}` : ""}
                     </p>
                     {ev.note && <p className="mt-1 text-sm text-slate-600">{ev.note}</p>}
+                    {ev.iot && <KilnEvidence iot={ev.iot} />}
                   </li>
                 ))}
               </ol>

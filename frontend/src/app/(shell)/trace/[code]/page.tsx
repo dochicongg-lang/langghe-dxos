@@ -5,7 +5,9 @@ import { useParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
-import { fmtDate, stageLabels, stageOrder, type ProductDetail } from "@/lib/trace";
+import KilnEvidence from "@/components/KilnEvidence";
+import { fetchEvidence } from "@/lib/iot";
+import { fmtDate, stageLabels, stageOrder, type IotEvidence, type ProductDetail } from "@/lib/trace";
 
 const inputCls =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500";
@@ -18,6 +20,7 @@ function Product() {
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [stage, setStage] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -40,18 +43,30 @@ function Product() {
     e.preventDefault();
     const form = e.currentTarget;
     const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
+    const { iotDevice, iotFrom, iotTo, ...fields } = data;
     setSaving(true);
     setFormError(null);
     try {
+      let iot: IotEvidence | undefined;
+      if (fields.stage === "nung-hoan-thien" && (iotFrom || iotTo)) {
+        const fromMs = Date.parse(iotFrom);
+        const toMs = Date.parse(iotTo);
+        if (Number.isNaN(fromMs) || Number.isNaN(toMs)) throw new Error("Cần nhập cả thời điểm bắt đầu và kết thúc nung.");
+        if (toMs <= fromMs) throw new Error("Thời điểm kết thúc phải sau thời điểm bắt đầu.");
+        const found = await fetchEvidence((iotDevice || "kiln-01").trim(), "temperature", fromMs, toMs);
+        if (!found) throw new Error("Không có số liệu cảm biến lò trong khoảng thời gian này. Kiểm tra lại thiết bị và thời gian.");
+        iot = found;
+      }
       const res = await apiFetch(`/api/trace/products/${encodeURIComponent(code)}/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...fields, iot }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
       setProduct(body as ProductDetail);
       form.reset();
+      setStage("");
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Lỗi không xác định");
     } finally {
@@ -116,6 +131,7 @@ function Product() {
                       {ev.actor ? ` · ghi bởi ${ev.actor}` : ""}
                     </p>
                     {ev.note && <p className="mt-1 text-sm text-slate-600">{ev.note}</p>}
+                    {ev.iot && <KilnEvidence iot={ev.iot} />}
                   </li>
                 ))}
               </ol>
@@ -151,7 +167,7 @@ function Product() {
               <form onSubmit={onAddEvent} className="space-y-3">
                 <label className="block text-sm">
                   <span className="mb-1 block text-slate-600">Công đoạn *</span>
-                  <select name="stage" required className={inputCls} defaultValue="">
+                  <select name="stage" required className={inputCls} value={stage} onChange={(e) => setStage(e.target.value)}>
                     <option value="" disabled>
                       Chọn công đoạn…
                     </option>
@@ -162,6 +178,26 @@ function Product() {
                     ))}
                   </select>
                 </label>
+                {stage === "nung-hoan-thien" && (
+                  <fieldset className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-3">
+                    <legend className="px-1 text-xs font-medium text-indigo-700">Gắn dữ liệu cảm biến lò (tùy chọn)</legend>
+                    <label className="block text-sm">
+                      <span className="mb-1 block text-slate-600">Mã thiết bị</span>
+                      <input name="iotDevice" maxLength={60} defaultValue="kiln-01" className={inputCls} />
+                    </label>
+                    <label className="block text-sm">
+                      <span className="mb-1 block text-slate-600">Bắt đầu nung</span>
+                      <input name="iotFrom" type="datetime-local" className={inputCls} />
+                    </label>
+                    <label className="block text-sm">
+                      <span className="mb-1 block text-slate-600">Kết thúc nung</span>
+                      <input name="iotTo" type="datetime-local" className={inputCls} />
+                    </label>
+                    <p className="text-xs text-slate-500">
+                      Hệ thống đọc nhiệt độ lò trong khoảng này từ MinIO và đính kèm đường cong nhiệt vào công đoạn. Bỏ trống nếu không cần.
+                    </p>
+                  </fieldset>
+                )}
                 <label className="block text-sm">
                   <span className="mb-1 block text-slate-600">Địa điểm</span>
                   <input name="location" maxLength={200} className={inputCls} placeholder="Xưởng tạo hình" />
