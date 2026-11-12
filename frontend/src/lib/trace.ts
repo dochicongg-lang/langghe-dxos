@@ -12,11 +12,27 @@ export const stageLabels: Record<string, string> = {
 
 export const stageOrder = Object.keys(stageLabels);
 
+/** Bằng chứng IoT gắn vào công đoạn nung: tóm tắt số liệu cảm biến lò trong khoảng thời gian nung. */
+export interface IotEvidence {
+  deviceId: string;
+  deviceName: string;
+  metric: string;
+  unit: string;
+  from: string; // ISO
+  to: string; // ISO
+  count: number; // số mẫu đo
+  min: number;
+  avg: number;
+  max: number;
+  curve: [number, number][]; // [thời gian ms, giá trị], tối đa 60 điểm
+}
+
 export interface TraceEvent {
   stage: string;
   note: string;
   location: string;
   actor?: string; // chỉ có ở API nội bộ, ẩn ở tra cứu công khai
+  iot?: IotEvidence | null; // chỉ có ở công đoạn nung khi đã gắn dữ liệu cảm biến
   created_at: string;
 }
 

@@ -11,7 +11,7 @@
  *   GET  /products                  danh sách sản phẩm            (đăng nhập)
  *   POST /products                  tạo sản phẩm                  (role readwrite)
  *   GET  /products/:code            chi tiết + dòng thời gian     (đăng nhập)
- *   POST /products/:code/events     thêm công đoạn                (role readwrite)
+ *   POST /products/:code/events     thêm công đoạn                (role readwrite; công đoạn nung có thể kèm "iot")
  *   GET  /public/:code              tra cứu công khai cho người mua (không cần đăng nhập, ẩn thông tin nội bộ)
  *   GET  /healthz                   kiểm tra sống
  */
@@ -69,6 +69,7 @@ async function migrate() {
       created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_events_product ON trace_events(product_id, created_at);
+    ALTER TABLE trace_events ADD COLUMN IF NOT EXISTS iot JSONB;
   `);
 }
 
@@ -194,10 +195,10 @@ async function getProduct(code, { publicView = false } = {}) {
   if (!rows.length) throw new HttpError(404, "Không tìm thấy sản phẩm");
   const p = rows[0];
   const ev = await pool.query(
-    "SELECT stage, note, location, actor, created_at FROM trace_events WHERE product_id = $1 ORDER BY created_at, id",
+    "SELECT stage, note, location, actor, iot, created_at FROM trace_events WHERE product_id = $1 ORDER BY created_at, id",
     [p.id],
   );
-  const events = ev.rows.map((e) => (publicView ? { stage: e.stage, note: e.note, location: e.location, created_at: e.created_at } : e));
+  const events = ev.rows.map((e) => (publicView ? { stage: e.stage, note: e.note, location: e.location, iot: e.iot, created_at: e.created_at } : e));
   const product = { code: p.code, name: p.name, category: p.category, village: p.village, artisan: p.artisan, created_at: p.created_at };
   if (!publicView) product.created_by = p.created_by;
   return { ...product, events };
@@ -222,15 +223,60 @@ async function createProduct(body, user) {
   return getProduct(code);
 }
 
+/**
+ * Bằng chứng IoT gắn vào công đoạn nung: số liệu cảm biến lò trong khoảng thời gian nung.
+ * Giao diện đọc dữ liệu thô từ MinIO (kèm JWT), tóm tắt rồi gửi lên; dịch vụ này chỉ kiểm tra hình dạng và giới hạn.
+ */
+function parseIot(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== "object" || Array.isArray(v)) throw new HttpError(400, "iot phải là một đối tượng");
+  const num = (x, f, limit = 100000) => {
+    if (typeof x !== "number" || !Number.isFinite(x) || Math.abs(x) > limit) throw new HttpError(400, `iot.${f} không hợp lệ`);
+    return x;
+  };
+  const time = (x, f) => {
+    const t = typeof x === "string" ? Date.parse(x) : NaN;
+    if (Number.isNaN(t)) throw new HttpError(400, `iot.${f} không phải thời gian hợp lệ`);
+    return t;
+  };
+  const from = time(v.from, "from");
+  const to = time(v.to, "to");
+  if (to <= from) throw new HttpError(400, "iot.to phải sau iot.from");
+  if (to - from > 72 * 3600 * 1000) throw new HttpError(400, "Khoảng thời gian nung tối đa 72 giờ");
+  if (to > Date.now() + 5 * 60 * 1000) throw new HttpError(400, "iot.to không được ở tương lai");
+  const count = num(v.count, "count");
+  if (!Number.isInteger(count) || count < 1) throw new HttpError(400, "iot.count phải là số nguyên dương");
+  if (!Array.isArray(v.curve) || v.curve.length < 1 || v.curve.length > 60) throw new HttpError(400, "iot.curve cần 1-60 điểm");
+  const curve = v.curve.map((p) => {
+    if (!Array.isArray(p) || p.length !== 2) throw new HttpError(400, "iot.curve sai định dạng [thời gian, giá trị]");
+    return [num(p[0], "curve.t", 1e14), num(p[1], "curve.v")];
+  });
+  return {
+    deviceId: str(v.deviceId, 60, "iot.deviceId", true),
+    deviceName: str(v.deviceName, 100, "iot.deviceName"),
+    metric: str(v.metric, 30, "iot.metric", true),
+    unit: str(v.unit, 10, "iot.unit"),
+    from: new Date(from).toISOString(),
+    to: new Date(to).toISOString(),
+    count,
+    min: num(v.min, "min"),
+    avg: num(v.avg, "avg"),
+    max: num(v.max, "max"),
+    curve,
+  };
+}
+
 async function addEvent(code, body, user) {
   const stage = str(body.stage, 40, "stage", true);
   if (!STAGES.includes(stage)) throw new HttpError(400, `Công đoạn không hợp lệ. Hợp lệ: ${STAGES.join(", ")}`);
   const note = str(body.note, 1000, "note");
   const location = str(body.location, 200, "location");
+  const iot = parseIot(body.iot);
+  if (iot && stage !== "nung-hoan-thien") throw new HttpError(400, "Chỉ gắn dữ liệu IoT vào công đoạn nung-hoan-thien");
   const { rows } = await pool.query("SELECT id FROM products WHERE lower(code) = lower($1)", [code]);
   if (!rows.length) throw new HttpError(404, "Không tìm thấy sản phẩm");
-  await pool.query("INSERT INTO trace_events (product_id, stage, note, location, actor) VALUES ($1,$2,$3,$4,$5)", [
-    rows[0].id, stage, note, location, user.name,
+  await pool.query("INSERT INTO trace_events (product_id, stage, note, location, actor, iot) VALUES ($1,$2,$3,$4,$5,$6)", [
+    rows[0].id, stage, note, location, user.name, iot,
   ]);
   return getProduct(code);
 }
