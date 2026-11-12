@@ -69,7 +69,8 @@ echo "OK: tài khoản chỉ đọc '$TRACE_S3_USER' cho trace-api (chỉ đọc
 
 # Policy MinIO cho các vai trò Keycloak (claim "policy" = tên role = tên policy), tách quyền ghi dữ liệu IoT:
 #   editor      đọc/ghi mọi bucket NHƯNG bị Deny ghi/xóa trong iot/  (khác policy dựng sẵn "readwrite" cho phép tất cả)
-#   iot-writer  chỉ PutObject vào iot/ (thiết bị); không đọc, không liệt kê
+#   iot-writer  chỉ PutObject vào THƯ MỤC RIÊNG của gateway: iot/${jwt:preferred_username}/* (= service-account-<client>),
+#               nên một gateway bị lộ khóa không ghi đè/giả số liệu của gateway khác; không đọc, không liệt kê
 #   readonly    dùng policy dựng sẵn của MinIO (đọc mọi bucket)
 docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
   && cat > /tmp/editor.json <<'POLICY'
@@ -85,13 +86,16 @@ POLICY
 {
   \"Version\": \"2012-10-17\",
   \"Statement\": [
-    { \"Effect\": \"Allow\", \"Action\": [\"s3:PutObject\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/*\"] }
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:PutObject\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/\${jwt:preferred_username}/*\"] }
   ]
 }
 POLICY
   mc admin policy create local editor /tmp/editor.json >/dev/null \
   && mc admin policy create local iot-writer /tmp/iot-writer.json >/dev/null"
-echo "OK: policy MinIO 'editor' (không ghi/xóa iot/) và 'iot-writer' (chỉ ghi iot/)."
+# Di chuyển dữ liệu IoT cũ (iot/<ngày>/...) vào thư mục của gateway mặc định (chỉ chạy khi còn dữ liệu cũ, chạy lặp lại an toàn)
+# (container MinIO không có grep/awk nên dùng case của shell)
+docker exec dxos-minio sh -c "mc ls local/$MINIO_BUCKET/iot/ 2>/dev/null | while read -r _a _b _c _d name; do   case \"\$name\" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)     mc mv --recursive local/$MINIO_BUCKET/iot/\$name local/$MINIO_BUCKET/iot/service-account-$KEYCLOAK_IOT_CLIENT_ID/\$name >/dev/null;; esac; done"
+echo "OK: policy MinIO 'editor' (không ghi/xóa iot/) và 'iot-writer' (chỉ ghi vào thư mục riêng của gateway)."
 
 # Route cũ /api/storage/* (bucket public + JWT ở gateway) đã được thay thế bằng OIDC.
 curl -sS -o /dev/null -X DELETE "$ADMIN/routes/storage" -H "X-API-KEY: $APISIX_ADMIN_KEY" || true

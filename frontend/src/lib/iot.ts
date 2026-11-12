@@ -20,7 +20,9 @@ export interface Series {
 
 /** Đọc các tệp NDJSON mới nhất do backend/simulate-iot.js ghi vào MinIO. */
 export async function fetchReadings(maxObjects = 30): Promise<{ readings: Reading[]; objects: number }> {
-  const keys = (await s3ListKeys(config.iotBucket, "iot/")).sort().slice(-maxObjects);
+  // Tệp nằm trong iot/<gateway>/<ngày>/<thời gian>.ndjson: sắp xếp theo tên tệp (thời gian) để lấy đúng các tệp mới nhất của mọi gateway
+  const base = (k: string) => k.slice(k.lastIndexOf("/") + 1);
+  const keys = (await s3ListKeys(config.iotBucket, "iot/")).sort((a, b) => base(a).localeCompare(base(b))).slice(-maxObjects);
   const bodies = await Promise.all(keys.map((k) => s3Get(`/${config.iotBucket}/${k}`)));
   const readings: Reading[] = [];
   for (const body of bodies) {
