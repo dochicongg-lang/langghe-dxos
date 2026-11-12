@@ -19,6 +19,16 @@ ensure_role() { # tên, mô tả
   fi
 }
 
+ensure_user() { # tên, mật khẩu, vai trò (user thử cho môi trường phát triển)
+  local u="$1" pw="$2" role="$3"
+  if [ -z "$(kc get users -r "$R" -q "username=$u" --fields id --format csv --noquotes | tr -d '\r')" ]; then
+    kc create users -r "$R" -s "username=$u" -s enabled=true -s emailVerified=true -s "email=$u@dxos.local" \
+      -s "firstName=$u" -s "lastName=User" >/dev/null
+    kc set-password -r "$R" --username "$u" --new-password "$pw"
+  fi
+  kc add-roles -r "$R" --uusername "$u" --rolename "$role"
+}
+
 # Tạo (hoặc cập nhật khóa của) client gateway IoT: service account, chỉ có role iot-writer.
 # Token có audience = client của MinIO/APISIX và claim "policy"; MinIO chỉ cho ghi vào iot/service-account-<client>/.
 ensure_iot_client() { # clientId, secret

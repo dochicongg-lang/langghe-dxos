@@ -1,8 +1,23 @@
 {
-  "_doc": "Danh bạ thiết bị IoT: deviceId -> client Keycloak của gateway sở hữu thiết bị. Mỗi gateway chỉ ghi được vào iot/service-account-<client>/ trong MinIO; trace-api chỉ đọc thư mục của gateway sở hữu thiết bị. Thêm gateway: bash scripts/add-iot-gateway.sh <client>; sửa file này rồi chạy: docker compose restart trace-api",
+  "_doc": "Danh bạ thiết bị IoT: deviceId -> gateway (client Keycloak) sở hữu thiết bị, kèm giới hạn hợp lý để phát hiện số liệu đáng ngờ (min/max: mẫu ngoài khoảng bị loại và báo; maxRatePerSec: tốc độ đổi tối đa, vượt thì gắn cờ). Mỗi gateway chỉ ghi được vào iot/service-account-<client>/; trace-api chỉ đọc thư mục của gateway sở hữu thiết bị. Thêm gateway: bash scripts/add-iot-gateway.sh <client>; sửa file này rồi chạy: docker compose restart trace-api",
   "devices": {
-    "kiln-01": "dxos-iot",
-    "workshop-01": "dxos-iot",
-    "clay-store-01": "dxos-iot"
+    "kiln-01": {
+      "gateway": "dxos-iot",
+      "min": 0,
+      "max": 1400,
+      "maxRatePerSec": 30
+    },
+    "workshop-01": {
+      "gateway": "dxos-iot",
+      "min": -10,
+      "max": 60,
+      "maxRatePerSec": 5
+    },
+    "clay-store-01": {
+      "gateway": "dxos-iot",
+      "min": -10,
+      "max": 60,
+      "maxRatePerSec": 5
+    }
   }
 }

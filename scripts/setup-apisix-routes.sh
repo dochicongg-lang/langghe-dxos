@@ -16,7 +16,7 @@ curl -fsS -X PUT "$ADMIN/routes/workflow" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @
   "name": "workflow-api",
   "uri": "/api/workflow/*",
   "plugins": {
-    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ok = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' or r == 'readonly' then ok = true end end end end; if not ok then return 403, {error = 'Can vai tro editor hoac readonly'} end end"] },
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ok = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' or r == 'readonly' then ok = true end end end end; if not ok then ngx.header['Access-Control-Allow-Origin'] = '${FRONTEND_ORIGIN:-http://localhost:3000}'; return 403, {error = 'Can vai tro editor hoac readonly. Neu vua doi vai tro, hay dang xuat roi dang nhap lai.'} end end"] },
     "cors": {
       "allow_origins": "${FRONTEND_ORIGIN:-http://localhost:3000}",
       "allow_methods": "GET,POST,PUT,DELETE,OPTIONS",
@@ -120,7 +120,7 @@ curl -fsS -X PUT "$ADMIN/routes/trace" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <
   "name": "trace-api",
   "uri": "/api/trace/*",
   "plugins": {
-    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ok = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' or r == 'readonly' then ok = true end end end end; if not ok then return 403, {error = 'Can vai tro editor hoac readonly'} end end"] },
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ok = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' or r == 'readonly' then ok = true end end end end; if not ok then ngx.header['Access-Control-Allow-Origin'] = '${FRONTEND_ORIGIN:-http://localhost:3000}'; return 403, {error = 'Can vai tro editor hoac readonly. Neu vua doi vai tro, hay dang xuat roi dang nhap lai.'} end end"] },
     "cors": {
       "allow_origins": "${CORS_ORIGIN}",
       "allow_methods": "GET,POST,OPTIONS",

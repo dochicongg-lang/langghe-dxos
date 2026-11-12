@@ -23,6 +23,7 @@ ensure_role iot-writer "Thiết bị IoT: chỉ ghi (PutObject) vào thư mục 
 ensure_iot_client "$KEYCLOAK_IOT_CLIENT_ID" "$KEYCLOAK_IOT_CLIENT_SECRET"
 
 kc add-roles -r "$R" --uusername tester --rolename editor
+ensure_user viewer viewer readonly # user thử chỉ xem (đổi/xóa trước khi triển khai thật)
 
 # Gỡ quyền cũ: `readwrite` (MinIO đọc/ghi mọi thứ, gồm cả iot/) không còn dùng
 for u in tester "service-account-$KEYCLOAK_CLIENT_ID"; do

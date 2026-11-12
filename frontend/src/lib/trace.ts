@@ -12,6 +12,15 @@ export const stageLabels: Record<string, string> = {
 
 export const stageOrder = Object.keys(stageLabels);
 
+/** Chất lượng số liệu cảm biến trong khoảng nung (máy chủ tự đánh giá). */
+export interface IotQuality {
+  coverage: number; // 0..1: tỷ lệ thời gian nung có dữ liệu liên tục
+  maxGapSec: number; // khoảng trống lớn nhất giữa hai mẫu (kể cả đầu/cuối)
+  rejected: number; // mẫu ngoài khoảng giá trị hợp lý đã bị loại
+  jumps: number; // số lần giá trị đổi nhanh bất thường
+  flags: string[]; // low-coverage | out-of-range | rapid-change | few-samples
+}
+
 /** Bằng chứng IoT gắn vào công đoạn nung: tóm tắt số liệu cảm biến lò trong khoảng thời gian nung. */
 export interface IotEvidence {
   deviceId: string;
@@ -25,6 +34,8 @@ export interface IotEvidence {
   avg: number;
   max: number;
   curve: [number, number][]; // [thời gian ms, giá trị], tối đa 60 điểm
+  gateway?: string; // gateway (client Keycloak) sở hữu thiết bị
+  quality?: IotQuality; // chất lượng số liệu do máy chủ đánh giá
   verifiedAt?: string; // thời điểm máy chủ tự đối chiếu với dữ liệu cảm biến trên MinIO
 }
 

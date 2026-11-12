@@ -1,5 +1,13 @@
 import type { IotEvidence } from "@/lib/trace";
 
+const flagText = (flag: string, q: NonNullable<IotEvidence["quality"]>) =>
+  ({
+    "low-coverage": `Dữ liệu có nhiều khoảng trống (độ phủ ${Math.round(q.coverage * 100)}%): cảm biến có thể đã mất kết nối trong lúc nung.`,
+    "out-of-range": `${q.rejected} mẫu nằm ngoài khoảng giá trị hợp lý nên đã bị loại.`,
+    "rapid-change": `${q.jumps} lần giá trị đổi nhanh bất thường.`,
+    "few-samples": "Quá ít mẫu đo để đánh giá.",
+  })[flag] ?? flag;
+
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
 
@@ -49,6 +57,18 @@ export default function KilnEvidence({ iot }: { iot: IotEvidence }) {
           </div>
         ))}
       </dl>
+      {iot.quality && (
+        <>
+          <p className="mt-2 text-xs text-slate-500">
+            Độ phủ dữ liệu {Math.round(iot.quality.coverage * 100)}% · khoảng trống lớn nhất {iot.quality.maxGapSec} giây
+          </p>
+          {iot.quality.flags.map((f) => (
+            <p key={f} className="mt-1 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
+              ⚠ {flagText(f, iot.quality!)}
+            </p>
+          ))}
+        </>
+      )}
       {iot.verifiedAt && (
         <p className="mt-2 text-xs font-medium text-emerald-700">✓ Máy chủ đã đối chiếu với dữ liệu cảm biến lưu trên hệ thống</p>
       )}

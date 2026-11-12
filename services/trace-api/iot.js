@@ -125,6 +125,66 @@ function summarize(pts, deviceId, from, to) {
   };
 }
 
+const COVERAGE_MIN = 0.8; // dưới mức này thì gắn cờ "low-coverage"
+const GAP_TOLERANCE = 3; // khoảng cách giữa hai mẫu lớn hơn 3 lần khoảng cách điển hình (trung vị) được xem là mất dữ liệu
+
+const median = (a) => {
+  const s = [...a].sort((x, y) => x - y);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+/**
+ * Đánh giá chất lượng số liệu trước khi dùng làm bằng chứng:
+ *  - loại mẫu ngoài khoảng [min, max] của thiết bị (đếm vào `rejected`);
+ *  - độ phủ: tỷ lệ thời gian nung có dữ liệu liên tục (khoảng trống > 3 lần khoảng cách điển hình bị trừ);
+ *  - khoảng trống lớn nhất (kể cả đầu và cuối cửa sổ), số lần đổi nhanh quá maxRatePerSec;
+ *  - cờ: out-of-range, rapid-change, low-coverage, few-samples.
+ * Không loại mẫu vì đổi nhanh hay thiếu dữ liệu, chỉ gắn cờ để người xem tự đánh giá.
+ */
+function assess(pts, from, to, limits = {}) {
+  const { min = -Infinity, max = Infinity, maxRatePerSec = Infinity } = limits;
+  const accepted = pts.filter((p) => p.v >= min && p.v <= max);
+  const rejected = pts.length - accepted.length;
+  const duration = to - from;
+
+  const times = accepted.map((p) => p.t);
+  const gaps = [];
+  if (times.length) {
+    gaps.push(times[0] - from);
+    for (let i = 1; i < times.length; i++) gaps.push(times[i] - times[i - 1]);
+    gaps.push(to - times[times.length - 1]);
+  } else {
+    gaps.push(duration);
+  }
+  const typical = times.length >= 2 ? median(gaps.slice(1, -1)) : null;
+  const tolerated = typical === null ? 0 : typical * GAP_TOLERANCE;
+  const lost = gaps.reduce((a, g) => a + Math.max(0, g - tolerated), 0);
+  const coverage = typical === null ? 0 : Math.min(1, Math.max(0, 1 - lost / duration));
+
+  let jumps = 0;
+  for (let i = 1; i < accepted.length; i++) {
+    const dt = (accepted[i].t - accepted[i - 1].t) / 1000;
+    if (dt > 0 && Math.abs(accepted[i].v - accepted[i - 1].v) / dt > maxRatePerSec) jumps++;
+  }
+
+  const flags = [];
+  if (accepted.length < 2) flags.push("few-samples");
+  if (rejected > 0) flags.push("out-of-range");
+  if (jumps > 0) flags.push("rapid-change");
+  if (accepted.length >= 2 && coverage < COVERAGE_MIN) flags.push("low-coverage");
+  return {
+    accepted,
+    quality: {
+      coverage: Math.round(coverage * 100) / 100,
+      maxGapSec: Math.round(Math.max(...gaps) / 1000),
+      rejected,
+      jumps,
+      flags,
+    },
+  };
+}
+
 // ---------- Truy cập MinIO bằng SigV4 (chỉ GET) ----------
 const sha256 = (d) => crypto.createHash("sha256").update(d).digest("hex");
 const hmac = (k, d) => crypto.createHmac("sha256", k).update(d).digest();
@@ -190,15 +250,20 @@ function createS3Client({ endpoint, accessKey, secretKey, bucket, region = "us-e
  * Đọc MinIO và dựng bằng chứng cho cửa sổ đã được parseWindow kiểm tra.
  * `gateway` là gateway SỞ HỮU thiết bị (tra từ danh bạ): chỉ đọc thư mục của gateway đó.
  */
-async function buildEvidence(win, s3, gateway) {
+async function buildEvidence(win, s3, gateway, limits = {}) {
   const lists = await Promise.all(dayPrefixes(win.from, win.to, gateway).map((p) => s3.listKeys(p)));
   const keys = selectKeys(lists.flat(), win.from, win.to);
   if (keys.length > MAX_OBJECTS) throw new IotError(400, "Khoảng thời gian có quá nhiều dữ liệu, hãy rút ngắn lại");
   const bodies = [];
   for (let i = 0; i < keys.length; i += 20) bodies.push(...(await Promise.all(keys.slice(i, i + 20).map((k) => s3.getObject(k)))));
-  const evidence = summarize(collectPoints(bodies, win.deviceId, win.from, win.to), win.deviceId, win.from, win.to);
-  if (!evidence) throw new IotError(422, "Không có số liệu cảm biến của thiết bị này trong khoảng thời gian đã nhập");
-  return { ...evidence, gateway, verifiedAt: new Date().toISOString() };
+  const pts = collectPoints(bodies, win.deviceId, win.from, win.to);
+  const { accepted, quality } = assess(pts, win.from, win.to, limits);
+  const evidence = summarize(accepted, win.deviceId, win.from, win.to);
+  if (!evidence) {
+    if (pts.length) throw new IotError(422, `Toàn bộ ${pts.length} mẫu nằm ngoài khoảng giá trị hợp lý của thiết bị, không dùng được làm bằng chứng`);
+    throw new IotError(422, "Không có số liệu cảm biến của thiết bị này trong khoảng thời gian đã nhập");
+  }
+  return { ...evidence, quality, gateway, verifiedAt: new Date().toISOString() };
 }
 
-module.exports = { IotError, parseWindow, keyTime, folderOf, dayPrefixes, selectKeys, collectPoints, summarize, createS3Client, buildEvidence };
+module.exports = { IotError, parseWindow, keyTime, folderOf, dayPrefixes, selectKeys, collectPoints, assess, summarize, createS3Client, buildEvidence };
