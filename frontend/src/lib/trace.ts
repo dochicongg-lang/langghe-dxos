@@ -59,6 +59,8 @@ export interface ProductSummary {
   created_at: string;
   event_count: number;
   last_stage: string | null;
+  owner?: string | null;
+  coop?: string | null;
 }
 
 export interface ProductDetail {
@@ -69,6 +71,9 @@ export interface ProductDetail {
   artisan: string;
   created_at: string;
   created_by?: string;
+  owner?: string | null; // người tạo/chủ sở hữu (chỉ ở API nội bộ)
+  coop?: string | null; // mã HTX (chỉ ở API nội bộ)
+  can_update?: boolean; // người dùng hiện tại có được thêm công đoạn cho sản phẩm này không (máy chủ tính)
   events: TraceEvent[];
 }
 

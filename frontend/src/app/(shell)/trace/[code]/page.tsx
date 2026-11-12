@@ -15,8 +15,7 @@ const inputCls =
 
 function Product() {
   const { code } = useParams<{ code: string }>();
-  const { apiFetch, user } = useAuth();
-  const canWrite = user.roles.includes("editor");
+  const { apiFetch } = useAuth();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -93,6 +92,7 @@ function Product() {
   }
   if (!product) return <p className="text-sm text-slate-500">Đang tải…</p>;
 
+  const canWrite = product.can_update === true; // máy chủ tính theo vai trò, sở hữu và HTX
   const done = new Set(product.events.map((e) => e.stage));
   const publicPath = `/verify/${encodeURIComponent(product.code)}`;
 
@@ -187,7 +187,7 @@ function Product() {
 
           <Card title="Thêm công đoạn">
             {!canWrite ? (
-              <p className="text-sm text-slate-500">Tài khoản của bạn chỉ có quyền xem.</p>
+              <p className="text-sm text-slate-500">Bạn không có quyền thêm công đoạn cho sản phẩm này (chỉ chủ sản phẩm, cán bộ cùng HTX hoặc quản trị).</p>
             ) : (
               <form onSubmit={onAddEvent} className="space-y-3">
                 <label className="block text-sm">

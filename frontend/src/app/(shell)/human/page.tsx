@@ -24,6 +24,23 @@ export default function HumanPage() {
             ))}
           </dl>
         </Card>
+        <Card title="HTX và quyền hiệu lực">
+          <p className="mb-2 text-sm text-slate-600">
+            Hợp tác xã: <span className="font-medium text-slate-800">{user.coop || "chưa thuộc HTX nào"}</span>
+          </p>
+          {Object.keys(user.permissions).length ? (
+            <ul className="space-y-1 text-sm">
+              {Object.entries(user.permissions).map(([action, scope]) => (
+                <li key={action} className="flex justify-between">
+                  <span className="font-mono text-slate-600">{action}</span>
+                  <span className="font-medium text-slate-800">{{ all: "mọi tài nguyên", coop: "cùng HTX", own: "của mình", self: "tạo cho mình" }[scope] ?? scope}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-slate-500">Chưa có quyền nghiệp vụ nào.</p>
+          )}
+        </Card>
         <Card title="Quyền (policy)">
           {user.roles.length ? (
             <ul className="flex flex-wrap gap-2">

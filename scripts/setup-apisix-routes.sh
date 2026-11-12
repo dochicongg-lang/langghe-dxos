@@ -15,6 +15,14 @@ if [ "$IOT_LOCK_MODE" = COMPLIANCE ] && [ "${IOT_LOCK_CONFIRM_COMPLIANCE:-}" != 
 fi
 [[ "$IOT_RETENTION_DAYS" =~ ^[0-9]+$ ]] && [ "$IOT_RETENTION_DAYS" -ge 1 ] || { echo "IOT_RETENTION_DAYS phải là số ngày nguyên dương"; exit 1; }
 
+export MSYS_NO_PATHCONV=1 # Git Bash trên Windows: không đổi đường dẫn khi gọi docker cp/exec
+
+# Lua kiểm tra vai trò ở cổng gác và policy MinIO của các vai trò nghiệp vụ được SINH từ config/access.json (nguồn duy nhất).
+ACCESS_ORIGIN="${FRONTEND_ORIGIN:-http://localhost:3000}"
+LUA_TRACE=$(node scripts/gen-access.js lua trace "$ACCESS_ORIGIN")
+LUA_WORKFLOW=$(node scripts/gen-access.js lua workflow "$ACCESS_ORIGIN")
+[ -n "$LUA_TRACE" ] && [ -n "$LUA_WORKFLOW" ] || { echo "Không sinh được Lua từ config/access.json (cần Node.js trên máy chủ)"; exit 1; }
+
 ADMIN="http://localhost:${APISIX_ADMIN_PORT}/apisix/admin"
 FLOWABLE_BASIC=$(printf '%s:%s' "$FLOWABLE_ADMIN_USER" "$FLOWABLE_ADMIN_PASSWORD" | base64 | tr -d '\n')
 
@@ -29,7 +37,7 @@ curl -fsS -X PUT "$ADMIN/routes/workflow" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @
   "name": "workflow-api",
   "uri": "/api/workflow/*",
   "plugins": {
-    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ro = false; local ed = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' then ed = true end if r == 'readonly' then ro = true end end end end; local m = ngx.req.get_method(); local u = ngx.var.uri or ''; local o = '${FRONTEND_ORIGIN:-http://localhost:3000}'; if not (ed or ro) then ngx.header['Access-Control-Allow-Origin'] = o; return 403, {error = 'Can vai tro editor hoac readonly. Neu vua doi vai tro, hay dang xuat roi dang nhap lai.'} end; if u:find('/api/workflow/identity', 1, true) == 1 or u:find('/api/workflow/management', 1, true) == 1 then ngx.header['Access-Control-Allow-Origin'] = o; return 403, {error = 'Khong duoc phep truy cap tuyen quan tri cua workflow'} end; if m ~= 'GET' and m ~= 'HEAD' and m ~= 'OPTIONS' and not ed then ngx.header['Access-Control-Allow-Origin'] = o; return 403, {error = 'Chi vai tro editor moi duoc thay doi quy trinh'} end end"] },
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["${LUA_WORKFLOW}"] },
     "cors": {
       "allow_origins": "${FRONTEND_ORIGIN:-http://localhost:3000}",
       "allow_methods": "GET,POST,PUT,DELETE,OPTIONS",
@@ -97,22 +105,12 @@ POLICY
 echo "OK: tài khoản chỉ đọc '$TRACE_S3_USER' cho trace-api (chỉ đọc tiền tố iot/ của bucket $IOT_BUCKET, gồm cả các phiên bản)."
 
 # Policy MinIO cho các vai trò Keycloak (claim "policy" = tên role = tên policy), tách quyền ghi dữ liệu IoT:
-#   editor      đọc/ghi mọi bucket NHƯNG bị Deny mọi thao tác ghi/xóa/đổi khóa/bypass trên bucket IoT (và ghi/xóa iot/ của bucket cũ)
+#   admin, editor (bí danh tạm), producer, coop-officer, ocop-officer: SINH từ config/access.json (xem bên dưới)
 #   iot-writer  chỉ PutObject vào THƯ MỤC RIÊNG của gateway: iot/${jwt:preferred_username}/* (= service-account-<client>),
 #               nên một gateway bị lộ khóa không ghi đè/giả số liệu của gateway khác; không đọc, không liệt kê
 #   readonly    dùng policy dựng sẵn của MinIO (đọc mọi bucket)
 docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
-  && cat > /tmp/editor.json <<'POLICY'
-{
-  \"Version\": \"2012-10-17\",
-  \"Statement\": [
-    { \"Effect\": \"Allow\", \"Action\": [\"s3:*\"], \"Resource\": [\"arn:aws:s3:::*\"] },
-    { \"Effect\": \"Deny\", \"Action\": [\"s3:PutObject\", \"s3:DeleteObject\", \"s3:DeleteObjectVersion\", \"s3:AbortMultipartUpload\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/*\"] },
-    { \"Effect\": \"Deny\", \"Action\": [\"s3:Put*\", \"s3:Delete*\", \"s3:Abort*\", \"s3:Bypass*\"], \"Resource\": [\"arn:aws:s3:::$IOT_BUCKET\", \"arn:aws:s3:::$IOT_BUCKET/*\"] }
-  ]
-}
-POLICY
-  cat > /tmp/iot-writer.json <<'POLICY'
+  && cat > /tmp/iot-writer.json <<'POLICY'
 {
   \"Version\": \"2012-10-17\",
   \"Statement\": [
@@ -120,15 +118,21 @@ POLICY
   ]
 }
 POLICY
-  mc admin policy create local editor /tmp/editor.json >/dev/null \
-  && mc admin policy create local iot-writer /tmp/iot-writer.json >/dev/null"
+  mc admin policy create local iot-writer /tmp/iot-writer.json >/dev/null"
+# Policy của admin/editor và các vai trò nghiệp vụ (producer, coop-officer, ocop-officer): SINH từ config/access.json.
+# Tên policy = tên role Keycloak. Mọi policy đều Deny ghi/xóa/đổi khóa/bypass trên bucket IoT; vai trò nghiệp vụ chỉ được ĐỌC bucket IoT.
+GEN_DIR="scripts/.generated/minio-policies"
+GEN_ROLES=$(node scripts/gen-access.js minio "$GEN_DIR" "$IOT_BUCKET" "$MINIO_BUCKET")
+docker exec dxos-minio sh -c "rm -rf /tmp/policies && mkdir -p /tmp/policies"
+docker cp "$GEN_DIR/." dxos-minio:/tmp/policies/
+docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null; for f in /tmp/policies/*.json; do n=\${f##*/}; n=\${n%.json}; mc admin policy create local \"\$n\" \"\$f\" >/dev/null || exit 1; done"
 # Di chuyển dữ liệu IoT cũ (iot/<ngày>/...) vào thư mục của gateway mặc định (chỉ chạy khi còn dữ liệu cũ, chạy lặp lại an toàn)
 # (container MinIO không có grep/awk nên dùng case của shell)
 docker exec dxos-minio sh -c "mc ls local/$MINIO_BUCKET/iot/ 2>/dev/null | while read -r _a _b _c _d name; do   case \"\$name\" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)     mc mv --recursive local/$MINIO_BUCKET/iot/\$name local/$MINIO_BUCKET/iot/service-account-$KEYCLOAK_IOT_CLIENT_ID/\$name >/dev/null;; esac; done"
 # Sao chép dữ liệu IoT cũ từ bucket ứng dụng sang bucket có khóa (chỉ khi bucket IoT còn trống, nên chạy lặp lại không tạo thêm phiên bản).
 # Bản cũ trong $MINIO_BUCKET/iot/ được GIỮ NGUYÊN: hãy tự xóa sau khi đã kiểm tra bucket mới (xem docs/HUONG-DAN-CHAY.md).
 docker exec dxos-minio sh -c "if [ -z \"\$(mc ls local/$IOT_BUCKET/iot/ 2>/dev/null)\" ] && [ -n \"\$(mc ls local/$MINIO_BUCKET/iot/ 2>/dev/null)\" ]; then mc mirror local/$MINIO_BUCKET/iot local/$IOT_BUCKET/iot >/dev/null && echo '  đã sao chép dữ liệu IoT cũ sang $IOT_BUCKET'; fi"
-echo "OK: policy MinIO 'editor' (không ghi/xóa/đổi khóa bucket IoT) và 'iot-writer' (chỉ ghi vào thư mục riêng của gateway trong bucket IoT)."
+echo "OK: policy MinIO: $GEN_ROLES (sinh từ config/access.json; Deny ghi/xóa/đổi khóa bucket IoT) và 'iot-writer' (chỉ ghi vào thư mục riêng của gateway)."
 
 # Route cũ /api/storage/* (bucket public + JWT ở gateway) đã được thay thế bằng OIDC.
 curl -sS -o /dev/null -X DELETE "$ADMIN/routes/storage" -H "X-API-KEY: $APISIX_ADMIN_KEY" || true
@@ -156,7 +160,7 @@ curl -fsS -X PUT "$ADMIN/routes/trace" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <
   "name": "trace-api",
   "uri": "/api/trace/*",
   "plugins": {
-    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ok = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' or r == 'readonly' then ok = true end end end end; if not ok then ngx.header['Access-Control-Allow-Origin'] = '${FRONTEND_ORIGIN:-http://localhost:3000}'; return 403, {error = 'Can vai tro editor hoac readonly. Neu vua doi vai tro, hay dang xuat roi dang nhap lai.'} end end"] },
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["${LUA_TRACE}"] },
     "cors": {
       "allow_origins": "${CORS_ORIGIN}",
       "allow_methods": "GET,POST,OPTIONS",

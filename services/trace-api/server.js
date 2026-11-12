@@ -8,7 +8,8 @@
  * - Dữ liệu lưu ở PostgreSQL (database riêng "traceability", tự tạo khi khởi động).
  *
  * Tuyến (APISIX bỏ tiền tố /api/trace hoặc /api/public/trace):
- *   GET  /products                  danh sách sản phẩm            (role editor hoặc readonly)
+ *   GET  /me                        thông tin và quyền hiệu lực của người dùng (theo config/access.json)
+ *   GET  /products                  danh sách sản phẩm            (theo phạm vi product.read: all/coop)
  *   POST /products                  tạo sản phẩm                  (role editor)
  *   GET  /products/:code            chi tiết + dòng thời gian     (role editor hoặc readonly)
  *   POST /products/:code/events     thêm công đoạn                (role editor; công đoạn nung có thể kèm iot:{deviceId,from,to},
@@ -19,7 +20,9 @@
 
 const http = require("node:http");
 const { Pool, Client } = require("pg");
-const { canRead, canWrite } = require("./roles");
+const path = require("node:path");
+const access = require("./access");
+const { runMigrations } = require("./migrations");
 const { loadDevices } = require("./devices");
 const { IotError, parseWindow, createS3Client, buildEvidence } = require("./iot");
 
@@ -32,6 +35,9 @@ const pgBase = {
 };
 const DB_NAME = process.env.TRACE_DB ?? "traceability";
 const SEED = (process.env.TRACE_SEED ?? "true") !== "false";
+
+// Ma trận quyền (nguồn duy nhất: config/access.json, mount vào container).
+const ACCESS = access.load(process.env.ACCESS_FILE ?? "/app/config/access.json");
 
 // Danh bạ thiết bị -> gateway sở hữu (xem devices.js). Chỉ đọc số liệu từ thư mục của gateway sở hữu thiết bị.
 const devices = loadDevices(process.env.IOT_DEVICES_FILE ?? "/app/config/iot-devices.json");
@@ -66,29 +72,7 @@ async function ensureDatabase() {
 }
 
 async function migrate() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS products (
-      id          SERIAL PRIMARY KEY,
-      code        TEXT NOT NULL UNIQUE,
-      name        TEXT NOT NULL,
-      category    TEXT NOT NULL DEFAULT '',
-      village     TEXT NOT NULL DEFAULT '',
-      artisan     TEXT NOT NULL DEFAULT '',
-      created_by  TEXT NOT NULL,
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE TABLE IF NOT EXISTS trace_events (
-      id          SERIAL PRIMARY KEY,
-      product_id  INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-      stage       TEXT NOT NULL,
-      note        TEXT NOT NULL DEFAULT '',
-      location    TEXT NOT NULL DEFAULT '',
-      actor       TEXT NOT NULL,
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS idx_events_product ON trace_events(product_id, created_at);
-    ALTER TABLE trace_events ADD COLUMN IF NOT EXISTS iot JSONB;
-  `);
+  await runMigrations(pool, path.join(__dirname, "migrations"));
 }
 
 async function seed() {
@@ -139,6 +123,24 @@ async function seed() {
   console.log("[trace-api] đã nạp dữ liệu mẫu (2 sản phẩm)");
 }
 
+/** Dữ liệu miền mẫu cho demo (một HTX). Chạy lặp lại an toàn. Chỉ khi TRACE_SEED bật. */
+async function seedDomain() {
+  const { rows } = await pool.query(
+    "INSERT INTO cooperatives (code, name) VALUES ('htx-demo', $1) ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id",
+    ["Hợp tác xã làng nghề mẫu (demo)"],
+  );
+  const coopId = rows[0].id;
+  for (const v of ["Làng gốm Bát Tràng, Hà Nội", "Làng lụa Vạn Phúc, Hà Đông"]) {
+    await pool.query("INSERT INTO villages (name) VALUES ($1) ON CONFLICT (name) DO NOTHING", [v]);
+  }
+  await pool.query(
+    "INSERT INTO producers (username, display_name, type, coop_id, village_id) VALUES ('hoa', $1, 'nghe-nhan', $2, (SELECT id FROM villages WHERE name = $3)) ON CONFLICT (username) DO NOTHING",
+    ["Chị Hoa (nghệ nhân gốm Bát Tràng)", coopId, "Làng gốm Bát Tràng, Hà Nội"],
+  );
+  await pool.query("UPDATE products SET coop_id = $1 WHERE coop_id IS NULL AND created_by = 'seed'", [coopId]);
+  await pool.query("UPDATE products p SET village_id = v.id FROM villages v WHERE p.village_id IS NULL AND p.village = v.name");
+}
+
 // ---------- Tiện ích HTTP ----------
 class HttpError extends Error {
   constructor(status, message) {
@@ -177,18 +179,24 @@ function getUser(req) {
   try {
     const p = JSON.parse(Buffer.from(m[2], "base64url").toString("utf8"));
     if (p.exp && p.exp * 1000 < Date.now()) throw new Error("hết hạn");
-    return { name: p.preferred_username ?? p.sub ?? "unknown", roles: Array.isArray(p.policy) ? p.policy : [] };
+    const coop = Array.isArray(p.coop) ? p.coop[0] : p.coop;
+    return { name: p.preferred_username ?? p.sub ?? "unknown", roles: Array.isArray(p.policy) ? p.policy : [], coop: typeof coop === "string" ? coop : "" };
   } catch {
     throw new HttpError(401, "Token không hợp lệ");
   }
 }
 
-function requireReader(user) {
-  if (!canRead(user.roles)) throw new HttpError(403, "Cần vai trò editor hoặc readonly để xem dữ liệu này");
-}
-
-function requireWriter(user) {
-  if (!canWrite(user.roles)) throw new HttpError(403, "Cần vai trò editor để thực hiện thao tác này");
+/**
+ * Kiểm tra quyền theo ma trận (config/access.json). resource: { owner, coop } của tài nguyên (nếu có).
+ * Vai trò không dùng được API (ví dụ iot-writer) bị từ chối ngay.
+ */
+function requirePermission(user, action, resource = {}) {
+  if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+  if (access.authorize(ACCESS, user, action, resource)) return;
+  const scope = access.scopeFor(ACCESS, user.roles, action);
+  if (!scope) throw new HttpError(403, "Vai trò của bạn không có quyền thực hiện thao tác này");
+  if ((scope === "coop" || scope === "self") && !user.coop) throw new HttpError(403, "Tài khoản chưa thuộc HTX nào (thiếu thuộc tính coop), liên hệ quản trị");
+  throw new HttpError(403, scope === "own" ? "Chỉ được thao tác trên sản phẩm do chính bạn tạo" : "Chỉ được thao tác trên sản phẩm thuộc HTX của bạn");
 }
 
 const str = (v, max, field, required = false) => {
@@ -199,34 +207,54 @@ const str = (v, max, field, required = false) => {
 };
 
 // ---------- Xử lý nghiệp vụ ----------
-async function listProducts() {
-  const { rows } = await pool.query(`
-    SELECT p.code, p.name, p.category, p.village, p.artisan, p.created_at,
+async function listProducts(user) {
+  const scope = access.scopeFor(ACCESS, user.roles, "product.read");
+  if (!scope) throw new HttpError(403, "Vai trò của bạn không có quyền xem sản phẩm");
+  if (scope === "coop" && !user.coop) return []; // chưa thuộc HTX nào thì không thấy sản phẩm nào
+  const where = scope === "all" ? "" : "WHERE c.code = $1";
+  const { rows } = await pool.query(
+    `SELECT p.code, p.name, p.category, p.village, p.artisan, p.created_at, p.owner_username AS owner, c.code AS coop,
            count(e.id)::int AS event_count,
            (SELECT stage FROM trace_events WHERE product_id = p.id ORDER BY created_at DESC, id DESC LIMIT 1) AS last_stage
-    FROM products p LEFT JOIN trace_events e ON e.product_id = p.id
-    GROUP BY p.id ORDER BY p.created_at DESC`);
+    FROM products p LEFT JOIN trace_events e ON e.product_id = p.id LEFT JOIN cooperatives c ON c.id = p.coop_id
+    ${where}
+    GROUP BY p.id, c.code ORDER BY p.created_at DESC`,
+    scope === "all" ? [] : [user.coop],
+  );
   return rows;
 }
 
-async function getProduct(code, { publicView = false } = {}) {
+async function findProductRow(code) {
   const { rows } = await pool.query(
-    "SELECT id, code, name, category, village, artisan, created_by, created_at FROM products WHERE lower(code) = lower($1)",
+    `SELECT p.id, p.code, p.name, p.category, p.village, p.artisan, p.created_by, p.created_at, p.owner_username AS owner, c.code AS coop
+     FROM products p LEFT JOIN cooperatives c ON c.id = p.coop_id WHERE lower(p.code) = lower($1)`,
     [code],
   );
-  if (!rows.length) throw new HttpError(404, "Không tìm thấy sản phẩm");
-  const p = rows[0];
+  return rows[0] ?? null;
+}
+
+/** Chi tiết sản phẩm. Bản công khai không kèm thông tin nội bộ (người tạo, chủ sở hữu, HTX). Bản nội bộ phải qua kiểm tra quyền xem. */
+async function getProduct(code, { publicView = false, user = null } = {}) {
+  const p = await findProductRow(code);
+  if (!p) throw new HttpError(404, "Không tìm thấy sản phẩm");
+  if (!publicView && !access.authorize(ACCESS, user, "product.read", p)) throw new HttpError(404, "Không tìm thấy sản phẩm"); // không lộ sự tồn tại
   const ev = await pool.query(
     "SELECT stage, note, location, actor, iot, created_at FROM trace_events WHERE product_id = $1 ORDER BY created_at, id",
     [p.id],
   );
   const events = ev.rows.map((e) => (publicView ? { stage: e.stage, note: e.note, location: e.location, iot: e.iot, created_at: e.created_at } : e));
   const product = { code: p.code, name: p.name, category: p.category, village: p.village, artisan: p.artisan, created_at: p.created_at };
-  if (!publicView) product.created_by = p.created_by;
+  if (!publicView) {
+    product.created_by = p.created_by;
+    product.owner = p.owner;
+    product.coop = p.coop;
+    product.can_update = access.authorize(ACCESS, user, "product.update", p); // giao diện dùng để ẩn/hiện form; máy chủ vẫn kiểm tra lại khi ghi
+  }
   return { ...product, events };
 }
 
 async function createProduct(body, user) {
+  requirePermission(user, "product.create", { coop: user.coop });
   const name = str(body.name, 200, "name", true);
   const category = str(body.category, 100, "category");
   const village = str(body.village, 200, "village");
@@ -234,18 +262,33 @@ async function createProduct(body, user) {
   let code = str(body.code, 40, "code");
   if (code && !CODE_RE.test(code)) throw new HttpError(400, "Mã chỉ gồm chữ, số, dấu gạch ngang (3-40 ký tự)");
   if (!code) code = `LN-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  // HTX của sản phẩm: quản trị (phạm vi all) có thể chỉ định bằng body.coop; còn lại luôn là HTX của người tạo
+  const scope = access.scopeFor(ACCESS, user.roles, "product.create");
+  const coopCode = scope === "all" ? str(body.coop, 60, "coop") || user.coop : user.coop;
+  let coopId = null;
+  if (coopCode) {
+    const c = await pool.query("SELECT id FROM cooperatives WHERE code = $1", [coopCode]);
+    if (!c.rows.length) throw new HttpError(400, `Không có HTX mã "${coopCode}"`);
+    coopId = c.rows[0].id;
+  }
   try {
-    await pool.query("INSERT INTO products (code, name, category, village, artisan, created_by) VALUES ($1,$2,$3,$4,$5,$6)", [
-      code, name, category, village, artisan, user.name,
-    ]);
+    await pool.query(
+      "INSERT INTO products (code, name, category, village, artisan, created_by, owner_username, coop_id) VALUES ($1,$2,$3,$4,$5,$6,$6,$7)",
+      [code, name, category, village, artisan, user.name, coopId],
+    );
   } catch (e) {
     if (e.code === "23505") throw new HttpError(409, `Mã "${code}" đã tồn tại`);
     throw e;
   }
-  return getProduct(code);
+  return getProduct(code, { user });
 }
 
 async function addEvent(code, body, user) {
+  const product = await findProductRow(code);
+  if (!product) throw new HttpError(404, "Không tìm thấy sản phẩm");
+  // 404 thay vì 403 khi người dùng không được thấy sản phẩm, để không lộ sự tồn tại
+  if (!access.authorize(ACCESS, user, "product.read", product)) throw new HttpError(404, "Không tìm thấy sản phẩm");
+  requirePermission(user, "product.update", product);
   const stage = str(body.stage, 40, "stage", true);
   if (!STAGES.includes(stage)) throw new HttpError(400, `Công đoạn không hợp lệ. Hợp lệ: ${STAGES.join(", ")}`);
   const note = str(body.note, 1000, "note");
@@ -265,12 +308,10 @@ async function addEvent(code, body, user) {
       throw new HttpError(502, "Không đọc được dữ liệu cảm biến từ MinIO");
     }
   }
-  const { rows } = await pool.query("SELECT id FROM products WHERE lower(code) = lower($1)", [code]);
-  if (!rows.length) throw new HttpError(404, "Không tìm thấy sản phẩm");
   await pool.query("INSERT INTO trace_events (product_id, stage, note, location, actor, iot) VALUES ($1,$2,$3,$4,$5,$6)", [
-    rows[0].id, stage, note, location, user.name, iot,
+    product.id, stage, note, location, user.name, iot,
   ]);
-  return getProduct(code);
+  return getProduct(code, { user });
 }
 
 // ---------- Định tuyến ----------
@@ -283,19 +324,19 @@ async function route(req, res) {
 
   if (parts[0] === "public" && parts.length === 2 && m === "GET") return send(res, 200, await getProduct(parts[1], { publicView: true }));
 
+  if (parts[0] === "me" && parts.length === 1 && m === "GET") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    return send(res, 200, { username: user.name, roles: user.roles, coop: user.coop, permissions: access.permissionsOf(ACCESS, user.roles) });
+  }
+
   if (parts[0] === "products") {
     const user = getUser(req);
-    requireReader(user); // token thiết bị (iot-writer) không đọc được dữ liệu nghiệp vụ
-    if (parts.length === 1 && m === "GET") return send(res, 200, { stages: STAGES, products: await listProducts() });
-    if (parts.length === 1 && m === "POST") {
-      requireWriter(user);
-      return send(res, 201, await createProduct(await readJson(req), user));
-    }
-    if (parts.length === 2 && m === "GET") return send(res, 200, await getProduct(parts[1]));
-    if (parts.length === 3 && parts[2] === "events" && m === "POST") {
-      requireWriter(user);
-      return send(res, 201, await addEvent(parts[1], await readJson(req), user));
-    }
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này"); // token thiết bị (iot-writer) không đọc được dữ liệu nghiệp vụ
+    if (parts.length === 1 && m === "GET") return send(res, 200, { stages: STAGES, products: await listProducts(user) });
+    if (parts.length === 1 && m === "POST") return send(res, 201, await createProduct(await readJson(req), user));
+    if (parts.length === 2 && m === "GET") return send(res, 200, await getProduct(parts[1], { user }));
+    if (parts.length === 3 && parts[2] === "events" && m === "POST") return send(res, 201, await addEvent(parts[1], await readJson(req), user));
   }
   throw new HttpError(404, "Không có tuyến này");
 }
@@ -324,7 +365,10 @@ async function main() {
   }
   pool = new Pool({ ...pgBase, database: DB_NAME, max: 5 });
   await migrate();
-  if (SEED) await seed();
+  if (SEED) {
+    await seed();
+    await seedDomain();
+  }
   server.listen(PORT, () => console.log(`[trace-api] lắng nghe cổng ${PORT}, database "${DB_NAME}"`));
 }
 
