@@ -8,11 +8,19 @@ IOT_BUCKET="${IOT_BUCKET:-dxos-iot}"
 IOT_LOCK_MODE="${IOT_LOCK_MODE:-GOVERNANCE}"
 IOT_RETENTION_DAYS="${IOT_RETENTION_DAYS:-1825}"
 case "$IOT_LOCK_MODE" in GOVERNANCE|COMPLIANCE) ;; *) echo "IOT_LOCK_MODE phải là GOVERNANCE hoặc COMPLIANCE"; exit 1 ;; esac
+if [ "$IOT_LOCK_MODE" = COMPLIANCE ] && [ "${IOT_LOCK_CONFIRM_COMPLIANCE:-}" != yes ]; then
+  echo "IOT_LOCK_MODE=COMPLIANCE KHÔNG HOÀN TÁC: mọi tệp IoT ghi sau đó bị khóa $IOT_RETENTION_DAYS ngày, đến cả root cũng không xóa/sửa được"
+  echo "(kể cả tệp thử nghiệm). Chỉ dùng khi triển khai thật. Nếu đã chắc chắn, thêm IOT_LOCK_CONFIRM_COMPLIANCE=yes vào .env rồi chạy lại."
+  exit 1
+fi
 [[ "$IOT_RETENTION_DAYS" =~ ^[0-9]+$ ]] && [ "$IOT_RETENTION_DAYS" -ge 1 ] || { echo "IOT_RETENTION_DAYS phải là số ngày nguyên dương"; exit 1; }
 
 ADMIN="http://localhost:${APISIX_ADMIN_PORT}/apisix/admin"
 FLOWABLE_BASIC=$(printf '%s:%s' "$FLOWABLE_ADMIN_USER" "$FLOWABLE_ADMIN_PASSWORD" | base64 | tr -d '\n')
 
+# Route workflow còn chặn thêm: tuyến quản trị của Flowable (identity, management) với mọi người, và mọi phương thức thay đổi
+# (POST/PUT/DELETE) với người không có role editor. Lý do: cổng gác gắn tài khoản admin của Flowable cho mọi yêu cầu, nên nếu không
+# chặn thì cả người chỉ-xem (readonly) cũng gọi được Flowable với quyền admin (đã kiểm chứng trước khi sửa).
 # Hai route bắt buộc JWT còn có plugin serverless-pre-function chỉ cho qua token có vai trò editor hoặc readonly
 # (claim "policy"): token của thiết bị IoT (iot-writer) chỉ dùng để ghi dữ liệu cảm biến, không gọi được các API này.
 # Route /api/workflow/* -> Flowable REST (Flowable chỉ nhận qua gateway, gateway tự gắn basic auth nội bộ)
@@ -21,7 +29,7 @@ curl -fsS -X PUT "$ADMIN/routes/workflow" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @
   "name": "workflow-api",
   "uri": "/api/workflow/*",
   "plugins": {
-    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ok = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' or r == 'readonly' then ok = true end end end end; if not ok then ngx.header['Access-Control-Allow-Origin'] = '${FRONTEND_ORIGIN:-http://localhost:3000}'; return 403, {error = 'Can vai tro editor hoac readonly. Neu vua doi vai tro, hay dang xuat roi dang nhap lai.'} end end"] },
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; local p = h:match('^[Bb]earer%s+[%w%-_]+%.([%w%-_]+)%.'); local ro = false; local ed = false; if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); local c = d and core.json.decode(d); if c and type(c.policy) == 'table' then for _, r in ipairs(c.policy) do if r == 'editor' then ed = true end if r == 'readonly' then ro = true end end end end; local m = ngx.req.get_method(); local u = ngx.var.uri or ''; local o = '${FRONTEND_ORIGIN:-http://localhost:3000}'; if not (ed or ro) then ngx.header['Access-Control-Allow-Origin'] = o; return 403, {error = 'Can vai tro editor hoac readonly. Neu vua doi vai tro, hay dang xuat roi dang nhap lai.'} end; if u:find('/api/workflow/identity', 1, true) == 1 or u:find('/api/workflow/management', 1, true) == 1 then ngx.header['Access-Control-Allow-Origin'] = o; return 403, {error = 'Khong duoc phep truy cap tuyen quan tri cua workflow'} end; if m ~= 'GET' and m ~= 'HEAD' and m ~= 'OPTIONS' and not ed then ngx.header['Access-Control-Allow-Origin'] = o; return 403, {error = 'Chi vai tro editor moi duoc thay doi quy trinh'} end end"] },
     "cors": {
       "allow_origins": "${FRONTEND_ORIGIN:-http://localhost:3000}",
       "allow_methods": "GET,POST,PUT,DELETE,OPTIONS",

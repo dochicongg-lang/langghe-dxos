@@ -25,7 +25,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "127.0.0.1:${POSTGRES_PORT}:5432" # chỉ máy chủ này; không mở ra mạng
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${KEYCLOAK_DB}"]
       interval: 10s
@@ -61,7 +61,7 @@ services:
     volumes:
       - minio-data:/data
     ports:
-      - "${MINIO_CONSOLE_PORT}:9001"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT}:9001" # console MinIO chỉ máy chủ này (không qua cổng gác nên không được mở ra mạng)
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -171,7 +171,7 @@ services:
         condition: service_started
     ports:
       - "${APISIX_GATEWAY_PORT}:9080"
-      - "${APISIX_ADMIN_PORT}:9180"
+      - "127.0.0.1:${APISIX_ADMIN_PORT}:9180" # Admin API của APISIX chỉ máy chủ này
     networks:
       - dxos-net
 
