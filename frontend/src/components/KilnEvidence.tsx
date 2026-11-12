@@ -6,6 +6,8 @@ const flagText = (flag: string, q: NonNullable<IotEvidence["quality"]>) =>
     "out-of-range": `${q.rejected} mẫu nằm ngoài khoảng giá trị hợp lý nên đã bị loại.`,
     "rapid-change": `${q.jumps} lần giá trị đổi nhanh bất thường.`,
     "few-samples": "Quá ít mẫu đo để đánh giá.",
+    "object-overwritten": `${q.overwritten} tệp dữ liệu bị ghi đè sau khi ghi; hệ thống chỉ dùng bản ghi đầu tiên (đã khóa chống sửa).`,
+    "object-deleted": `${q.deleted} tệp dữ liệu bị yêu cầu xóa; bản gốc vẫn được giữ nguyên (đã khóa chống xóa).`,
   })[flag] ?? flag;
 
 const fmtTime = (iso: string) =>

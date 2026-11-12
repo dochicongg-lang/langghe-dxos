@@ -37,7 +37,7 @@ const cfg = {
   gatewayHost: process.env.GATEWAY_HOST ?? "localhost",
   gatewayPort: Number(process.env.APISIX_GATEWAY_PORT ?? 9080),
   s3Host: process.env.S3_HOST ?? "s3.localhost",
-  bucket: process.env.MINIO_BUCKET ?? "dxos-data",
+  bucket: process.env.IOT_BUCKET ?? "dxos-iot", // bucket IoT có Object Lock
 };
 
 // ---------- Thiết bị giả lập ----------

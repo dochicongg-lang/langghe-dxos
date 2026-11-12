@@ -231,33 +231,79 @@ function createS3Client({ endpoint, accessKey, secretKey, bucket, region = "us-e
   const unxml = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
 
   return {
-    async listKeys(prefix) {
-      const keys = [];
-      let token;
+    /**
+     * Liệt kê MỌI phiên bản (kể cả dấu xóa) dưới một tiền tố: [{ key, versionId, lastModified, isDeleteMarker }].
+     * Bucket IoT bật Object Lock nên có versioning: ghi đè cùng tên tạo phiên bản mới, xóa thường chỉ tạo dấu xóa.
+     */
+    async listVersions(prefix) {
+      const out = [];
+      let keyMarker;
+      let versionMarker;
+      const tag = (s, t) => new RegExp(`<${t}>([^<]*)</${t}>`).exec(s)?.[1];
       do {
-        const xml = await get(`/${bucket}`, { "list-type": "2", prefix, ...(token ? { "continuation-token": token } : {}) });
-        for (const m of xml.matchAll(/<Key>([^<]*)<\/Key>/g)) keys.push(unxml(m[1]));
-        token = /<IsTruncated>true<\/IsTruncated>/.test(xml) ? /<NextContinuationToken>([^<]*)<\/NextContinuationToken>/.exec(xml)?.[1] : undefined;
-        if (token) token = unxml(token);
-      } while (token && keys.length < MAX_OBJECTS * 4);
-      return keys;
+        const query = { versions: "", prefix };
+        if (keyMarker) {
+          query["key-marker"] = keyMarker;
+          if (versionMarker) query["version-id-marker"] = versionMarker;
+        }
+        const xml = await get(`/${bucket}`, query);
+        for (const m of xml.matchAll(/<(Version|DeleteMarker)>([\s\S]*?)<\/\1>/g)) {
+          out.push({
+            key: unxml(tag(m[2], "Key") ?? ""),
+            versionId: tag(m[2], "VersionId") ?? "null",
+            lastModified: Date.parse(tag(m[2], "LastModified") ?? "") || 0,
+            isDeleteMarker: m[1] === "DeleteMarker",
+          });
+        }
+        const more = /<IsTruncated>true<\/IsTruncated>/.test(xml);
+        keyMarker = more ? unxml(tag(xml, "NextKeyMarker") ?? "") || undefined : undefined;
+        versionMarker = more ? tag(xml, "NextVersionIdMarker") : undefined;
+      } while (keyMarker && out.length < MAX_OBJECTS * 4);
+      return out;
     },
-    getObject: (key) => get(`/${bucket}/${key}`),
+    /** Đọc nội dung một phiên bản cụ thể (không truyền versionId hoặc "null" -> bản hiện hành). */
+    getObject: (key, versionId) => get(`/${bucket}/${key}`, versionId && versionId !== "null" ? { versionId } : {}),
   };
 }
 
 /**
  * Đọc MinIO và dựng bằng chứng cho cửa sổ đã được parseWindow kiểm tra.
  * `gateway` là gateway SỞ HỮU thiết bị (tra từ danh bạ): chỉ đọc thư mục của gateway đó.
+ *
+ * Chống ghi đè / che giấu (bucket có versioning + Object Lock): với mỗi tệp luôn đọc phiên bản GHI ĐẦU TIÊN (cũ nhất),
+ * không phải bản hiện hành; tệp có nhiều phiên bản hoặc có dấu xóa được đếm và gắn cờ trên bằng chứng.
  */
 async function buildEvidence(win, s3, gateway, limits = {}) {
-  const lists = await Promise.all(dayPrefixes(win.from, win.to, gateway).map((p) => s3.listKeys(p)));
-  const keys = selectKeys(lists.flat(), win.from, win.to);
+  const lists = await Promise.all(dayPrefixes(win.from, win.to, gateway).map((p) => s3.listVersions(p)));
+  const byKey = new Map();
+  for (const v of lists.flat()) {
+    let e = byKey.get(v.key);
+    if (!e) byKey.set(v.key, (e = { puts: [], deleted: false }));
+    if (v.isDeleteMarker) e.deleted = true;
+    else e.puts.push(v);
+  }
+  const inWindow = selectKeys([...byKey.keys()], win.from, win.to);
+  const keys = inWindow.filter((k) => byKey.get(k).puts.length);
   if (keys.length > MAX_OBJECTS) throw new IotError(400, "Khoảng thời gian có quá nhiều dữ liệu, hãy rút ngắn lại");
+  const overwritten = inWindow.filter((k) => byKey.get(k).puts.length > 1).length;
+  const deleted = inWindow.filter((k) => byKey.get(k).deleted).length;
   const bodies = [];
-  for (let i = 0; i < keys.length; i += 20) bodies.push(...(await Promise.all(keys.slice(i, i + 20).map((k) => s3.getObject(k)))));
+  for (let i = 0; i < keys.length; i += 20) {
+    bodies.push(
+      ...(await Promise.all(
+        keys.slice(i, i + 20).map((k) => {
+          const puts = byKey.get(k).puts.sort((a, b) => a.lastModified - b.lastModified);
+          return s3.getObject(k, puts[0].versionId); // phiên bản ghi đầu tiên
+        }),
+      )),
+    );
+  }
   const pts = collectPoints(bodies, win.deviceId, win.from, win.to);
   const { accepted, quality } = assess(pts, win.from, win.to, limits);
+  quality.overwritten = overwritten;
+  quality.deleted = deleted;
+  if (overwritten) quality.flags.push("object-overwritten");
+  if (deleted) quality.flags.push("object-deleted");
   const evidence = summarize(accepted, win.deviceId, win.from, win.to);
   if (!evidence) {
     if (pts.length) throw new IotError(422, `Toàn bộ ${pts.length} mẫu nằm ngoài khoảng giá trị hợp lý của thiết bị, không dùng được làm bằng chứng`);

@@ -7,7 +7,7 @@ Mỗi bước có mục "Kết quả đúng trông như thế nào" để bạn 
 
 ```
 Cảm biến giả lập            MinIO (kho tệp)            Trình duyệt
-simulate-iot.js  ──ghi──▶   bucket dxos-data   ◀─đọc──  Trang Intelligence
+simulate-iot.js  ──ghi──▶   bucket dxos-iot    ◀─đọc──  Trang Intelligence
         │                        ▲                           │
         └─── xin "thẻ ra vào" ───┤                           │
              (JWT) từ Keycloak   │                           │
@@ -107,7 +107,7 @@ node backend/simulate-iot.js --post --interval 2000 --batch 8
 **Kết quả đúng:** ngoài các dòng JSON, cứ vài giây có thêm dòng:
 
 ```
-[iot] đã ghi 8 bản ghi -> s3://dxos-data/iot/2026-11-12/2026-11-12T13-56-45-960Z.ndjson
+[iot] đã ghi 8 bản ghi -> s3://dxos-iot/iot/service-account-dxos-iot/2026-11-12/2026-11-12T13-56-45-960Z.ndjson
 ```
 
 Dòng này xuất hiện ở "kênh lỗi" của terminal nên có thể có màu khác; đó là bình thường.
@@ -156,7 +156,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:9080/api/workflow/repo
 Xem các tệp số liệu đã nằm trong MinIO (đọc bằng quyền quản trị, chạy trong container):
 
 ```bash
-docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 minioadmin minioadmin123 && mc ls -r local/dxos-data/iot/"
+docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 minioadmin minioadmin123 && mc ls -r local/dxos-iot/iot/"
 ```
 
 (Dùng `MINIO_ROOT_USER` và `MINIO_ROOT_PASSWORD` trong `.env` của bạn nếu đã đổi.)
@@ -295,5 +295,35 @@ Nhờ đó số liệu giả lộ liễu (như 9999 °C) không lọt vào bằn
 Sửa giới hạn trong `config/iot-devices.json` rồi chạy `docker compose restart trace-api`.
 
 Nếu báo *"Chưa cấu hình tài khoản đọc MinIO"*: thêm hai dòng `TRACE_S3_USER=trace-reader` và `TRACE_S3_PASSWORD=...` vào file `.env` (xem `.env.example`), chạy `bash scripts/setup-apisix-routes.sh` rồi `docker compose up -d --build trace-api`.
+
+### 11f. Khóa chống sửa/xóa số liệu cảm biến (Object Lock)
+
+**Ý tưởng (cho người mới):** hãy hình dung một chiếc két sắt có khóa hẹn giờ. Mỗi tệp số liệu cảm biến, ngay khi được ghi, bị khóa trong một khoảng thời gian: trong thời gian đó không thể xóa hay ghi đè. Mục đích là bảo đảm số liệu đã ghi thì không bị sửa lén hay xóa về sau, để bằng chứng nung trên `/verify` đứng vững khi có tranh chấp.
+
+**Cách hệ thống làm:**
+- Số liệu IoT nằm ở bucket riêng **`dxos-iot`** (tạo sẵn bởi `upgrade.sh`), **không** nằm chung với dữ liệu ứng dụng ở `dxos-data`. Object Lock chỉ bật được lúc tạo bucket, nên không thể bật cho bucket cũ.
+- Cấu hình trong `.env`: `IOT_BUCKET`, `IOT_LOCK_MODE` (`GOVERNANCE` hoặc `COMPLIANCE`), `IOT_RETENTION_DAYS` (số ngày giữ, mặc định 1825 = 5 năm). Đổi giá trị chỉ áp cho tệp ghi **sau đó**.
+- Ghi đè cùng tên tệp không làm mất bản cũ (chỉ tạo phiên bản mới, bản cũ vẫn bị khóa). Xóa thường chỉ tạo "dấu xóa" làm tệp biến mất khỏi danh sách. `trace-api` luôn đọc **bản ghi đầu tiên** của mỗi tệp và gắn cờ cảnh báo trên bằng chứng nếu thấy tệp bị ghi đè hoặc bị yêu cầu xóa.
+- Nhân viên (`editor`) bị chặn mọi thao tác ghi/xóa/đổi khóa trên bucket này; thiết bị chỉ ghi mới vào thư mục riêng.
+
+**Hai chế độ:**
+| Chế độ | Ý nghĩa | Khi nào dùng |
+|---|---|---|
+| `GOVERNANCE` (mặc định) | Người thường không phá được; quản trị viên (root) vẫn gỡ được bằng đặc quyền bypass. Dọn dẹp dữ liệu thử được. | Phát triển, thử nghiệm, demo |
+| `COMPLIANCE` | Đến cả root cũng không xóa/sửa được trước khi hết hạn. **Không hoàn tác**: dữ liệu thử cũng nằm lại đến hết hạn. | Triển khai thật |
+
+**Lưu ý quan trọng về độ tin cậy của chế độ Governance.** Qua kiểm thử, bản MinIO đang dùng cho phép **bất kỳ tài khoản đăng nhập nào** (kể cả chỉ-đọc) gỡ hạn khóa Governance nếu gửi yêu cầu `PutObjectRetention` rỗng kèm tiêu đề `x-amz-bypass-governance-retention: true`, bất chấp policy. Vì vậy cổng APISIX chặn mọi yêu cầu đổi khóa đi qua `s3.localhost` (`?retention`, `?legal-hold`, `?object-lock` và tiêu đề bypass); `scripts/check-iot-permissions.sh` kiểm tra điều này. Đường vào **không qua cổng gác** (console MinIO ở cổng 9001, hay truy cập trực tiếp trong mạng Docker) thì chưa được chặn: không mở các đường đó ra ngoài. Chế độ `COMPLIANCE` được thiết kế để chống việc gỡ khóa này ở tầng lưu trữ, nên là lựa chọn nên dùng khi triển khai thật (chưa được kiểm thử ở đây vì không hoàn tác được).
+
+**Giới hạn:** khóa chỉ bảo vệ khi truy cập qua MinIO. Nếu ai xóa cả ổ đĩa Docker (`docker compose down -v`) hoặc có quyền máy chủ thì dữ liệu vẫn mất, nên cần sao lưu riêng. Khóa cũng **không chứng minh số liệu là thật lúc ghi**: gateway bị lộ khóa vẫn ghi được số liệu mới trông hợp lý.
+
+**Chọn số ngày giữ.** Mặc định 1825 ngày (5 năm). Cơ sở tham khảo (chưa phải tư vấn pháp lý, hãy xác nhận với chuyên gia): thời hiệu khởi kiện đòi bồi thường thiệt hại ngoài hợp đồng theo [Bộ luật Dân sự 2015](https://vbpl.vn:443/FileData/TW/Lists/vbpq/Attachments/95942/VanBanGoc_91.2015.QH13.P2.pdf) là 3 năm kể từ khi người bị hại biết quyền lợi bị xâm phạm; quy định truy xuất nguồn gốc thực phẩm của Bộ Công Thương nêu mốc lưu hồ sơ 60 tháng với sản phẩm không có hạn sử dụng ([nguồn tin](https://trungtamwto.vn/tin-tuc/33634-ap-dung-truy-xuat-nguon-goc-thuc-pham-tu-1511), gốm không phải thực phẩm nên chỉ để tham chiếu); hàng xuất khẩu sang EU thường phải lưu hồ sơ kỹ thuật 10 năm theo [Quy định an toàn sản phẩm chung (GPSR)](https://www.eurofins.com/consumer-product-testing/media-centre/news/know-the-obligations-of-manufacturers-under-the-gpsr/). Vì vậy: bán trong nước đặt 1825; xuất khẩu EU đặt 3650.
+
+**Dọn số liệu cũ (việc của bạn).** Khi nâng cấp, số liệu cũ được **sao chép** sang `dxos-iot` và bản cũ trong `dxos-data/iot/` được giữ lại. Sau khi đã kiểm tra bucket mới chạy tốt, xóa bản cũ bằng:
+
+```bash
+docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 minioadmin minioadmin123 && mc rm --recursive --force local/dxos-data/iot/"
+```
+
+(đổi `minioadmin`/`minioadmin123` theo `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` trong `.env` của bạn). Muốn dọn tệp thử trong `dxos-iot` ở chế độ Governance thì thêm `--versions --bypass`.
 
 Chạy test của backend Tầng 3: `cd services/trace-api` rồi `npm test`. Kiểm thử script đồng bộ `.env`: `bash scripts/tests/test-env-sync.sh`. Kiểm tra phân quyền thật: `bash scripts/check-iot-permissions.sh`.
