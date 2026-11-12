@@ -2,6 +2,12 @@
   "realm": "dxos",
   "enabled": true,
   "sslRequired": "none",
+  "roles": {
+    "realm": [
+      { "name": "readwrite", "description": "MinIO policy: đọc/ghi mọi bucket" },
+      { "name": "readonly", "description": "MinIO policy: chỉ đọc" }
+    ]
+  },
   "clients": [
     {
       "clientId": "${KEYCLOAK_CLIENT_ID}",
@@ -13,7 +19,32 @@
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": true,
       "redirectUris": ["*"],
-      "webOrigins": ["*"]
+      "webOrigins": ["*"],
+      "protocolMappers": [
+        {
+          "name": "audience-dxos-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "${KEYCLOAK_CLIENT_ID}",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "minio-policy",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "policy",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
@@ -24,6 +55,7 @@
       "email": "tester@dxos.local",
       "firstName": "Test",
       "lastName": "User",
+      "realmRoles": ["readwrite"],
       "credentials": [{ "type": "password", "value": "tester", "temporary": false }]
     }
   ]
