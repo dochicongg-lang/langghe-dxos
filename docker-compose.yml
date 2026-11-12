@@ -61,8 +61,13 @@ services:
     image: quay.io/keycloak/keycloak:26.6.3
     container_name: dxos-keycloak
     restart: unless-stopped
-    command: start-dev
+    command: start-dev --import-realm
     environment:
+      # Issuer của token luôn là KC_HOSTNAME dù APISIX gọi qua http://keycloak:8080 (backchannel động)
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB}
       KC_DB_USERNAME: ${POSTGRES_USER}
@@ -70,7 +75,8 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HTTP_PORT: 8080
-      KC_HOSTNAME_STRICT: "false"
+    volumes:
+      - ./keycloak/dxos-realm.json:/opt/keycloak/data/import/dxos-realm.json:ro
     depends_on:
       postgres:
         condition: service_healthy
