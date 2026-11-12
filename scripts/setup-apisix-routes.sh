@@ -33,33 +33,23 @@ JSON
 echo
 echo "OK: route /api/workflow/* đã được bảo vệ bằng JWT Keycloak (realm ${KEYCLOAK_REALM})."
 
-# ---- MinIO: bucket + route /api/storage/* (JWT Keycloak) ----
-# MinIO không publish cổng API ra host nên chỉ vào được qua APISIX; xác thực do gateway đảm nhiệm.
-# Vì vậy bucket đặt anonymous trong mạng nội bộ (SigV4 không đi qua được gateway có đổi đường dẫn).
+# ---- MinIO: bucket riêng tư + S3/STS trên host s3.localhost (xác thực JWT bằng MinIO OIDC) ----
+# Client lấy JWT từ Keycloak -> gọi STS AssumeRoleWithWebIdentity (MinIO tự xác thực JWT, claim "policy"
+# ánh xạ sang policy MinIO) -> dùng thông tin tạm thời ký SigV4 gọi S3. Gateway giữ nguyên Host và
+# đường dẫn để chữ ký hợp lệ. Cổng API của MinIO không publish ra host nên chỉ vào được qua APISIX.
 docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
   && mc mb --ignore-existing local/$MINIO_BUCKET \
-  && mc anonymous set public local/$MINIO_BUCKET"
+  && mc anonymous set none local/$MINIO_BUCKET"
 
-curl -fsS -X PUT "$ADMIN/routes/storage" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JSON >/dev/null
+# Route cũ /api/storage/* (bucket public + JWT ở gateway) đã được thay thế bằng OIDC.
+curl -sS -o /dev/null -X DELETE "$ADMIN/routes/storage" -H "X-API-KEY: $APISIX_ADMIN_KEY" || true
+
+curl -fsS -X PUT "$ADMIN/routes/s3" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JSON >/dev/null
 {
-  "name": "storage-api",
-  "uri": "/api/storage/*",
-  "methods": ["GET", "HEAD", "PUT", "POST", "DELETE"],
-  "plugins": {
-    "openid-connect": {
-      "discovery": "http://keycloak:8080/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration",
-      "client_id": "${KEYCLOAK_CLIENT_ID}",
-      "client_secret": "${KEYCLOAK_CLIENT_SECRET}",
-      "bearer_only": true,
-      "use_jwks": true,
-      "ssl_verify": false
-    },
-    "proxy-rewrite": {
-      "regex_uri": ["^/api/storage/(.*)", "/\$1"],
-      "headers": { "remove": ["Authorization"] }
-    }
-  },
-  "upstream": { "type": "roundrobin", "pass_host": "node", "nodes": { "minio:9000": 1 } }
+  "name": "s3-sts",
+  "uri": "/*",
+  "hosts": ["s3.localhost", "apisix"],
+  "upstream": { "type": "roundrobin", "pass_host": "pass", "nodes": { "minio:9000": 1 } }
 }
 JSON
-echo "OK: route /api/storage/* (bucket ${MINIO_BUCKET}) đã được bảo vệ bằng JWT Keycloak."
+echo "OK: S3/STS qua http://s3.localhost:${APISIX_GATEWAY_PORT} (bucket ${MINIO_BUCKET} riêng tư, JWT xác thực bằng MinIO OIDC)."

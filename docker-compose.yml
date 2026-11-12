@@ -43,6 +43,19 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # OIDC với Keycloak: đổi JWT lấy thông tin tạm thời qua STS AssumeRoleWithWebIdentity.
+      # Claim "policy" (realm role của Keycloak) ánh xạ sang policy của MinIO.
+      MINIO_IDENTITY_OPENID_ENABLE: "on"
+      MINIO_IDENTITY_OPENID_CONFIG_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration
+      MINIO_IDENTITY_OPENID_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      MINIO_IDENTITY_OPENID_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      MINIO_IDENTITY_OPENID_CLAIM_NAME: policy
+      MINIO_IDENTITY_OPENID_SCOPES: openid
+      MINIO_IDENTITY_OPENID_DISPLAY_NAME: Keycloak SSO
+      MINIO_IDENTITY_OPENID_REDIRECT_URI: http://localhost:${MINIO_CONSOLE_PORT}/oauth_callback
+    depends_on:
+      keycloak:
+        condition: service_healthy
     volumes:
       - minio-data:/data
     ports:
@@ -81,6 +94,18 @@ services:
         condition: service_healthy
     ports:
       - "${KEYCLOAK_PORT}:8080"
+    healthcheck:
+      # Image Keycloak không có curl: gọi HTTP thuần qua /dev/tcp của bash
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080 &&
+          printf 'GET /realms/${KEYCLOAK_REALM} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '200 OK' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
     networks:
       - dxos-net
 
