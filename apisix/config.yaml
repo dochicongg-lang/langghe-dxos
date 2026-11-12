@@ -1,0 +1,20 @@
+# Cấu hình APISIX (chế độ etcd). Biến ${{VAR}} được đọc từ môi trường container.
+deployment:
+  role: traditional
+  role_traditional:
+    config_provider: etcd
+  admin:
+    admin_key:
+      - name: admin
+        key: ${{APISIX_ADMIN_KEY}}
+        role: admin
+      - name: viewer
+        key: ${{APISIX_VIEWER_KEY}}
+        role: viewer
+    allow_admin:
+      - 0.0.0.0/0
+  etcd:
+    host:
+      - "http://etcd:2379"
+    prefix: /apisix
+    timeout: 30

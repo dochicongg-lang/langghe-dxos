@@ -1,0 +1,142 @@
+# DX-OS Tầng 1 (Headless Core) - chỉ cung cấp dịch vụ qua REST API, không có UI nghiệp vụ.
+# Biến cấu hình lấy từ file .env (bản sao của .env.example).
+
+name: dxos-tier1
+
+networks:
+  dxos-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  minio-data:
+  etcd-data:
+
+services:
+  # ---- Data: SQL ----
+  postgres:
+    image: postgres:16
+    container_name: dxos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${KEYCLOAK_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dxos-net
+
+  # ---- Data: Object Storage ----
+  minio:
+    image: minio/minio:latest
+    container_name: dxos-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dxos-net
+
+  # ---- Identity / SSO ----
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6.3
+    container_name: dxos-keycloak
+    restart: unless-stopped
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME_STRICT: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    networks:
+      - dxos-net
+
+  # ---- Workflow Engine ----
+  # Không publish cổng ra host: chỉ truy cập qua APISIX (JWT Keycloak).
+  flowable:
+    image: flowable/flowable-rest:7.0.1
+    container_name: dxos-flowable
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_DRIVER-CLASS-NAME: org.postgresql.Driver
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${FLOWABLE_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      FLOWABLE_REST_APP_ADMIN_USER-ID: ${FLOWABLE_ADMIN_USER}
+      FLOWABLE_REST_APP_ADMIN_PASSWORD: ${FLOWABLE_ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dxos-net
+
+  # ---- API Gateway (APISIX + etcd) ----
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.14
+    container_name: dxos-etcd
+    restart: unless-stopped
+    command:
+      - etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+    volumes:
+      - etcd-data:/etcd-data
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dxos-net
+
+  apisix:
+    image: apache/apisix:3.9.0-debian
+    container_name: dxos-apisix
+    restart: unless-stopped
+    environment:
+      APISIX_ADMIN_KEY: ${APISIX_ADMIN_KEY}
+      APISIX_VIEWER_KEY: ${APISIX_VIEWER_KEY}
+    volumes:
+      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+    depends_on:
+      etcd:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      flowable:
+        condition: service_started
+    ports:
+      - "${APISIX_GATEWAY_PORT}:9080"
+      - "${APISIX_ADMIN_PORT}:9180"
+    networks:
+      - dxos-net
