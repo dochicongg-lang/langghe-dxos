@@ -89,6 +89,12 @@
   ],
   "users": [
     {
+      "username": "service-account-${KEYCLOAK_CLIENT_ID}",
+      "enabled": true,
+      "serviceAccountClientId": "${KEYCLOAK_CLIENT_ID}",
+      "realmRoles": ["readwrite"]
+    },
+    {
       "username": "tester",
       "enabled": true,
       "emailVerified": true,
