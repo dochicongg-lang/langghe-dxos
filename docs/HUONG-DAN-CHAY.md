@@ -161,7 +161,7 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 minioadmi
 
 (Dùng `MINIO_ROOT_USER` và `MINIO_ROOT_PASSWORD` trong `.env` của bạn nếu đã đổi.)
 
-Trang quản trị MinIO (xem tệp bằng giao diện): http://localhost:9001. Bấm **Keycloak SSO** rồi đăng nhập `tester`/`tester`.
+Trang quản trị MinIO (xem tệp bằng giao diện): http://localhost:9001 (chỉ mở được từ chính máy chạy Docker; cổng này không được mở ra mạng vì không đi qua cổng gác). Bấm **Keycloak SSO** rồi đăng nhập `tester`/`tester`.
 
 ## 9. Dừng và dọn dẹp
 
@@ -325,5 +325,7 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 minioadmi
 ```
 
 (đổi `minioadmin`/`minioadmin123` theo `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` trong `.env` của bạn). Muốn dọn tệp thử trong `dxos-iot` ở chế độ Governance thì thêm `--versions --bypass`.
+
+**Chuyển sang COMPLIANCE.** Đặt `IOT_LOCK_MODE=COMPLIANCE` trong `.env` không đủ: script thiết lập sẽ từ chối và giải thích, vì chế độ này không hoàn tác. Chỉ khi đã chắc chắn mới thêm `IOT_LOCK_CONFIRM_COMPLIANCE=yes`.
 
 Chạy test của backend Tầng 3: `cd services/trace-api` rồi `npm test`. Kiểm thử script đồng bộ `.env`: `bash scripts/tests/test-env-sync.sh`. Kiểm tra phân quyền thật: `bash scripts/check-iot-permissions.sh`.

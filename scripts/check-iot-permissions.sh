@@ -15,6 +15,7 @@ FAIL=0
 token() { sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p'; }
 EDITOR_JWT=$(curl -s -X POST "$KC" -d grant_type=password -d client_id="$KEYCLOAK_CLIENT_ID" -d client_secret="$KEYCLOAK_CLIENT_SECRET" -d username=tester -d password=tester | token)
 DEVICE_JWT=$(curl -s -X POST "$KC" -d grant_type=client_credentials -d client_id="$KEYCLOAK_IOT_CLIENT_ID" -d client_secret="$KEYCLOAK_IOT_CLIENT_SECRET" | token)
+VIEWER_JWT=$(curl -s -X POST "$KC" -d grant_type=password -d client_id="$KEYCLOAK_CLIENT_ID" -d client_secret="$KEYCLOAK_CLIENT_SECRET" -d username=viewer -d password=viewer | token)
 [ -n "$EDITOR_JWT" ] && [ -n "$DEVICE_JWT" ] || { echo "Không lấy được token (kiểm tra .env và setup-keycloak-roles.sh)"; exit 2; }
 
 # Đổi JWT lấy thông tin tạm của MinIO qua cổng gác (đúng đường frontend/simulator dùng) -> AK:SK:SESSION
@@ -96,6 +97,11 @@ check "editor gọi workflow (200)"           ok   test "$(code -H "Authorizatio
 check "không token -> 401"               ok   test "$(code "$GW/api/trace/products")" = 401
 check "thiết bị xem danh sách bị chặn"   ok   test "$(code -H "Authorization: Bearer $DEVICE_JWT" "$GW/api/trace/products")" != 200
 check "thiết bị tạo sản phẩm bị chặn"    ok   test "$(code -X POST -H "Authorization: Bearer $DEVICE_JWT" -H "Content-Type: application/json" -d '{"name":"x"}' "$GW/api/trace/products")" != 201
+check "viewer (chỉ xem) đọc định nghĩa quy trình (200)" ok test "$(code -H "Authorization: Bearer $VIEWER_JWT" "$GW/api/workflow/repository/process-definitions")" = 200
+check "viewer không DELETE được triển khai workflow"   ok test "$(code -X DELETE -H "Authorization: Bearer $VIEWER_JWT" "$GW/api/workflow/repository/deployments/khong-ton-tai")" = 403
+check "viewer không khởi chạy được quy trình (POST)"    ok test "$(code -X POST -H "Authorization: Bearer $VIEWER_JWT" -H "Content-Type: application/json" -d '{}' "$GW/api/workflow/runtime/process-instances")" = 403
+check "viewer không đọc được người dùng Flowable"       ok test "$(code -H "Authorization: Bearer $VIEWER_JWT" "$GW/api/workflow/identity/users")" = 403
+check "editor cũng không vào được tuyến quản trị Flowable" ok test "$(code -H "Authorization: Bearer $EDITOR_JWT" "$GW/api/workflow/management/engine")" = 403
 check "thiết bị gọi workflow bị chặn"    ok   test "$(code -H "Authorization: Bearer $DEVICE_JWT" "$GW/api/workflow/repository/process-definitions")" != 200
 
 # Dọn tệp thử: bucket IoT bị khóa nên cần đặc quyền bypass (chỉ có ở chế độ GOVERNANCE).
