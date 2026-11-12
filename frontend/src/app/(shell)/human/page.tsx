@@ -1,0 +1,43 @@
+"use client";
+
+import Card, { PageTitle } from "@/components/Card";
+import { useAuth } from "@/components/AuthProvider";
+
+export default function HumanPage() {
+  const { user } = useAuth();
+  const rows: [string, string][] = [
+    ["Tên đăng nhập", user.username],
+    ["Họ tên", user.name],
+    ["Email", user.email || "—"],
+  ];
+  return (
+    <>
+      <PageTitle title="Human" desc="Danh tính người dùng, xác thực một lần (SSO) qua Keycloak." />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title="Hồ sơ">
+          <dl className="divide-y divide-slate-100 text-sm">
+            {rows.map(([k, v]) => (
+              <div key={k} className="flex justify-between py-2">
+                <dt className="text-slate-500">{k}</dt>
+                <dd className="font-medium text-slate-800">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+        <Card title="Quyền (policy)">
+          {user.roles.length ? (
+            <ul className="flex flex-wrap gap-2">
+              {user.roles.map((r) => (
+                <li key={r} className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
+                  {r}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-slate-500">Chưa có quyền nào được gán.</p>
+          )}
+        </Card>
+      </div>
+    </>
+  );
+}
