@@ -1,0 +1,16 @@
+{
+  "name": "trace-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API truy xuất nguồn gốc sản phẩm làng nghề (Tầng 3 - DX-OS)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  }
+}

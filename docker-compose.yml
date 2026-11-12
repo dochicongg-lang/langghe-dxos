@@ -172,3 +172,21 @@ services:
       - "${APISIX_ADMIN_PORT}:9180"
     networks:
       - dxos-net
+
+  # ---- Tầng 3 (Nghiệp vụ): truy xuất nguồn gốc sản phẩm làng nghề ----
+  # Không publish cổng ra host: chỉ truy cập qua APISIX (JWT Keycloak, trừ tuyến tra cứu công khai).
+  trace-api:
+    build: ./services/trace-api
+    image: dxos/trace-api:local
+    container_name: dxos-trace-api
+    restart: unless-stopped
+    environment:
+      PG_HOST: postgres
+      PG_USER: ${POSTGRES_USER}
+      PG_PASSWORD: ${POSTGRES_PASSWORD}
+      TRACE_DB: ${TRACE_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dxos-net

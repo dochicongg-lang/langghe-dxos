@@ -42,6 +42,25 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        <p className="px-3 pb-2 pt-5 text-xs font-medium uppercase tracking-wider text-slate-500">Nghiệp vụ · Tầng 3</p>
+        <Link
+          href="/trace"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
+            pathname.startsWith("/trace") ? "bg-slate-800 text-white" : "hover:bg-slate-800/60 hover:text-white"
+          }`}
+        >
+          <span
+            className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${
+              pathname.startsWith("/trace") ? "bg-emerald-500 text-white" : "bg-slate-800 text-slate-400"
+            }`}
+          >
+            T
+          </span>
+          <span>
+            <span className="block font-medium">Truy xuất nguồn gốc</span>
+            <span className="block text-xs text-slate-500">Sản phẩm làng nghề</span>
+          </span>
+        </Link>
       </nav>
     </aside>
   );
