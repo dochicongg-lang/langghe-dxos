@@ -25,6 +25,7 @@ export interface IotEvidence {
   avg: number;
   max: number;
   curve: [number, number][]; // [thời gian ms, giá trị], tối đa 60 điểm
+  verifiedAt?: string; // thời điểm máy chủ tự đối chiếu với dữ liệu cảm biến trên MinIO
 }
 
 export interface TraceEvent {

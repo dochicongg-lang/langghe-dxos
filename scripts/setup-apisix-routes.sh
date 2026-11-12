@@ -47,6 +47,23 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_R
   && mc mb --ignore-existing local/$MINIO_BUCKET \
   && mc anonymous set none local/$MINIO_BUCKET"
 
+# Tài khoản MinIO CHỈ ĐỌC cho trace-api: tự đối chiếu số liệu cảm biến khi gắn bằng chứng IoT vào công đoạn nung.
+# Chỉ được GetObject và ListBucket trên tiền tố iot/ của bucket; không ghi, không xóa, không đọc phần khác.
+docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
+  && cat > /tmp/trace-iot-read.json <<'POLICY'
+{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET/iot/*\"] },
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:ListBucket\"], \"Resource\": [\"arn:aws:s3:::$MINIO_BUCKET\"], \"Condition\": { \"StringLike\": { \"s3:prefix\": [\"iot/*\"] } } }
+  ]
+}
+POLICY
+  mc admin policy create local trace-iot-read /tmp/trace-iot-read.json >/dev/null \
+  && (mc admin user add local '$TRACE_S3_USER' '$TRACE_S3_PASSWORD' >/dev/null) \
+  && (mc admin policy attach local trace-iot-read --user '$TRACE_S3_USER' >/dev/null 2>&1 || true)"
+echo "OK: tài khoản chỉ đọc '$TRACE_S3_USER' cho trace-api (chỉ đọc tiền tố iot/ của bucket $MINIO_BUCKET)."
+
 # Route cũ /api/storage/* (bucket public + JWT ở gateway) đã được thay thế bằng OIDC.
 curl -sS -o /dev/null -X DELETE "$ADMIN/routes/storage" -H "X-API-KEY: $APISIX_ADMIN_KEY" || true
 

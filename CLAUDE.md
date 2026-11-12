@@ -24,7 +24,8 @@ Mục tiêu là xây dựng một mô hình thực hành số dựa trên Khung 
 ## Lệnh thường dùng
 - Khởi động hệ thống: `docker compose up -d`
 - Chạy frontend: `cd frontend && npm run dev`
-- Chạy script giả lập IoT: `node backend/simulate-iot.js`
+- Chạy script giả lập IoT: `node backend/simulate-iot.js` (thêm `--post` để ghi lên MinIO)
+- Test backend Tầng 3: `cd services/trace-api && npm test` (node:test, không cần cài thêm)
 
 ## Trạng thái hiện tại (cập nhật 2026-11-12)
 Hướng dẫn chạy từng bước cho người mới: `docs/HUONG-DAN-CHAY.md`. Người dùng là người mới, cần giải thích kỹ khi hướng dẫn chạy.
@@ -35,12 +36,13 @@ Hướng dẫn chạy từng bước cho người mới: `docs/HUONG-DAN-CHAY.md
 - **APISIX**: route nằm trong etcd, tạo bằng `bash scripts/setup-apisix-routes.sh` (chạy lại sau khi xóa volume): `/api/workflow/*` (Flowable, JWT), `/api/trace/*` (JWT), `/api/public/trace/*` (công khai, giới hạn tần suất), host `s3.localhost` (S3/STS của MinIO).
 - **MinIO OIDC**: JWT Keycloak -> STS `AssumeRoleWithWebIdentity` -> SigV4. Bucket `dxos-data` riêng tư; CORS do MinIO xử lý (không dùng plugin cors ở route S3 để tránh header trùng).
 - **Tầng 2** (`frontend/`, Next.js 16, đăng nhập `keycloak-js` PKCE): trang Human, Process (Flowable), Data (chỉ mô tả), Intelligence (đọc dữ liệu IoT từ MinIO). Giao diện tự dựng theo phong cách TailAdmin, chưa dùng template gốc.
-- **Tầng 3** (`services/trace-api`, Node + PostgreSQL database `traceability`): truy xuất nguồn gốc 7 công đoạn; ghi cần role `readwrite`; trang công khai `/verify/<mã>`. Công đoạn nung có thể gắn bằng chứng IoT (cột `iot` JSONB: min/avg/max + đường cong ≤60 điểm của cảm biến lò trong khoảng nung); giao diện đọc MinIO, tóm tắt rồi gửi lên, nên tóm tắt do người ghi (role `readwrite`) cung cấp, chưa được máy chủ tự kiểm chứng.
+- **Tầng 3** (`services/trace-api`, Node + PostgreSQL database `traceability`): truy xuất nguồn gốc 7 công đoạn; ghi cần role `readwrite`; trang công khai `/verify/<mã>`. Công đoạn nung có thể gắn bằng chứng IoT (cột `iot` JSONB: min/avg/max + đường cong ≤60 điểm của cảm biến lò trong khoảng nung); client chỉ gửi `{deviceId, from, to}`; `trace-api` (`services/trace-api/iot.js`) tự đọc MinIO bằng tài khoản **chỉ đọc** `trace-reader` (policy `trace-iot-read`: GetObject/ListBucket trên `iot/*`, tạo bởi `scripts/setup-apisix-routes.sh`, mật khẩu `TRACE_S3_PASSWORD` trong `.env`) rồi tự tính tóm tắt và đóng dấu `verifiedAt`. Còn hạn chế: dữ liệu trong MinIO là nguồn tin cậy, mà người có quyền ghi vào `iot/` (hiện cả `readwrite`) vẫn có thể ghi số liệu giả; muốn chặt hơn cần role/tài khoản riêng cho thiết bị. Trang nội bộ có mã QR (`frontend/src/components/QrCode.tsx`, thư viện `qrcode`) dẫn tới `/verify/<mã>`; địa chỉ lấy từ `NEXT_PUBLIC_PUBLIC_BASE_URL` (bỏ trống = địa chỉ đang mở, nên ở máy local điện thoại chưa quét được).
 - **IoT**: `backend/simulate-iot.js` (4 cảm biến xưởng gốm; `--post` ghi NDJSON lên MinIO qua APISIX).
 
-**Việc còn dở / ý tưởng tiếp theo:** mã QR cho `/verify`; phân quyền theo từng làng nghề; trang Data chưa tải lên/xuống tệp; quy trình Flowable thực tế (kiểm định lô hàng); README giới thiệu và CI (lint/build); đổi hết mật khẩu và khóa mẫu `change_me_*` trước khi triển khai thật; chưa thử đăng nhập SSO ở console MinIO bằng trình duyệt.
+**Việc còn dở / ý tưởng tiếp theo:** tách quyền ghi dữ liệu IoT khỏi role `readwrite`; phân quyền theo từng làng nghề; trang Data chưa tải lên/xuống tệp; quy trình Flowable thực tế (kiểm định lô hàng); README giới thiệu và CI (lint/build); đổi hết mật khẩu và khóa mẫu `change_me_*` trước khi triển khai thật; chưa thử đăng nhập SSO ở console MinIO bằng trình duyệt.
 
 **Lưu ý kỹ thuật khi làm việc:**
 - Next.js 16.4 khác bản đã biết: đọc `frontend/AGENTS.md` và `node_modules/next/dist/docs/` trước khi viết code; `useParams` phải nằm trong `<Suspense>`; không export dữ liệu dùng chung từ file `"use client"` cho server component.
+- Gọi API có tiếng Việt từ Windows bằng curl: ghi JSON ra tệp UTF-8 rồi gửi `--data-binary @tệp` kèm `-H "Content-Type: application/json; charset=utf-8"`; gõ thẳng tiếng Việt trong `-d` sẽ bị hỏng dấu (giao diện web không bị). Đừng chạy `npm install` khi `npm run dev` đang chạy (Turbopack lỗi 500); `TaskStop` không diệt hết cây tiến trình Next.js, kiểm tra cổng 3000 rồi `Stop-Process` nếu còn sót.
 - Windows: shell là PowerShell 5.1 (không có `&&`; truyền thân PR nhiều dòng bằng `--body-file`); script `.sh` chạy bằng Git Bash. Keycloak 26 yêu cầu user có email, họ, tên mới cấp được token.
 - Quy trình git: làm trên nhánh riêng, mở PR vào `main` rồi merge; không commit `.env`, `node_modules`. Repo GitHub: `dochicongg-lang/langnghe-dx-os` (công khai).
