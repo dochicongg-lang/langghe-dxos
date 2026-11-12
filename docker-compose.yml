@@ -53,6 +53,8 @@ services:
       MINIO_IDENTITY_OPENID_SCOPES: openid
       MINIO_IDENTITY_OPENID_DISPLAY_NAME: Keycloak SSO
       MINIO_IDENTITY_OPENID_REDIRECT_URI: http://localhost:${MINIO_CONSOLE_PORT}/oauth_callback
+      # CORS do MinIO xử lý (không thêm plugin cors ở route S3 để tránh trùng header) cho frontend Tầng 2
+      MINIO_API_CORS_ALLOW_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
     depends_on:
       keycloak:
         condition: service_healthy
