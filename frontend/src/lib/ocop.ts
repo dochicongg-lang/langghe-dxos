@@ -21,6 +21,8 @@ export const stateTone: Record<string, string> = {
 };
 
 export const actionLabels: Record<string, string> = {
+  attach: "Đính kèm tệp",
+  detach: "Gỡ tệp",
   submit: "Nộp hồ sơ",
   approve: "Sơ duyệt: Đạt",
   revise: "Yêu cầu bổ sung",
@@ -68,6 +70,24 @@ export interface OcopSummary {
   updated_at: string;
 }
 
+export interface Attachment {
+  id: number;
+  doc_key: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  sha256: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
+export interface AttachmentRules {
+  maxBytes: number;
+  maxPerApplication: number;
+  types: string[];
+  enabled: boolean;
+}
+
 export interface OcopDetail extends OcopSummary {
   description: string;
   product_code: string | null;
@@ -75,6 +95,8 @@ export interface OcopDetail extends OcopSummary {
   documents: string[];
   checklist: { key: string; label: string; required: boolean }[];
   missing_documents: string[];
+  attachments: Attachment[];
+  attachment_rules: AttachmentRules;
   expected: { parts: Record<string, number>; total: number; stars: number | null } | null;
   result: OcopResult | null;
   history: { action: string; from_state: string | null; to_state: string; actor: string; note: string; created_at: string }[];

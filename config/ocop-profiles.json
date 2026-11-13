@@ -34,6 +34,7 @@
         ],
         "minStarsRecognized": 3
       },
+      "attachments": { "maxBytes": 5242880, "maxPerApplication": 30, "types": ["image/jpeg", "image/png", "image/webp", "application/pdf"] },
       "validityMonths": 36,
       "renewalWindowDays": { "from": 180, "to": 120 },
       "communeReviewWorkingDays": 15,
