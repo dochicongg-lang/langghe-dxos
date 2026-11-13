@@ -73,3 +73,9 @@ test("PHÁT HIỆN LỆCH: script thiết lập không còn ghi cứng tên role
   const setup = fs.readFileSync(path.join(ROOT, "scripts", "setup-apisix-routes.sh"), "utf8");
   assert.ok(!/r == 'editor'|r == 'readonly'/.test(setup), "Lua trong setup-apisix-routes.sh phải sinh từ config/access.json");
 });
+
+test("HỒI QUY: script không dùng `curl -o /dev/null` (với MSYS_NO_PATHCONV=1, curl.exe của Windows báo lỗi 23)", () => {
+  const dir = path.join(ROOT, "scripts");
+  const bad = fs.readdirSync(dir).filter((f) => f.endsWith(".sh") && /-o \/dev\/null/.test(fs.readFileSync(path.join(dir, f), "utf8")));
+  assert.deepEqual(bad, [], "dùng chuyển hướng của shell (> /dev/null) hoặc lấy 3 ký tự cuối của -w thay cho -o /dev/null");
+});

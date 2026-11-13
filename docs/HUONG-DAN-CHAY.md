@@ -235,6 +235,8 @@ Tài khoản thử (cho **môi trường phát triển**, mật khẩu = tên đ
 `hoa` (producer), `tuan` (coop-officer), `ocop` (ocop-officer), `tester` (editor = admin), `viewer` (readonly).
 Trang **Human** của giao diện hiện HTX và quyền hiệu lực của người đang đăng nhập.
 
+**Xác thực hai yếu tố (OTP) cho cán bộ HTX.** Tài khoản có vai trò `coop-officer` (như `tuan`) bị bắt dùng mã OTP khi đăng nhập trên trình duyệt: lần đầu Keycloak hiện màn hình "Mobile Authenticator Setup" để cài ứng dụng (Google Authenticator, FreeOTP...); các lần sau hỏi mã 6 số. Muốn thử mà không có điện thoại: ở màn hình cài OTP bấm **"Unable to scan?"** để lấy khóa chữ, rồi chạy `node scripts/totp.js <khóa>` (có thể dán cả khoảng trắng) để lấy mã. Muốn bật OTP cho vai trò khác: thêm `"mfa": true` vào vai trò đó trong `config/access.json` rồi chạy `bash scripts/upgrade.sh` (hiện chỉ hỗ trợ một vai trò). Đăng nhập bằng mật khẩu trực tiếp qua API (dùng trong các script kiểm tra) không bị đòi OTP. Nếu cần gỡ OTP của một người: Keycloak → Users → Credentials → xóa OTP.
+
 **Muốn đổi quyền:** sửa duy nhất tệp `config/access.json` (ma trận vai trò × hành động × phạm vi `all`/`coop`/`own`/`self`), rồi chạy `bash scripts/upgrade.sh`.
 Từ tệp đó hệ thống tự sinh: kiểm tra quyền trong `trace-api`, đoạn kiểm tra ở cổng gác, policy MinIO và danh sách vai trò Keycloak, nên không phải sửa nhiều nơi.
 `editor` là bí danh **tạm thời** của `admin` trong lúc chuyển sang vai trò nghiệp vụ.

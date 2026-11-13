@@ -10,12 +10,17 @@ interface ProcessDefinition {
   name: string | null;
   version: number;
   deploymentId: string;
+  category: string | null;
 }
+
+/** Quy trình nghiệp vụ của hệ thống đặt category này (targetNamespace="dxos" trong BPMN). Các quy trình mẫu của image Flowable thuộc category khác. */
+const DX_CATEGORY = "dxos";
 
 export default function ProcessPage() {
   const { apiFetch } = useAuth();
   const [items, setItems] = useState<ProcessDefinition[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showSamples, setShowSamples] = useState(false);
 
   useEffect(() => {
     apiFetch("/api/workflow/repository/process-definitions?latest=true")
@@ -27,28 +32,48 @@ export default function ProcessPage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Lỗi không xác định"));
   }, [apiFetch]);
 
+  const own = (items ?? []).filter((p) => p.category === DX_CATEGORY);
+  const samples = (items ?? []).filter((p) => p.category !== DX_CATEGORY);
+  const shown = showSamples ? (items ?? []) : own;
+
   return (
     <>
       <PageTitle title="Process" desc="Quy trình nghiệp vụ chạy trên Flowable, gọi qua API Gateway bằng JWT." />
       <Card title="Quy trình đã triển khai">
         {error && <p className="text-sm text-red-600">Không tải được dữ liệu: {error}</p>}
         {!error && !items && <p className="text-sm text-slate-500">Đang tải…</p>}
-        {items && items.length === 0 && <p className="text-sm text-slate-500">Chưa có quy trình nào.</p>}
-        {items && items.length > 0 && (
+        {items && shown.length === 0 && (
+          <p className="text-sm text-slate-500">
+            Chưa có quy trình nghiệp vụ nào của hệ thống.
+            {samples.length > 0 && !showSamples && " Các quy trình mẫu của Flowable đang được ẩn."}
+          </p>
+        )}
+        {items && samples.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowSamples((v) => !v)}
+            className="mb-3 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            {showSamples ? "Ẩn" : "Hiện"} {samples.length} quy trình mẫu của Flowable
+          </button>
+        )}
+        {items && shown.length > 0 && (
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase text-slate-500">
               <tr>
                 <th className="pb-2">Key</th>
                 <th className="pb-2">Tên</th>
                 <th className="pb-2">Phiên bản</th>
+                <th className="pb-2">Loại</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {items.map((p) => (
+              {shown.map((p) => (
                 <tr key={p.id}>
                   <td className="py-2 font-mono text-slate-700">{p.key}</td>
                   <td className="py-2 text-slate-800">{p.name ?? "—"}</td>
                   <td className="py-2 text-slate-600">v{p.version}</td>
+                  <td className="py-2 text-slate-500">{p.category === DX_CATEGORY ? "hệ thống" : "mẫu Flowable"}</td>
                 </tr>
               ))}
             </tbody>

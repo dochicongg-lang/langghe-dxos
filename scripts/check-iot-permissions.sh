@@ -82,16 +82,17 @@ RET='<Retention xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></Retention>'
 MD5=$(printf '%s' "$RET" | openssl dgst -md5 -binary | base64)
 unlock() { # tên-vai-trò cred ; gửi PutObjectRetention rỗng + bypass qua APISIX, in mã HTTP
   local ak sk st; IFS=: read -r ak sk st <<< "$2"
-  curl -s -o /dev/null -w "%{http_code}" -X PUT --aws-sigv4 "aws:amz:us-east-1:s3" --user "$ak:$sk" \
+  curl -s -w "%{http_code}" -X PUT --aws-sigv4 "aws:amz:us-east-1:s3" --user "$ak:$sk" \
     -H "x-amz-security-token: $st" -H "x-amz-bypass-governance-retention: true" -H "Content-MD5: $MD5" \
-    --data "$RET" "http://s3.localhost:${APISIX_GATEWAY_PORT}/$B/$FILE_SEED?retention"
+    --data "$RET" "http://s3.localhost:${APISIX_GATEWAY_PORT}/$B/$FILE_SEED?retention" | tail -c 3
 }
 check "editor không gỡ được hạn khóa qua cổng gác"  ok test "$(unlock editor "$EDITOR_CRED")" = 403
 check "thiết bị không gỡ được hạn khóa qua cổng gác" ok test "$(unlock device "$DEVICE_CRED")" = 403
 check "hạn khóa của tệp thử vẫn còn nguyên"         ok test -n "$(rootout "mc retention info r/$B/$FILE_SEED" | sed -n -e '/GOVERNANCE/p' -e '/COMPLIANCE/p')"
 
 echo "== API nghiệp vụ (qua APISIX) =="
-code() { curl -s -o /dev/null -w "%{http_code}" "$@"; }
+# Không dùng tùy chọn -o trỏ vào thiết bị null: với MSYS_NO_PATHCONV=1 curl.exe của Windows không ghi được đường dẫn đó (lỗi 23). Lấy 3 ký tự cuối = mã HTTP.
+code() { curl -s -w "%{http_code}" "$@" | tail -c 3; }
 check "editor xem danh sách (200)"       ok   test "$(code -H "Authorization: Bearer $EDITOR_JWT" "$GW/api/trace/products")" = 200
 check "editor gọi workflow (200)"           ok   test "$(code -H "Authorization: Bearer $EDITOR_JWT" "$GW/api/workflow/repository/process-definitions")" = 200
 check "không token -> 401"               ok   test "$(code "$GW/api/trace/products")" = 401
@@ -108,9 +109,11 @@ echo "== Vai trò nghiệp vụ và sở hữu (persona hoa=producer, tuan=coop-
 pw_token() { curl -s -X POST "$KC" -d grant_type=password -d client_id="$KEYCLOAK_CLIENT_ID" -d client_secret="$KEYCLOAK_CLIENT_SECRET" -d username="$1" -d password="$1" | token; }
 HOA_JWT=$(pw_token hoa); TUAN_JWT=$(pw_token tuan); OCOP_JWT=$(pw_token ocop)
 [ -n "$HOA_JWT" ] && [ -n "$TUAN_JWT" ] && [ -n "$OCOP_JWT" ] || { echo "Không lấy được token persona (chạy bash scripts/setup-keycloak-roles.sh)"; exit 2; }
+. scripts/lib-keycloak.sh; kc_login >/dev/null 2>&1
+check "đăng nhập bằng trình duyệt của coop-officer bắt buộc OTP (luồng browser-role-otp)" ok test "$(kc get realms/$KEYCLOAK_REALM --fields browserFlow --format csv --noquotes | tr -d '\r')" = browser-role-otp
 PCODE="G1TEST-$TS"
 api() { # jwt phương-thức đường-dẫn [json] -> mã HTTP (qua cổng gác)
-  curl -s -o /dev/null -w "%{http_code}" -X "$2" -H "Authorization: Bearer $1" -H "Content-Type: application/json" ${4:+-d "$4"} "$GW/api/trace/$3"
+  curl -s -w "%{http_code}" -X "$2" -H "Authorization: Bearer $1" -H "Content-Type: application/json" ${4:+-d "$4"} "$GW/api/trace/$3" | tail -c 3
 }
 EV='{"stage":"tao-hinh","note":"kiem tra phan quyen"}'
 check "hoa (producer) tạo sản phẩm của mình"               ok test "$(api "$HOA_JWT" POST products "{\"code\":\"$PCODE\",\"name\":\"Kiem tra G1\"}")" = 201
@@ -126,7 +129,7 @@ check "viewer (readonly) KHÔNG tạo được sản phẩm"          ok test "$
 check "viewer KHÔNG thêm được công đoạn"                   ok test "$(api "$VIEWER_JWT" POST "products/$PCODE/events" "$EV")" = 403
 check "thiết bị (iot-writer) không dùng được /me"          ok test "$(api "$DEVICE_JWT" GET me)" != 200
 check "/me của hoa có HTX và quyền theo phạm vi"           ok test "$(curl -s -H "Authorization: Bearer $HOA_JWT" "$GW/api/trace/me" | grep -c '"coop":"htx-demo".*"product.update":"own"')" = 1
-check "người chưa đăng nhập không đọc được sản phẩm nội bộ" ok test "$(curl -s -o /dev/null -w "%{http_code}" "$GW/api/trace/products/$PCODE")" = 401
+check "người chưa đăng nhập không đọc được sản phẩm nội bộ" ok test "$(curl -s -w "%{http_code}" "$GW/api/trace/products/$PCODE" | tail -c 3)" = 401
 check "bản công khai không lộ chủ sở hữu/HTX"              ok test "$(curl -s "$GW/api/public/trace/$PCODE" | grep -c 'owner\|"coop"\|created_by')" = 0
 check "hoa đọc được định nghĩa quy trình (200)"            ok test "$(code -H "Authorization: Bearer $HOA_JWT" "$GW/api/workflow/repository/process-definitions")" = 200
 check "hoa KHÔNG thay đổi được quy trình (POST) "          ok test "$(code -X POST -H "Authorization: Bearer $HOA_JWT" -H "Content-Type: application/json" -d '{}' "$GW/api/workflow/runtime/process-instances")" = 403
