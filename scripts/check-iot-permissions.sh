@@ -155,7 +155,14 @@ check "quản trị (STS) KHÔNG liệt kê được kho tệp"                 
 check "producer (STS) KHÔNG đọc được kho tệp"                     deny mcas "$HOA_CRED" cat "x/$D/$DOCS_OBJ"
 check "producer (STS) KHÔNG ghi được vào kho tệp"                 deny mcas "$HOA_CRED" cp /tmp/p.txt "x/$D/applications/perm-test-$TS/b.txt"
 check "ocop-officer (STS) KHÔNG đọc được kho tệp"                 deny mcas "$OCOP_CRED" cat "x/$D/$DOCS_OBJ"
-root "mc rm --force r/$D/$DOCS_OBJ"
+COLD_OBJ="archive/perm-test-$TS.txt"
+root "echo cold | mc pipe r/$D/$COLD_OBJ"
+check "(đối chứng) trace-docs đọc được kho lạnh archive/"       ok   dcs mc cat "d/$D/$COLD_OBJ"
+check "trace-docs ghi được vào kho lạnh archive/"               ok   dcs sh -c "echo x | mc pipe d/$D/archive/perm-test-w-$TS.txt"
+check "trace-docs KHÔNG xóa được ở kho lạnh"                    deny dcs mc rm "d/$D/$COLD_OBJ"
+check "quản trị (STS) KHÔNG đọc được kho lạnh"                  deny mcas "$EDITOR_CRED" cat "x/$D/$COLD_OBJ"
+check "producer (STS) KHÔNG đọc được kho lạnh"                  deny mcas "$HOA_CRED" cat "x/$D/$COLD_OBJ"
+root "mc rm --force r/$D/$DOCS_OBJ r/$D/$COLD_OBJ r/$D/archive/perm-test-w-$TS.txt"
 
 # Dọn sản phẩm thử
 docker exec dxos-postgres psql -U "$POSTGRES_USER" -d "$TRACE_DB" -t -c "DELETE FROM products WHERE code='$PCODE';" >/dev/null 2>&1
