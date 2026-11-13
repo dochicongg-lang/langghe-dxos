@@ -6,6 +6,10 @@
     "realm": [
       { "name": "editor", "description": "Nhân viên: tạo/sửa dữ liệu ứng dụng; MinIO đọc/ghi mọi bucket NHƯNG KHÔNG ghi/xóa trong iot/" },
       { "name": "readonly", "description": "Chỉ xem; MinIO policy readonly (đọc mọi bucket)" },
+      { "name": "admin", "description": "Quản trị: toàn quyền nghiệp vụ, thao tác quy trình" },
+      { "name": "producer", "description": "Chủ thể sản xuất (hộ, doanh nghiệp, HTX, nghệ nhân): quản lý sản phẩm của mình" },
+      { "name": "coop-officer", "description": "Cán bộ HTX/hội làng nghề: hỗ trợ và sơ duyệt cho thành viên cùng HTX" },
+      { "name": "ocop-officer", "description": "Cán bộ đơn vị đầu mối OCOP/hội đồng: xem toàn bộ, ghi kết quả chính thức (giai đoạn sau)" },
       { "name": "iot-writer", "description": "Thiết bị IoT: chỉ ghi (PutObject) vào iot/, không đọc, không gọi API nghiệp vụ" }
     ]
   },

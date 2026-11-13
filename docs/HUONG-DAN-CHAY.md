@@ -217,16 +217,29 @@ Trang chỉ hiện thông tin được phép công bố: **không** có tên ng�
 
 ### 11c. Phân quyền (để hiểu cách hệ thống bảo vệ dữ liệu)
 
-| Người dùng | Xem danh sách/chi tiết | Tạo sản phẩm, thêm công đoạn |
-|---|---|---|
-| Chưa đăng nhập | Không (401), chỉ dùng được trang `/verify/...` | Không |
-| Có role `readonly` | Có | Không (403) |
-| Có role `editor` (như `tester`) | Có | Có |
-| Thiết bị IoT (role `iot-writer`, client `dxos-iot`) | Không (403) | Không (403) |
+Hệ thống có **vai trò nghiệp vụ** và **sở hữu**: mỗi người thuộc một hợp tác xã (HTX), mỗi sản phẩm thuộc một HTX và có người tạo (chủ sở hữu).
 
-Tài khoản thử có sẵn: `tester`/`tester` (role `editor`) và `viewer`/`viewer` (role `readonly`, chỉ xem). Đổi hoặc xóa chúng trước khi triển khai thật.
+| Người dùng (vai trò) | Xem sản phẩm | Tạo sản phẩm | Thêm công đoạn |
+|---|---|---|---|
+| Chưa đăng nhập | Không (401), chỉ `/verify/...` | Không | Không |
+| `readonly` (`viewer`) | Tất cả | Không (403) | Không (403) |
+| `ocop-officer` (`ocop`): cán bộ đơn vị đầu mối OCOP | Tất cả | Không | Không |
+| `producer` (`hoa`): chủ thể sản xuất (hộ, doanh nghiệp, HTX, nghệ nhân) | Sản phẩm **cùng HTX** | Có, cho HTX của mình | Chỉ sản phẩm **do mình tạo** |
+| `coop-officer` (`tuan`): cán bộ HTX | Sản phẩm cùng HTX | Có, cho HTX của mình | Mọi sản phẩm **cùng HTX** |
+| `admin` (hoặc `editor` cũ, như `tester`) | Tất cả | Có | Có |
+| Thiết bị IoT (`iot-writer`, client `dxos-iot`) | Không (403) | Không (403) | Không (403) |
 
-Role gán cho người dùng trong Keycloak (http://localhost:8080, đăng nhập `admin`/`admin`, realm **dxos** → Users → Role mapping).
+Sản phẩm mà bạn không được xem sẽ hiện như "không tìm thấy" (không báo là có tồn tại). Người dùng chưa thuộc HTX nào sẽ không thấy sản phẩm của HTX nào và không tạo được sản phẩm.
+
+Tài khoản thử (cho **môi trường phát triển**, mật khẩu = tên đăng nhập; đổi hoặc xóa trước khi triển khai thật), cùng HTX mẫu `htx-demo`:
+`hoa` (producer), `tuan` (coop-officer), `ocop` (ocop-officer), `tester` (editor = admin), `viewer` (readonly).
+Trang **Human** của giao diện hiện HTX và quyền hiệu lực của người đang đăng nhập.
+
+**Muốn đổi quyền:** sửa duy nhất tệp `config/access.json` (ma trận vai trò × hành động × phạm vi `all`/`coop`/`own`/`self`), rồi chạy `bash scripts/upgrade.sh`.
+Từ tệp đó hệ thống tự sinh: kiểm tra quyền trong `trace-api`, đoạn kiểm tra ở cổng gác, policy MinIO và danh sách vai trò Keycloak, nên không phải sửa nhiều nơi.
+`editor` là bí danh **tạm thời** của `admin` trong lúc chuyển sang vai trò nghiệp vụ.
+
+Role gán cho người dùng trong Keycloak (http://localhost:8080, đăng nhập `admin`/`admin`, realm **dxos** → Users → Role mapping). Mã HTX của người dùng là thuộc tính `coop` (Users → Attributes), ví dụ `htx-demo`; người dùng phải đăng nhập lại (hoặc đợi làm mới token) để nhận thay đổi.
 
 **Dữ liệu cảm biến (thư mục `iot/` trong MinIO) có quyền riêng**, tách khỏi quyền ghi dữ liệu ứng dụng:
 

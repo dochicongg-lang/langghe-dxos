@@ -1,1 +1,4 @@
 .env
+
+# Tệp sinh ra từ config/access.json khi chạy script thiết lập
+scripts/.generated/

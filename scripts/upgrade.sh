@@ -68,10 +68,10 @@ if [ "$CHECK" = 1 ]; then bash scripts/check-iot-permissions.sh | tail -3; else 
 trap - EXIT
 echo
 echo "XONG. Chạy giao diện: cd frontend && npm run dev  ->  http://localhost:3000"
-echo "Tài khoản thử: tester/tester (editor), viewer/viewer (readonly)."
+echo "Tài khoản thử (mật khẩu = tên): hoa (producer), tuan (coop-officer), ocop (ocop-officer), tester (editor = admin), viewer (readonly)."
 WEAK=""
 [ "${POSTGRES_PASSWORD:-}" = postgres ] && WEAK="$WEAK POSTGRES_PASSWORD"
 [ "${MINIO_ROOT_PASSWORD:-}" = minioadmin123 ] && WEAK="$WEAK MINIO_ROOT_PASSWORD"
 [ "${KEYCLOAK_ADMIN_PASSWORD:-}" = admin ] && WEAK="$WEAK KEYCLOAK_ADMIN_PASSWORD"
-[ -n "$WEAK" ] && echo "CẢNH BÁO: còn mật khẩu mặc định yếu trong .env:$WEAK (đổi trước khi triển khai thật), và đổi/xóa user thử tester, viewer."
+[ -n "$WEAK" ] && echo "CẢNH BÁO: còn mật khẩu mặc định yếu trong .env:$WEAK (đổi trước khi triển khai thật), và đổi/xóa các user thử (hoa, tuan, ocop, tester, viewer)."
 exit 0

@@ -29,6 +29,33 @@ ensure_user() { # tên, mật khẩu, vai trò (user thử cho môi trường ph
   kc add-roles -r "$R" --uusername "$u" --rolename "$role"
 }
 
+# Cho phép thuộc tính người dùng tùy chỉnh (Keycloak 26 mặc định bỏ thuộc tính không khai báo trong user profile)
+enable_unmanaged_attributes() {
+  kc update users/profile -r "$R" -s unmanagedAttributePolicy=ENABLED >/dev/null
+}
+
+set_user_attr() { # tên-người-dùng, tên-thuộc-tính, giá-trị
+  local id
+  id=$(kc get users -r "$R" -q "username=$1" --fields id --format csv --noquotes | tr -d '\r')
+  [ -n "$id" ] || { echo "Không có người dùng $1"; return 1; }
+  kc update "users/$id" -r "$R" -s "attributes.$2=[\"$3\"]" >/dev/null
+}
+
+# Đưa thuộc tính người dùng "coop" (mã HTX) vào JWT cho client web và client API (claim "coop")
+ensure_coop_mapper() {
+  local cid id
+  for cid in "$KEYCLOAK_CLIENT_ID" dxos-web; do
+    id=$(kc get clients -r "$R" -q "clientId=$cid" --fields id --format csv --noquotes | tr -d '\r')
+    [ -n "$id" ] || continue
+    if ! kc get "clients/$id/protocol-mappers/models" -r "$R" --fields name --format csv --noquotes | tr -d '\r' | grep -qx coop; then
+      kc create "clients/$id/protocol-mappers/models" -r "$R" -s name=coop -s protocol=openid-connect \
+        -s protocolMapper=oidc-usermodel-attribute-mapper -s 'config."user.attribute"=coop' -s 'config."claim.name"=coop' \
+        -s 'config."jsonType.label"=String' -s 'config."access.token.claim"=true' -s 'config."id.token.claim"=false' \
+        -s 'config."userinfo.token.claim"=true' >/dev/null
+    fi
+  done
+}
+
 # Tạo (hoặc cập nhật khóa của) client gateway IoT: service account, chỉ có role iot-writer.
 # Token có audience = client của MinIO/APISIX và claim "policy"; MinIO chỉ cho ghi vào iot/service-account-<client>/.
 ensure_iot_client() { # clientId, secret

@@ -1,0 +1,17 @@
+{
+  "_doc": "NGUỒN DUY NHẤT của ma trận quyền. Từ tệp này sinh ra: kiểm tra quyền ở trace-api (access.js), đoạn Lua ở cổng gác APISIX, policy MinIO và danh sách vai trò Keycloak (scripts/gen-access.js). Tên role Keycloak = tên policy MinIO (claim `policy`). Phạm vi (scope) của một quyền: all = mọi tài nguyên; coop = tài nguyên thuộc HTX của người dùng (claim `coop`); own = tài nguyên do chính người dùng tạo; self = người dùng được tạo mới cho chính mình (và HTX của mình). Muốn đổi quyền thì sửa ở đây rồi chạy: bash scripts/upgrade.sh",
+  "roles": {
+    "admin": { "desc": "Quản trị: toàn quyền nghiệp vụ, thao tác quy trình", "minio": "admin", "workflowWrite": true },
+    "editor": { "alias": "admin", "desc": "TẠM THỜI: bí danh cũ của admin, bỏ sau khi chuyển xong sang vai trò nghiệp vụ", "minio": "admin" },
+    "producer": { "desc": "Chủ thể sản xuất (hộ, doanh nghiệp, HTX, nghệ nhân): quản lý sản phẩm của mình", "minio": "domain" },
+    "coop-officer": { "desc": "Cán bộ HTX/hội làng nghề: hỗ trợ và sơ duyệt cho thành viên cùng HTX", "minio": "domain" },
+    "ocop-officer": { "desc": "Cán bộ đơn vị đầu mối OCOP/hội đồng: xem toàn bộ, ghi kết quả chính thức (giai đoạn sau)", "minio": "domain" },
+    "readonly": { "desc": "Chỉ xem", "minio": "builtin" },
+    "iot-writer": { "desc": "Thiết bị IoT: chỉ ghi số liệu cảm biến vào thư mục của gateway, không dùng API nghiệp vụ", "minio": "iot-writer", "api": false }
+  },
+  "permissions": {
+    "product.read": { "admin": "all", "readonly": "all", "ocop-officer": "all", "coop-officer": "coop", "producer": "coop" },
+    "product.create": { "admin": "all", "coop-officer": "coop", "producer": "self" },
+    "product.update": { "admin": "all", "coop-officer": "coop", "producer": "own" }
+  }
+}
