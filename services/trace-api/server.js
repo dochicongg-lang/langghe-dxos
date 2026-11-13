@@ -29,6 +29,7 @@ const { IotError, parseWindow, createS3Client, buildEvidence } = require("./iot"
 const crypto = require("node:crypto");
 const ocop = require("./ocop");
 const attachments = require("./attachments");
+const lifecycle = require("./lifecycle");
 const { createFlowableClient } = require("./flowable");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -721,6 +722,39 @@ async function downloadAttachment(code, id, user, res) {
   res.end(buf);
 }
 
+// ---------- Vòng đời dữ liệu: lưu trữ nóng -> lạnh ----------
+const ARCHIVE_KEEP_DAYS = lifecycle.validateKeepDays(process.env.ARCHIVE_KEEP_DAYS ?? 90);
+const ARCHIVE_INTERVAL_HOURS = Number(process.env.ARCHIVE_INTERVAL_HOURS ?? 24);
+
+async function runArchive(triggeredBy, keepDays, application) {
+  if (!docsS3) throw new HttpError(503, "Chưa cấu hình kho lưu trữ (DOCS_S3_ACCESS_KEY, DOCS_S3_SECRET_KEY)");
+  try {
+    return await lifecycle.archiveApplicationHistory(pool, docsS3, { keepDays, application: application || null, triggeredBy });
+  } catch (e) {
+    if (e instanceof HttpError) throw e;
+    console.error("[trace-api] lỗi lưu trữ:", e.message);
+    throw new HttpError(502, "Lưu trữ thất bại, dữ liệu ở tầng nóng được giữ nguyên");
+  }
+}
+
+async function archiveOverview(user) {
+  requirePermission(user, "archive.manage");
+  return {
+    policy: { keep_days: ARCHIVE_KEEP_DAYS, interval_hours: ARCHIVE_INTERVAL_HOURS, enabled: Boolean(docsS3), source: "ocop_application_history", terminal_states: lifecycle.TERMINAL_STATES },
+    runs: await lifecycle.listRuns(pool),
+  };
+}
+
+function startArchiveScheduler() {
+  if (!docsS3 || !(ARCHIVE_INTERVAL_HOURS > 0)) return;
+  const tick = () =>
+    runArchive("scheduler", ARCHIVE_KEEP_DAYS)
+      .then((r) => r && !r.skipped && console.log(`[trace-api] lưu trữ tự động: ${r.rows} bản ghi, ${r.applications} hồ sơ, đối tượng ${r.object_key}`))
+      .catch((e) => console.error("[trace-api] lưu trữ tự động lỗi:", e.message));
+  setTimeout(tick, 60_000).unref();
+  setInterval(tick, ARCHIVE_INTERVAL_HOURS * 3600_000).unref();
+}
+
 // ---------- Định tuyến ----------
 async function route(req, res) {
   const url = new URL(req.url, "http://x");
@@ -744,6 +778,38 @@ async function route(req, res) {
     if (parts.length === 1 && m === "POST") return send(res, 201, await createProduct(await readJson(req), user));
     if (parts.length === 2 && m === "GET") return send(res, 200, await getProduct(parts[1], { user }));
     if (parts.length === 3 && parts[2] === "events" && m === "POST") return send(res, 201, await addEvent(parts[1], await readJson(req), user));
+  }
+  if (parts[0] === "archive") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    if (parts.length === 1 && m === "GET") return send(res, 200, await archiveOverview(user));
+    if (parts.length === 2 && parts[1] === "run" && m === "POST") {
+      requirePermission(user, "archive.manage");
+      const body = await readJson(req);
+      let keepDays = ARCHIVE_KEEP_DAYS;
+      if (body.keep_days !== undefined) {
+        try {
+          keepDays = lifecycle.validateKeepDays(body.keep_days);
+        } catch (e) {
+          throw new HttpError(400, e.message);
+        }
+      }
+      const application = body.application ? str(body.application, 60, "application") : null;
+      return send(res, 200, { result: await runArchive(user.name, keepDays, application), ...(await archiveOverview(user)) });
+    }
+    if (parts.length === 3 && parts[2] === "rows" && m === "GET") {
+      requirePermission(user, "archive.manage");
+      if (!docsS3) throw new HttpError(503, "Chưa cấu hình kho lưu trữ");
+      let rows;
+      try {
+        rows = await lifecycle.readRun(pool, docsS3, parts[1]);
+      } catch (e) {
+        console.error("[trace-api] lỗi đọc bản lưu trữ:", e.message);
+        throw new HttpError(502, "Không đọc được bản lưu trữ (hoặc không khớp băm)");
+      }
+      if (!rows) throw new HttpError(404, "Không có lần lưu trữ này");
+      return send(res, 200, { rows: rows.slice(0, 200), total: rows.length });
+    }
   }
   if (parts[0] === "applications") {
     const user = getUser(req);
@@ -789,6 +855,7 @@ async function main() {
     await seed();
     await seedDomain();
   }
+  startArchiveScheduler();
   server.listen(PORT, () => console.log(`[trace-api] lắng nghe cổng ${PORT}, database "${DB_NAME}"`));
 }
 

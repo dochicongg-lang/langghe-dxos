@@ -21,6 +21,7 @@ export const stateTone: Record<string, string> = {
 };
 
 export const actionLabels: Record<string, string> = {
+  archive: "Lưu trữ lịch sử",
   attach: "Đính kèm tệp",
   detach: "Gỡ tệp",
   submit: "Nộp hồ sơ",

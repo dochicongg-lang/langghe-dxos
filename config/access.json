@@ -23,6 +23,7 @@
     "application.create": { "admin": "all", "coop-officer": "coop", "producer": "self" },
     "application.update": { "admin": "all", "coop-officer": "coop", "producer": "own" },
     "application.review": { "admin": "all", "coop-officer": "coop" },
-    "application.decide": { "admin": "all", "ocop-officer": "all" }
+    "application.decide": { "admin": "all", "ocop-officer": "all" },
+    "archive.manage": { "admin": "all" }
   }
 }

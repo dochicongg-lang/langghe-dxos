@@ -167,6 +167,33 @@ const flowableGet = (tok, path) => fetch(`${GW}/api/workflow/${path}`, { headers
   ok((await act(tuan, code2, { action: "reject" })).status === 400, "không đạt mà không ghi lý do -> 400");
   r = await act(tuan, code2, { action: "reject", note: "Thiếu hồ sơ pháp lý hợp lệ" });
   ok(r.status === 200 && r.json.state === "rejected", "tuan không đạt sơ duyệt -> rejected");
+  // ---- Vòng đời dữ liệu: lưu trữ lịch sử nóng -> lạnh (chỉ quản trị; đường chạy tay để kiểm thử, giới hạn một hồ sơ) ----
+  const archiveRun = (tok, body) => api(tok, "POST", "/archive/run", body);
+  ok((await archiveRun(hoa, { keep_days: 0, application: code2 })).status === 403, "producer không chạy được lưu trữ -> 403");
+  ok((await archiveRun(tuan, { keep_days: 0, application: code2 })).status === 403, "cán bộ HTX không chạy được lưu trữ -> 403");
+  ok((await archiveRun(ocop, { keep_days: 0, application: code2 })).status === 403, "cán bộ đầu mối OCOP không chạy được lưu trữ -> 403");
+  ok((await api(viewer, "GET", "/archive")).status === 403, "viewer không xem được sổ lưu trữ -> 403");
+  for (const bad of [-1, "abc", null, 99999]) ok((await archiveRun(tester, { keep_days: bad, application: code2 })).status === 400, `số ngày giữ không hợp lệ (${JSON.stringify(bad)}) -> 400`);
+  const draftApp = await api(tester, "POST", "/applications", { ...base, documents: [] });
+  r = await archiveRun(tester, { keep_days: 0, application: draftApp.json.code });
+  ok(r.status === 200 && r.json.result === null, "hồ sơ CHƯA kết thúc (nháp) không bị lưu trữ");
+  r = await api(hoa, "GET", `/applications/${code2}`);
+  const before = r.json.history.length;
+  ok(before >= 3, "hồ sơ không đạt có lịch sử đầy đủ ở tầng nóng trước khi lưu trữ (>= 3 dòng)");
+  r = await archiveRun(tester, { keep_days: 0, application: code2 });
+  const res = r.json.result;
+  ok(r.status === 200 && res?.rows === before && res.applications === 1 && /^archive\/ocop_application_history\//.test(res.object_key), "quản trị chạy lưu trữ: toàn bộ lịch sử hồ sơ đã kết thúc được chuyển sang kho lạnh");
+  r = await api(hoa, "GET", `/applications/${code2}`);
+  ok(r.json.history.length === 1 && r.json.history[0].action === "archive" && /kho lạnh/.test(r.json.history[0].note), "tầng nóng chỉ còn một dòng tóm tắt trỏ tới kho lạnh");
+  r = await api(tester, "GET", `/archive/${res?.run_id}/rows`);
+  ok(r.status === 200 && r.json.total === before && r.json.rows.every((x) => x.application === code2) && ["create", "submit", "reject"].every((a) => r.json.rows.some((x) => x.action === a)), "đọc lại từ kho lạnh (đã kiểm băm): đủ dòng, đúng hồ sơ, đủ hành động");
+  ok((await api(hoa, "GET", `/archive/${res?.run_id}/rows`)).status === 403, "producer không đọc được kho lạnh qua API -> 403");
+  r = await archiveRun(tester, { keep_days: 0, application: code2 });
+  ok(r.status === 200 && r.json.result === null, "chạy lại không lưu trữ lại dòng tóm tắt (idempotent)");
+  r = await api(tester, "GET", "/archive");
+  ok(r.status === 200 && r.json.runs.some((x) => x.id === res?.run_id && x.row_count === before && x.sha256.length === 64), "sổ lưu trữ ghi lại lần chạy kèm băm SHA-256");
+  ok(r.json.policy.keep_days === 90 && r.json.policy.enabled === true, "chính sách mặc định giữ 90 ngày ở tầng nóng");
+
 
   // ---- Cách ly dữ liệu ----
   const hoaList = await api(hoa, "GET", "/applications");
