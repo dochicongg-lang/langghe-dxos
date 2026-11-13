@@ -1,0 +1,22 @@
+{
+  "_doc": "Hồ sơ nung dùng cho phân tích thông minh đường cong nhiệt độ lò (tính năng [I]). Bộ luật chạy trên bằng chứng IoT đã được máy chủ đối chiếu: đỉnh nhiệt, thời gian giữ trên ngưỡng, tốc độ gia nhiệt/làm nguội, so với các mẻ trước của cùng lò, và độ tin cậy dữ liệu. Ngưỡng ở đây là SỐ LIỆU MINH HỌA (verified=false), phải được thợ gốm/chuyên gia xác nhận cho từng loại men và lò trước khi dùng thật. publicInsight quy định kết luận nào được hiện ở trang công khai cho người mua: all (mọi kết luận), ok-only (chỉ khi đạt chuẩn) hoặc none (không hiện). Khi ngưỡng còn là số liệu minh họa nên cân nhắc ok-only hoặc none cho sản phẩm thật. Chọn hồ sơ theo danh mục sản phẩm (byCategory), không có thì dùng defaultProfile. Đổi file rồi chạy: docker compose restart trace-api",
+  "defaultProfile": "gom-men-rach",
+  "publicInsight": "all",
+  "byCategory": {
+    "Gốm sứ": "gom-men-rach"
+  },
+  "profiles": {
+    "gom-men-rach": {
+      "name": "Gốm men rạn (ngưỡng minh họa)",
+      "verified": false,
+      "note": "Ngưỡng minh họa theo hiểu biết chung về nung gốm, cần thợ gốm hoặc chuyên gia xác nhận theo loại men, kích thước sản phẩm và lò thực tế.",
+      "minSamples": 20,
+      "peak": { "min": 1100, "max": 1220 },
+      "criticalMax": 1300,
+      "hold": { "aboveC": 1100, "minMinutes": 60 },
+      "ramp": { "fromC": 300, "maxPerHour": 250, "windowMin": 30 },
+      "cooling": { "fromC": 1000, "toC": 400, "maxPerHour": 300, "windowMin": 30 },
+      "baseline": { "minRuns": 3, "maxDeviationPct": 6 }
+    }
+  }
+}

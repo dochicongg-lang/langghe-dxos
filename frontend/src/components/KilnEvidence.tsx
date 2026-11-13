@@ -1,4 +1,5 @@
-import type { IotEvidence } from "@/lib/trace";
+import KilnInsightPanel from "./KilnInsight";
+import type { IotEvidence, KilnInsight } from "@/lib/trace";
 
 const flagText = (flag: string, q: NonNullable<IotEvidence["quality"]>) =>
   ({
@@ -21,7 +22,7 @@ function fmtDuration(fromIso: string, toIso: string) {
 }
 
 /** Đường cong nhiệt độ lò trong khoảng thời gian nung, lấy từ cảm biến IoT. */
-export default function KilnEvidence({ iot }: { iot: IotEvidence }) {
+export default function KilnEvidence({ iot, insight }: { iot: IotEvidence; insight?: KilnInsight | null }) {
   const w = 300;
   const h = 70;
   const ts = iot.curve.map((p) => p[0]);
@@ -44,7 +45,7 @@ export default function KilnEvidence({ iot }: { iot: IotEvidence }) {
         Dữ liệu cảm biến: {iot.deviceName || iot.deviceId} · nhiệt độ
       </p>
       <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 h-16 w-full" preserveAspectRatio="none" role="img" aria-label="Đường cong nhiệt độ lò">
-        <polyline points={path} fill="none" stroke="#6366f1" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <polyline points={path} fill="none" stroke="#c04a1f" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       </svg>
       <dl className="mt-2 grid grid-cols-4 gap-2 text-center text-xs">
         {[
@@ -71,6 +72,7 @@ export default function KilnEvidence({ iot }: { iot: IotEvidence }) {
           ))}
         </>
       )}
+      {insight && <KilnInsightPanel insight={insight} />}
       {iot.verifiedAt && (
         <p className="mt-2 text-xs font-medium text-emerald-700">✓ Máy chủ đã đối chiếu với dữ liệu cảm biến lưu trên hệ thống</p>
       )}

@@ -12,6 +12,11 @@
  *   node backend/simulate-iot.js [--interval 2000] [--count 0] [--batch 10] [--post]
  *   (--count 0 = chạy đến khi nhấn Ctrl+C)
  *
+ * Kịch bản mẻ nung (ghi LÙI về quá khứ một chương trình nung hoàn chỉnh của lò kiln-01, mỗi phút một mẫu, rồi thoát):
+ *   node backend/simulate-iot.js --post --scenario firing|overheat|fast-ramp|low-peak [--days-ago 20]
+ *   firing = mẻ chuẩn (đạt); overheat = quá nhiệt (cảnh báo); fast-ramp = gia nhiệt quá nhanh; low-peak = đỉnh nhiệt thấp.
+ *   In ra cửa sổ thời gian {deviceId, from, to} để dùng khi thêm công đoạn nung có bằng chứng IoT. Mỗi kịch bản nên dùng --days-ago khác nhau.
+ *
  * Không dùng thư viện ngoài (chỉ Node >= 18).
  */
 "use strict";
@@ -65,6 +70,7 @@ function readSensors(now = new Date()) {
 
 // ---------- Vòng lặp chính ----------
 let buffer = [];
+let timer;
 let ticks = 0;
 let stopping = false;
 const uploader = cfg.post ? createUploader() : null;
@@ -100,18 +106,65 @@ async function shutdown() {
   process.exit(0);
 }
 
-console.error(
-  `[iot] bắt đầu: mỗi ${cfg.intervalMs}ms, ${cfg.count || "không giới hạn"} lượt, ` +
-    (cfg.post ? `ghi lên MinIO bucket "${cfg.bucket}" qua APISIX` : "chỉ in ra console (dùng --post để ghi lên MinIO)"),
-);
+function startLoop() {
+  console.error(
+    `[iot] bắt đầu: mỗi ${cfg.intervalMs}ms, ${cfg.count || "không giới hạn"} lượt, ` +
+      (cfg.post ? `ghi lên MinIO bucket "${cfg.bucket}" qua APISIX` : "chỉ in ra console (dùng --post để ghi lên MinIO)"),
+  );
 
-const timer = setInterval(async () => {
-  await tick();
-  if (cfg.count && ticks >= cfg.count) await shutdown();
-}, cfg.intervalMs);
-tick().then(() => cfg.count && ticks >= cfg.count && shutdown());
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+  timer = setInterval(async () => {
+    await tick();
+    if (cfg.count && ticks >= cfg.count) await shutdown();
+  }, cfg.intervalMs);
+  tick().then(() => cfg.count && ticks >= cfg.count && shutdown());
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+}
+
+// ---------- Kịch bản mẻ nung (dữ liệu lùi về quá khứ) ----------
+const SCENARIOS = {
+  firing: { peak: 1150, rampH: 8, holdH: 2, coolH: 5 }, // chuẩn: gia nhiệt ~140 °C/giờ, giữ 2 giờ, làm nguội ~190 °C/giờ
+  overheat: { peak: 1320, rampH: 8, holdH: 2, coolH: 5 }, // vượt ngưỡng nguy hiểm
+  "fast-ramp": { peak: 1150, rampH: 3, holdH: 2, coolH: 5 }, // gia nhiệt ~375 °C/giờ
+  "low-peak": { peak: 980, rampH: 8, holdH: 2, coolH: 5 }, // chưa đủ nhiệt
+};
+
+async function runScenario(name) {
+  const sc = SCENARIOS[name];
+  if (!sc) throw new Error(`không có kịch bản "${name}" (có: ${Object.keys(SCENARIOS).join(", ")})`);
+  if (!cfg.post) throw new Error("kịch bản cần --post (ghi lên MinIO qua APISIX)");
+  const daysAgo = Number(args["days-ago"] ?? 20);
+  const today = new Date();
+  const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - daysAgo, 1, 0, 0));
+  const total = (sc.rampH + sc.holdH + sc.coolH) * 60; // số phút = số mẫu
+  const kiln = devices[0];
+  const byHour = new Map();
+  for (let i = 0; i <= total; i++) {
+    const min = i;
+    const h = min / 60;
+    let v;
+    if (h <= sc.rampH) v = 25 + ((sc.peak - 25) * h) / sc.rampH;
+    else if (h <= sc.rampH + sc.holdH) v = sc.peak;
+    else v = sc.peak - ((sc.peak - 200) * (h - sc.rampH - sc.holdH)) / sc.coolH;
+    const t = new Date(start.getTime() + min * 60000);
+    const rec = { deviceId: kiln.id, deviceName: kiln.name, metric: kiln.metric, value: Math.round((v + (Math.random() - 0.5) * 3) * 10) / 10, unit: kiln.unit, timestamp: t.toISOString() };
+    const hourStart = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate(), t.getUTCHours()));
+    const k = hourStart.toISOString();
+    if (!byHour.has(k)) byHour.set(k, { at: hourStart, records: [] });
+    byHour.get(k).records.push(rec);
+  }
+  const up = createUploader();
+  let objects = 0;
+  for (const { at, records } of byHour.values()) {
+    await up.put(records, at);
+    objects += 1;
+  }
+  const from = new Date(start.getTime() - 60000).toISOString();
+  const to = new Date(start.getTime() + (total + 1) * 60000).toISOString();
+  console.error(`[iot] kịch bản "${name}": ${total + 1} mẫu trong ${objects} tệp`);
+  console.log(JSON.stringify({ scenario: name, deviceId: kiln.id, from, to, samples: total + 1 }));
+}
+
 
 // ---------- Ghi lên MinIO: Keycloak JWT -> STS -> SigV4 ----------
 function createUploader() {
@@ -137,11 +190,12 @@ function createUploader() {
     return creds;
   }
 
-  async function put(records) {
+  async function put(records, at) {
     const c = await getCredentials();
     const now = new Date();
+    const stamp = at ?? now; // kịch bản ghi lùi về quá khứ: tên tệp theo thời điểm của dữ liệu
     // Mỗi gateway chỉ ghi được vào thư mục riêng (policy iot-writer: ${jwt:preferred_username} = service-account-<client>)
-    const key = `iot/service-account-${cfg.clientId}/${now.toISOString().slice(0, 10)}/${now.toISOString().replace(/[:.]/g, "-")}.ndjson`;
+    const key = `iot/service-account-${cfg.clientId}/${stamp.toISOString().slice(0, 10)}/${stamp.toISOString().replace(/[:.]/g, "-")}.ndjson`;
     const payload = records.map((r) => JSON.stringify(r)).join("\n") + "\n";
     const uri = `/${cfg.bucket}/${key}`;
     const headers = signV4("PUT", uri, payload, c, now);
@@ -251,4 +305,17 @@ function loadDotEnv(file) {
     const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
     if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
   }
+}
+
+// ---------- Điểm vào: kịch bản mẻ nung hoặc vòng lặp giả lập thường ----------
+// (đặt cuối tệp để mọi hằng ở trên đã khởi tạo xong)
+if (args.scenario) {
+  runScenario(String(args.scenario))
+    .then(() => process.exit(0))
+    .catch((e) => {
+      console.error(`[iot] kịch bản thất bại: ${e.message}`);
+      process.exit(1);
+    });
+} else {
+  startLoop();
 }

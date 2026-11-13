@@ -30,6 +30,7 @@ const crypto = require("node:crypto");
 const ocop = require("./ocop");
 const attachments = require("./attachments");
 const lifecycle = require("./lifecycle");
+const kiln = require("./kiln");
 const { createFlowableClient } = require("./flowable");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -64,6 +65,9 @@ const OCOP = ocop.loadProfiles(process.env.OCOP_PROFILES_FILE ?? "/app/config/oc
 const flowable = process.env.FLOWABLE_URL
   ? createFlowableClient({ baseUrl: process.env.FLOWABLE_URL, user: process.env.FLOWABLE_USER ?? "rest-admin", password: process.env.FLOWABLE_PASSWORD ?? "" })
   : null;
+
+// Hồ sơ nung cho phân tích thông minh đường cong lò (nguồn: config/kiln-profiles.json).
+const KILN = kiln.loadProfiles(process.env.KILN_PROFILES_FILE ?? "/app/config/kiln-profiles.json");
 
 // Tài khoản MinIO ghi/đọc TỆP ĐÍNH KÈM hồ sơ (chỉ bucket tệp, tiền tố applications/). Không cấu hình thì tắt tính năng tệp.
 const docsS3 =
@@ -282,16 +286,60 @@ async function publicOcop(productCode) {
   };
 }
 
+/** Đỉnh nhiệt của MỌI mẻ có bằng chứng IoT trên một thiết bị (để so sánh mẻ nung với các mẻ trước của cùng lò). */
+async function kilnPeaks(deviceId) {
+  const { rows } = await pool.query("SELECT id, (iot->>'max')::float AS peak FROM trace_events WHERE iot IS NOT NULL AND iot->>'deviceId' = $1", [deviceId]);
+  return rows;
+}
+
+/** Tổng hợp phân tích các mẻ nung mà người dùng được xem (theo phạm vi product.read), mới nhất trước. */
+async function kilnInsights(user) {
+  const scope = access.scopeFor(ACCESS, user.roles, "product.read");
+  if (!scope) throw new HttpError(403, "Vai trò của bạn không có quyền xem sản phẩm");
+  if (scope === "coop" && !user.coop) return { profile: null, summary: { total: 0, ok: 0, warn: 0, alert: 0, insufficient: 0 }, runs: [] };
+  const { rows } = await pool.query(
+    `SELECT e.id, e.iot, e.created_at, p.code, p.name, p.category
+     FROM trace_events e JOIN products p ON p.id = e.product_id LEFT JOIN cooperatives c ON c.id = p.coop_id
+     WHERE e.iot IS NOT NULL ${scope === "all" ? "" : "AND c.code = $1"} ORDER BY e.created_at DESC, e.id DESC LIMIT 200`,
+    scope === "all" ? [] : [user.coop],
+  );
+  const peerCache = new Map();
+  const summary = { total: 0, ok: 0, warn: 0, alert: 0, insufficient: 0 };
+  const runs = [];
+  for (const r of rows) {
+    if (!peerCache.has(r.iot.deviceId)) peerCache.set(r.iot.deviceId, await kilnPeaks(r.iot.deviceId));
+    const profile = kiln.pickProfile(KILN, r.category);
+    const insight = kiln.analyze(r.iot, profile, { baselinePeaks: peerCache.get(r.iot.deviceId).filter((x) => x.id !== r.id).map((x) => x.peak) });
+    summary.total += 1;
+    summary[insight.verdict] += 1;
+    runs.push({ product_code: r.code, product_name: r.name, at: r.created_at, device_id: r.iot.deviceId, from: r.iot.from, to: r.iot.to, peak: r.iot.max, unit: r.iot.unit, insight });
+  }
+  const d = kiln.pickProfile(KILN, null);
+  return { profile: { id: d.id, name: d.name, verified: d.verified === true, note: d.note ?? "" }, summary, runs };
+}
+
 /** Chi tiết sản phẩm. Bản công khai không kèm thông tin nội bộ (người tạo, chủ sở hữu, HTX). Bản nội bộ phải qua kiểm tra quyền xem. */
 async function getProduct(code, { publicView = false, user = null } = {}) {
   const p = await findProductRow(code);
   if (!p) throw new HttpError(404, "Không tìm thấy sản phẩm");
   if (!publicView && !access.authorize(ACCESS, user, "product.read", p)) throw new HttpError(404, "Không tìm thấy sản phẩm"); // không lộ sự tồn tại
   const ev = await pool.query(
-    "SELECT stage, note, location, actor, iot, created_at FROM trace_events WHERE product_id = $1 ORDER BY created_at, id",
+    "SELECT id, stage, note, location, actor, iot, created_at FROM trace_events WHERE product_id = $1 ORDER BY created_at, id",
     [p.id],
   );
-  const events = ev.rows.map((e) => (publicView ? { stage: e.stage, note: e.note, location: e.location, iot: e.iot, created_at: e.created_at } : e));
+  const kilnProfile = kiln.pickProfile(KILN, p.category);
+  const peerCache = new Map();
+  const insightOf = async (e) => {
+    if (!e.iot) return null;
+    if (!peerCache.has(e.iot.deviceId)) peerCache.set(e.iot.deviceId, await kilnPeaks(e.iot.deviceId));
+    return kiln.analyze(e.iot, kilnProfile, { baselinePeaks: peerCache.get(e.iot.deviceId).filter((r) => r.id !== e.id).map((r) => r.peak) });
+  };
+  const events = [];
+  for (const e of ev.rows) {
+    const insight = await insightOf(e);
+    const { id: _id, ...rest } = e;
+    events.push(publicView ? { stage: e.stage, note: e.note, location: e.location, iot: e.iot, ...(insight && kiln.publicAllows(KILN, insight.verdict) ? { insight } : {}), created_at: e.created_at } : { ...rest, ...(insight ? { insight } : {}) });
+  }
   const product = { code: p.code, name: p.name, category: p.category, village: p.village, artisan: p.artisan, created_at: p.created_at };
   if (publicView) product.ocop = await publicOcop(p.code);
   if (!publicView) {
@@ -769,6 +817,12 @@ async function route(req, res) {
     const user = getUser(req);
     if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
     return send(res, 200, { username: user.name, roles: user.roles, coop: user.coop, permissions: access.permissionsOf(ACCESS, user.roles), pages: access.pagesOf(ACCESS, user.roles) });
+  }
+
+  if (parts[0] === "insights" && parts[1] === "kilns" && parts.length === 2 && m === "GET") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    return send(res, 200, await kilnInsights(user));
   }
 
   if (parts[0] === "products") {

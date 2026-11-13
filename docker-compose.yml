@@ -195,6 +195,7 @@ services:
       IOT_DEVICES_FILE: /app/config/iot-devices.json
       ACCESS_FILE: /app/config/access.json
       OCOP_PROFILES_FILE: /app/config/ocop-profiles.json
+      KILN_PROFILES_FILE: /app/config/kiln-profiles.json
       DOCS_BUCKET: ${DOCS_BUCKET:-dxos-docs}
       ARCHIVE_KEEP_DAYS: ${ARCHIVE_KEEP_DAYS:-90}
       ARCHIVE_INTERVAL_HOURS: ${ARCHIVE_INTERVAL_HOURS:-24}
@@ -207,6 +208,7 @@ services:
       - ./config/iot-devices.json:/app/config/iot-devices.json:ro
       - ./config/access.json:/app/config/access.json:ro
       - ./config/ocop-profiles.json:/app/config/ocop-profiles.json:ro
+      - ./config/kiln-profiles.json:/app/config/kiln-profiles.json:ro
     depends_on:
       postgres:
         condition: service_healthy
