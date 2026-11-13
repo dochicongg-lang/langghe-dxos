@@ -8,7 +8,7 @@ const REFRESH_MS = 10_000;
 const metricLabel: Record<string, string> = { temperature: "Nhiệt độ", humidity: "Độ ẩm" };
 
 function Sparkline({ points }: { points: { t: number; v: number }[] }) {
-  if (points.length < 2) return <div className="h-14 text-xs text-slate-400">Chưa đủ điểm để vẽ</div>;
+  if (points.length < 2) return <div className="h-14 text-xs text-stone-400">Chưa đủ điểm để vẽ</div>;
   const w = 240;
   const h = 56;
   const vs = points.map((p) => p.v);
@@ -30,12 +30,12 @@ function SeriesCard({ s }: { s: Series }) {
   const last = s.points[s.points.length - 1];
   const avg = vs.reduce((a, b) => a + b, 0) / vs.length;
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{s.deviceName}</p>
-      <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{metricLabel[s.metric] ?? s.metric}</p>
-      <p className="mt-2 text-3xl font-bold text-slate-900">
+    <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+      <p className="text-sm text-stone-500">{s.deviceName}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-brand-600">{metricLabel[s.metric] ?? s.metric}</p>
+      <p className="mt-2 text-3xl font-bold text-stone-900">
         {last.v.toFixed(1)}
-        <span className="ml-1 text-base font-medium text-slate-500">{s.unit}</span>
+        <span className="ml-1 text-base font-medium text-stone-500">{s.unit}</span>
       </p>
       <div className="mt-3">
         <Sparkline points={s.points} />
@@ -46,13 +46,13 @@ function SeriesCard({ s }: { s: Series }) {
           ["Trung bình", avg],
           ["Cao nhất", Math.max(...vs)],
         ].map(([label, value]) => (
-          <div key={label as string} className="rounded-lg bg-slate-50 py-2">
-            <dt className="text-slate-500">{label}</dt>
-            <dd className="font-semibold text-slate-800">{(value as number).toFixed(1)}</dd>
+          <div key={label as string} className="rounded-lg bg-stone-50 py-2">
+            <dt className="text-stone-500">{label}</dt>
+            <dd className="font-semibold text-stone-800">{(value as number).toFixed(1)}</dd>
           </div>
         ))}
       </dl>
-      <p className="mt-3 text-xs text-slate-400">{s.points.length} điểm · cập nhật {new Date(last.t).toLocaleTimeString("vi-VN")}</p>
+      <p className="mt-3 text-xs text-stone-400">{s.points.length} điểm · cập nhật {new Date(last.t).toLocaleTimeString("vi-VN")}</p>
     </section>
   );
 }
@@ -91,11 +91,11 @@ export default function IntelligencePage() {
     <>
       <PageTitle title="Intelligence" desc="Số liệu cảm biến IoT từ MinIO, đọc qua API Gateway bằng JWT (STS + SigV4)." />
 
-      <div className="mb-4 flex items-center justify-between text-sm text-slate-500">
+      <div className="mb-4 flex items-center justify-between text-sm text-stone-500">
         <span>
           {updatedAt ? `Cập nhật lúc ${updatedAt.toLocaleTimeString("vi-VN")} · ${objects} tệp · tự làm mới mỗi ${REFRESH_MS / 1000}s` : "Đang tải…"}
         </span>
-        <button onClick={() => void load()} className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100">
+        <button onClick={() => void load()} className="rounded-lg border border-stone-300 px-3 py-1.5 text-stone-700 hover:bg-stone-100">
           Làm mới
         </button>
       </div>
@@ -108,13 +108,13 @@ export default function IntelligencePage() {
 
       {readings && series.length === 0 && !error && (
         <Card title="Chưa có dữ liệu">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-stone-600">
             Bucket chưa có số liệu. Mở một terminal khác và chạy:
           </p>
-          <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm text-slate-100">
+          <pre className="mt-3 overflow-x-auto rounded-lg bg-stone-900 p-4 text-sm text-stone-100">
             node backend/simulate-iot.js --post --interval 2000 --batch 8
           </pre>
-          <p className="mt-3 text-sm text-slate-500">Vài chục giây sau trang sẽ tự hiện số liệu.</p>
+          <p className="mt-3 text-sm text-stone-500">Vài chục giây sau trang sẽ tự hiện số liệu.</p>
         </Card>
       )}
 
@@ -130,7 +130,7 @@ export default function IntelligencePage() {
             <Card title="10 bản ghi mới nhất">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="text-xs uppercase text-slate-500">
+                  <thead className="text-xs uppercase text-stone-500">
                     <tr>
                       <th className="pb-2">Thời gian</th>
                       <th className="pb-2">Thiết bị</th>
@@ -138,13 +138,13 @@ export default function IntelligencePage() {
                       <th className="pb-2 text-right">Giá trị</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-stone-100">
                     {recent.map((r, i) => (
                       <tr key={`${r.timestamp}-${r.deviceId}-${r.metric}-${i}`}>
-                        <td className="py-2 text-slate-600">{new Date(r.timestamp).toLocaleTimeString("vi-VN")}</td>
-                        <td className="py-2 text-slate-800">{r.deviceName}</td>
-                        <td className="py-2 text-slate-600">{metricLabel[r.metric] ?? r.metric}</td>
-                        <td className="py-2 text-right font-mono text-slate-800">
+                        <td className="py-2 text-stone-600">{new Date(r.timestamp).toLocaleTimeString("vi-VN")}</td>
+                        <td className="py-2 text-stone-800">{r.deviceName}</td>
+                        <td className="py-2 text-stone-600">{metricLabel[r.metric] ?? r.metric}</td>
+                        <td className="py-2 text-right font-mono text-stone-800">
                           {r.value.toFixed(1)} {r.unit}
                         </td>
                       </tr>

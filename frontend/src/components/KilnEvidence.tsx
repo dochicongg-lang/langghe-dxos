@@ -39,8 +39,8 @@ export default function KilnEvidence({ iot }: { iot: IotEvidence }) {
     .join(" ");
 
   return (
-    <div className="mt-2 rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
-      <p className="text-xs font-medium text-indigo-700">
+    <div className="mt-2 rounded-lg border border-brand-100 bg-brand-50/60 p-3">
+      <p className="text-xs font-medium text-brand-700">
         Dữ liệu cảm biến: {iot.deviceName || iot.deviceId} · nhiệt độ
       </p>
       <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 h-16 w-full" preserveAspectRatio="none" role="img" aria-label="Đường cong nhiệt độ lò">
@@ -54,14 +54,14 @@ export default function KilnEvidence({ iot }: { iot: IotEvidence }) {
           ["Số mẫu đo", String(iot.count)],
         ].map(([k, v]) => (
           <div key={k}>
-            <dt className="text-slate-500">{k}</dt>
-            <dd className="font-semibold text-slate-800">{v}</dd>
+            <dt className="text-stone-500">{k}</dt>
+            <dd className="font-semibold text-stone-800">{v}</dd>
           </div>
         ))}
       </dl>
       {iot.quality && (
         <>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-stone-500">
             Độ phủ dữ liệu {Math.round(iot.quality.coverage * 100)}% · khoảng trống lớn nhất {iot.quality.maxGapSec} giây
           </p>
           {iot.quality.flags.map((f) => (
@@ -74,7 +74,7 @@ export default function KilnEvidence({ iot }: { iot: IotEvidence }) {
       {iot.verifiedAt && (
         <p className="mt-2 text-xs font-medium text-emerald-700">✓ Máy chủ đã đối chiếu với dữ liệu cảm biến lưu trên hệ thống</p>
       )}
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-stone-500">
         {fmtTime(iot.from)} → {fmtTime(iot.to)} ({fmtDuration(iot.from, iot.to)})
       </p>
     </div>

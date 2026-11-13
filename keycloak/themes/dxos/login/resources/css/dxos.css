@@ -1,0 +1,125 @@
+/* Theme đăng nhập "Làng Nghề Số": màu đất nung (gốm) trên nền kem ấm. Cùng bảng màu với giao diện web (frontend/src/app/globals.css). */
+:root {
+  --dx-brand-50: #fdf4ef;
+  --dx-brand-100: #fbe6d9;
+  --dx-brand-500: #d9602c;
+  --dx-brand-600: #c04a1f;
+  --dx-brand-700: #9f3a1a;
+  --dx-ink: #292524;
+  --dx-muted: #78716c;
+  --dx-line: #e7e5e4;
+
+  --pf-v5-global--primary-color--100: var(--dx-brand-600);
+  --pf-v5-global--primary-color--200: var(--dx-brand-700);
+  --pf-v5-global--active-color--100: var(--dx-brand-600);
+  --pf-v5-global--link--Color: var(--dx-brand-600);
+  --pf-v5-global--link--Color--hover: var(--dx-brand-700);
+  --pf-v5-global--BorderColor--100: var(--dx-line);
+  --pf-v5-global--FontFamily--text: "Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --pf-v5-global--FontFamily--heading: var(--pf-v5-global--FontFamily--text);
+  --keycloak-card-top-color: var(--dx-brand-600);
+}
+
+html,
+body,
+.pf-v5-c-login {
+  font-family: var(--pf-v5-global--FontFamily--text);
+}
+
+.login-pf body,
+body {
+  background:
+    radial-gradient(1200px 500px at 85% -10%, var(--dx-brand-100), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, #f5ebe0, transparent 55%),
+    #faf8f5;
+  background-attachment: fixed;
+}
+
+.pf-v5-c-login {
+  background: transparent;
+}
+
+/* Tiêu đề thương hiệu: tên miền (displayName của realm) kèm ô logo "DX", thay cho logo Keycloak */
+#kc-header-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0;
+  color: var(--dx-ink) !important;
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+#kc-header-wrapper::before {
+  content: "DX";
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  background: var(--dx-brand-600);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 16px -6px rgba(159, 58, 26, 0.6);
+}
+.pf-v5-c-login__header {
+  margin-bottom: 0.25rem;
+}
+
+/* Thẻ đăng nhập */
+.pf-v5-c-login__main {
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--dx-line);
+  box-shadow: 0 20px 40px -24px rgba(68, 42, 24, 0.35);
+}
+.pf-v5-c-login__main-header {
+  border-top: 4px solid var(--dx-brand-600);
+}
+.pf-v5-c-login__main-header .pf-v5-c-title,
+#kc-page-title {
+  color: var(--dx-ink);
+  font-weight: 700;
+}
+
+/* Ô nhập và nút */
+.pf-v5-c-form-control {
+  border-radius: 0.5rem;
+  background-color: #fff;
+}
+.pf-v5-c-form-control::before {
+  border-color: #d6d3d1 !important;
+  border-radius: 0.5rem;
+}
+.pf-v5-c-form-control:focus-within,
+.pf-v5-c-form-control:focus {
+  --pf-v5-c-form-control--after--BorderBottomColor: var(--dx-brand-600);
+}
+.pf-v5-c-button.pf-m-primary {
+  border-radius: 0.5rem;
+  font-weight: 600;
+  padding-block: 0.65rem;
+}
+.pf-v5-c-button.pf-m-control {
+  color: var(--dx-muted);
+}
+.pf-v5-c-button.pf-m-control:hover {
+  color: var(--dx-brand-700);
+}
+
+/* Thông báo lỗi nổi bật, dễ nhận ra khi nhập sai */
+.pf-v5-c-alert.pf-m-danger {
+  border-radius: 0.5rem;
+}
+.pf-v5-c-alert.pf-m-inline.pf-m-danger {
+  background: #fef2f2;
+}
+
+.pf-v5-c-login__main-footer {
+  padding-top: 0;
+}

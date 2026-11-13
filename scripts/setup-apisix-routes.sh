@@ -164,7 +164,7 @@ curl -fsS -X PUT "$ADMIN/routes/trace" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <
     "serverless-pre-function": { "phase": "rewrite", "functions": ["${LUA_TRACE}"] },
     "cors": {
       "allow_origins": "${CORS_ORIGIN}",
-      "allow_methods": "GET,POST,OPTIONS",
+      "allow_methods": "GET,POST,PUT,OPTIONS",
       "allow_headers": "Authorization,Content-Type",
       "max_age": 3600
     },

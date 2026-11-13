@@ -93,6 +93,7 @@ services:
       KC_HTTP_PORT: 8080
     volumes:
       - ./keycloak/dxos-realm.json:/opt/keycloak/data/import/dxos-realm.json:ro
+      - ./keycloak/themes/dxos:/opt/keycloak/themes/dxos:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -193,11 +194,18 @@ services:
       S3_SECRET_KEY: ${TRACE_S3_PASSWORD}
       IOT_DEVICES_FILE: /app/config/iot-devices.json
       ACCESS_FILE: /app/config/access.json
+      OCOP_PROFILES_FILE: /app/config/ocop-profiles.json
+      FLOWABLE_URL: http://flowable:8080/flowable-rest/service
+      FLOWABLE_USER: ${FLOWABLE_ADMIN_USER}
+      FLOWABLE_PASSWORD: ${FLOWABLE_ADMIN_PASSWORD}
     volumes:
       - ./config/iot-devices.json:/app/config/iot-devices.json:ro
       - ./config/access.json:/app/config/access.json:ro
+      - ./config/ocop-profiles.json:/app/config/ocop-profiles.json:ro
     depends_on:
       postgres:
         condition: service_healthy
+      flowable:
+        condition: service_started
     networks:
       - dxos-net

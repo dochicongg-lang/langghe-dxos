@@ -78,7 +78,7 @@ test("readonly và ocop-officer xem được toàn bộ nhưng không ghi", () =
 });
 
 test("permissionsOf trả bảng quyền hiệu lực cho giao diện", () => {
-  assert.deepEqual(access.permissionsOf(CFG, ["producer"]), { "product.read": "coop", "product.create": "self", "product.update": "own" });
+  assert.deepEqual(access.permissionsOf(CFG, ["producer"]), { "product.read": "coop", "product.create": "self", "product.update": "own", "application.read": "own", "application.create": "self", "application.update": "own" });
   assert.deepEqual(access.permissionsOf(CFG, ["readonly"]), { "product.read": "all" });
   assert.deepEqual(access.permissionsOf(CFG, ["iot-writer"]), {});
 });
@@ -98,4 +98,19 @@ test("validate: từ chối cấu hình sai", () => {
     mutate(c);
     assert.throws(() => access.validate(c), Error);
   }
+});
+
+test("trang nền tảng theo vai trò (đúng người đúng việc)", () => {
+  const p = (r) => access.pagesOf(CFG, r).sort();
+  assert.deepEqual(p(["producer"]), ["intelligence"]);
+  assert.deepEqual(p(["readonly"]), ["data", "intelligence"]);
+  assert.deepEqual(p(["coop-officer"]), ["data", "intelligence", "process"]);
+  assert.deepEqual(p(["ocop-officer"]), ["data", "intelligence", "process"]);
+  assert.deepEqual(p(["admin"]), ["data", "intelligence", "process"]);
+  assert.deepEqual(p(["editor"]), p(["admin"])); // bí danh tạm
+  assert.deepEqual(p(["iot-writer"]), []);
+  assert.deepEqual(p(["role-la"]), []);
+  assert.deepEqual(p(["producer", "coop-officer"]), ["data", "intelligence", "process"]); // nhiều vai trò: hợp của các vai trò
+  assert.throws(() => access.validate({ roles: { a: {} }, permissions: {}, pages: { x: ["b"] } }), /role không có/);
+  assert.throws(() => access.validate({ roles: { a: {} }, permissions: {}, pages: { x: "a" } }), /danh sách/);
 });

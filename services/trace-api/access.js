@@ -29,6 +29,10 @@ function validate(cfg) {
       if (!RANK[scope]) throw new Error(`access.json: phạm vi không hợp lệ ở ${action}/${role}: ${scope}`);
     }
   }
+  for (const [page, roles] of Object.entries(cfg.pages ?? {})) {
+    if (!Array.isArray(roles)) throw new Error(`access.json: pages.${page} phải là danh sách vai trò`);
+    for (const r of roles) if (!cfg.roles[r]) throw new Error(`access.json: pages.${page} nhắc tới role không có: ${r}`);
+  }
   return cfg;
 }
 
@@ -94,4 +98,12 @@ function permissionsOf(cfg, roles) {
   return out;
 }
 
-module.exports = { load, validate, expand, scopeFor, canApi, authorize, permissionsOf, RANK };
+/** Các trang nền tảng (khai báo ở "pages") mà người dùng được thấy. Chỉ để ẩn/hiện giao diện, không dùng để cấp quyền. */
+function pagesOf(cfg, roles) {
+  const mine = expand(cfg, roles);
+  return Object.entries(cfg.pages ?? {})
+    .filter(([, allowed]) => allowed.some((r) => mine.has(cfg.roles[r].alias ?? r)))
+    .map(([page]) => page);
+}
+
+module.exports = { pagesOf, load, validate, expand, scopeFor, canApi, authorize, permissionsOf, RANK };
