@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
+import AuditLog from "@/components/AuditLog";
 import { fmtDate } from "@/lib/trace";
 
 interface ArchiveRun {
@@ -37,6 +38,7 @@ function Tier({ label, tone, title, children }: { label: string; tone: string; t
 export default function DataPage() {
   const { user, apiFetch } = useAuth();
   const canManage = Boolean(user.permissions["archive.manage"]);
+  const canAudit = Boolean(user.permissions["audit.read"]);
   const [overview, setOverview] = useState<ArchiveOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -190,6 +192,11 @@ export default function DataPage() {
               </>
             )}
           </Card>
+        </div>
+      )}
+      {canAudit && (
+        <div className="mt-6">
+          <AuditLog />
         </div>
       )}
     </>

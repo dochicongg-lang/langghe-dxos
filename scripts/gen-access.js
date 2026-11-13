@@ -45,12 +45,24 @@ const BEARER_DECODE =
   "if p then p = p:gsub('%-', '+'):gsub('_', '/'); p = p .. string.rep('=', (4 - #p % 4) % 4); local d = ngx.decode_base64(p); c = d and core.json.decode(d); end; " +
   "local roles = (c and type(c.policy) == 'table') and c.policy or {}; ";
 
+// Nhật ký kiểm toán: xóa tiêu đề do client tự gửi, rồi gắn danh tính đọc từ token (chỉ ký tự an toàn, có giới hạn độ dài).
+// Lua chạy trước bước xác thực chữ ký nên danh tính chỉ được tin khi yêu cầu cuối cùng thành công (xem services/trace-api/audit.js).
+const AUDIT_RESET = "core.request.set_header(ctx, 'X-Audit-User', ''); core.request.set_header(ctx, 'X-Audit-Roles', ''); ";
+const AUDIT_STAMP =
+  "do local u = ''; if c and type(c.preferred_username) == 'string' then u = (c.preferred_username:gsub('[^%w%._@%-]', '')) end; " +
+  "local rs = {}; for _, r in ipairs(roles) do if type(r) == 'string' then rs[#rs + 1] = r end end; " +
+  "core.request.set_header(ctx, 'X-Audit-User', string.sub(u, 1, 64)); " +
+  "core.request.set_header(ctx, 'X-Audit-Roles', string.sub((table.concat(rs, ',')):gsub('[^%w,_%-]', ''), 1, 200)) end; ";
+
 function luaTrace(cfg, origin) {
   checkOrigin(origin);
   return (
-    "return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; " +
+    "return function(conf, ctx) local core = require('apisix.core'); " +
+    AUDIT_RESET +
+    "local h = core.request.header(ctx, 'Authorization'); if not h then return end; " +
     `local allow = ${luaSet(apiRoles(cfg))}; ` +
     BEARER_DECODE +
+    AUDIT_STAMP +
     "local ok = false; for _, r in ipairs(roles) do if allow[r] then ok = true end end; " +
     `if not ok then ngx.header['Access-Control-Allow-Origin'] = '${origin}'; return 403, {error = 'Can vai tro nghiep vu hop le. Neu vua doi vai tro, hay dang xuat roi dang nhap lai.'} end end`
   );
@@ -59,9 +71,12 @@ function luaTrace(cfg, origin) {
 function luaWorkflow(cfg, origin) {
   checkOrigin(origin);
   return (
-    "return function(conf, ctx) local core = require('apisix.core'); local h = core.request.header(ctx, 'Authorization'); if not h then return end; " +
+    "return function(conf, ctx) local core = require('apisix.core'); " +
+    AUDIT_RESET +
+    "local h = core.request.header(ctx, 'Authorization'); if not h then return end; " +
     `local read = ${luaSet(apiRoles(cfg))}; local write = ${luaSet(workflowWriters(cfg))}; ` +
     BEARER_DECODE +
+    AUDIT_STAMP +
     "local ro = false; local ed = false; for _, r in ipairs(roles) do if read[r] then ro = true end if write[r] then ed = true end end; " +
     `local m = ngx.req.get_method(); local u = ngx.var.uri or ''; local o = '${origin}'; ` +
     "if not ro then ngx.header['Access-Control-Allow-Origin'] = o; return 403, {error = 'Can vai tro nghiep vu hop le. Neu vua doi vai tro, hay dang xuat roi dang nhap lai.'} end; " +

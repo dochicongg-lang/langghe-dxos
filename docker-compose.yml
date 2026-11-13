@@ -196,6 +196,7 @@ services:
       ACCESS_FILE: /app/config/access.json
       OCOP_PROFILES_FILE: /app/config/ocop-profiles.json
       KILN_PROFILES_FILE: /app/config/kiln-profiles.json
+      AUDIT_INGEST_KEY: ${AUDIT_INGEST_KEY}
       DOCS_BUCKET: ${DOCS_BUCKET:-dxos-docs}
       ARCHIVE_KEEP_DAYS: ${ARCHIVE_KEEP_DAYS:-90}
       ARCHIVE_INTERVAL_HOURS: ${ARCHIVE_INTERVAL_HOURS:-24}
