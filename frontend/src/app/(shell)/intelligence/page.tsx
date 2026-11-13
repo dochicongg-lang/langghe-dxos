@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
+import KilnInsights from "@/components/KilnInsights";
 import { fetchReadings, toSeries, type Reading, type Series } from "@/lib/iot";
 
 const REFRESH_MS = 10_000;
@@ -20,7 +21,7 @@ function Sparkline({ points }: { points: { t: number; v: number }[] }) {
     .join(" ");
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="h-14 w-full" preserveAspectRatio="none" role="img" aria-label="Biểu đồ xu hướng">
-      <polyline points={path} fill="none" stroke="#6366f1" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <polyline points={path} fill="none" stroke="#c04a1f" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -89,7 +90,11 @@ export default function IntelligencePage() {
 
   return (
     <>
-      <PageTitle title="Intelligence" desc="Số liệu cảm biến IoT từ MinIO, đọc qua API Gateway bằng JWT (STS + SigV4)." />
+      <PageTitle title="Intelligence" desc="Phân tích thông minh các mẻ nung và số liệu cảm biến IoT từ MinIO, đọc qua API Gateway bằng JWT (STS + SigV4)." />
+
+      <div className="mb-6">
+        <KilnInsights />
+      </div>
 
       <div className="mb-4 flex items-center justify-between text-sm text-stone-500">
         <span>

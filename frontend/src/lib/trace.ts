@@ -41,12 +41,24 @@ export interface IotEvidence {
   verifiedAt?: string; // thời điểm máy chủ tự đối chiếu với dữ liệu cảm biến trên MinIO
 }
 
+export type KilnVerdict = "ok" | "warn" | "alert" | "insufficient";
+
+export interface KilnInsight {
+  verdict: KilnVerdict;
+  summary: string;
+  findings: { code: string; level: "alert" | "warn" | "info" | "ok"; text: string }[];
+  metrics: { peak: number | null; samples: number; durationMin?: number; holdMin?: number; maxRampPerHour?: number | null; maxCoolPerHour?: number | null };
+  baseline: { runs: number; medianPeak: number; deviationPct: number } | null;
+  profile: { id: string; name: string; verified: boolean };
+}
+
 export interface TraceEvent {
   stage: string;
   note: string;
   location: string;
   actor?: string; // chỉ có ở API nội bộ, ẩn ở tra cứu công khai
   iot?: IotEvidence | null; // chỉ có ở công đoạn nung khi đã gắn dữ liệu cảm biến
+  insight?: KilnInsight | null; // phân tích thông minh đường cong nung (máy chủ tính từ bằng chứng đã đối chiếu)
   created_at: string;
 }
 

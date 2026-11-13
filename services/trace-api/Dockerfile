@@ -3,7 +3,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
-COPY server.js iot.js access.js migrations.js devices.js ocop.js flowable.js attachments.js lifecycle.js ./
+COPY server.js iot.js access.js migrations.js devices.js ocop.js flowable.js attachments.js lifecycle.js kiln.js ./
 COPY migrations ./migrations
 USER node
 EXPOSE 3000

@@ -138,7 +138,7 @@ function Product() {
                       {ev.actor ? ` · ghi bởi ${ev.actor}` : ""}
                     </p>
                     {ev.note && <p className="mt-1 text-sm text-stone-600">{ev.note}</p>}
-                    {ev.iot && <KilnEvidence iot={ev.iot} />}
+                    {ev.iot && <KilnEvidence iot={ev.iot} insight={ev.insight} />}
                   </li>
                 ))}
               </ol>
