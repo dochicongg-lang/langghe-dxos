@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Danh bạ thiết bị: mỗi thiết bị cảm biến (deviceId) thuộc về ĐÚNG MỘT cổng thu thập (gateway = client Keycloak).

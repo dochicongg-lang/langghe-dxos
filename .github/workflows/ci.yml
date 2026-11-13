@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
+# Kiểm tra tự động trên mỗi push và pull request: giấy phép, cấu hình, test đơn vị, kiểu, lint, script.
+# Các bộ kiểm tra "chạy thật" (check-*.sh|js) cần hạ tầng Docker đầy đủ nên chạy tay, xem CONTRIBUTING.md.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Mọi tệp mã có dòng giấy phép SPDX
+        run: node scripts/add-license-headers.js --check
+
+      - name: Tệp cấu hình JSON hợp lệ
+        run: |
+          for f in config/*.json keycloak/dxos-realm.json; do
+            node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" "$f" && echo "ok $f"
+          done
+
+      - name: Cú pháp script shell
+        run: for f in scripts/*.sh scripts/tests/*.sh; do bash -n "$f" && echo "ok $f"; done
+
+      - name: Test đơn vị trace-api
+        working-directory: services/trace-api
+        run: |
+          npm ci
+          npm test
+
+      - name: Kiểu và lint giao diện
+        working-directory: frontend
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npx eslint src
+
+      - name: Script tạo .env
+        run: bash scripts/tests/test-env-sync.sh
+
+      - name: Cấu hình Docker Compose hợp lệ
+        run: |
+          cp .env.example .env
+          docker compose config --quiet

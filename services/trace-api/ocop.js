@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Logic thuần của quy trình hỗ trợ hồ sơ OCOP (G2): cấu hình theo địa phương, tính hạng sao, danh mục giấy tờ,

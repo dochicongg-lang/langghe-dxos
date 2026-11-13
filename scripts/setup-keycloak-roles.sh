@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Áp dụng mô hình vai trò mới cho realm Keycloak ĐANG CHẠY (realm chỉ được import khi chưa tồn tại,
 # nên sửa keycloak/dxos-realm.json không tự cập nhật realm cũ). Chạy lặp lại an toàn.
 #

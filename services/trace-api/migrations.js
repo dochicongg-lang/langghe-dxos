@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Migration có phiên bản: các tệp migrations/NNNN_ten.sql chạy theo thứ tự, mỗi tệp một lần, ghi vào schema_migrations.

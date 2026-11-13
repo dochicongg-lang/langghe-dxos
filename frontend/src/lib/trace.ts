@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Kiểu dữ liệu và nhãn cho ứng dụng Tầng 3: truy xuất nguồn gốc sản phẩm làng nghề.
 
 export const stageLabels: Record<string, string> = {

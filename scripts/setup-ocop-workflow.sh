@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Nạp quy trình hỗ trợ hồ sơ OCOP (workflows/dxos-ocop-support.bpmn20.xml) vào Flowable qua cổng gác APISIX.
 # Idempotent: tên bản triển khai gắn mã băm nội dung tệp; chỉ nạp khi nội dung đổi (sửa BPMN thì chạy lại để có phiên bản mới).
 # Dùng: bash scripts/setup-ocop-workflow.sh   (sau khi hệ thống và scripts/setup-keycloak-roles.sh đã chạy)

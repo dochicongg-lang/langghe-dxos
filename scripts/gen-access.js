@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Sinh cấu hình phân quyền từ NGUỒN DUY NHẤT config/access.json.

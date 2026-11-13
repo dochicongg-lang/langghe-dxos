@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Kiểm thử hàm sync_env (scripts/lib-env.sh) trên thư mục tạm. Dùng: bash scripts/tests/test-env-sync.sh
 set -uo pipefail
 cd "$(dirname "$0")/../.."

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Thêm một gateway IoT mới (mỗi gateway xưởng nên có client riêng để thu hồi độc lập).
 #
 #   bash scripts/add-iot-gateway.sh <tên-client> [khóa-bí-mật]

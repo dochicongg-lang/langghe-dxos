@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Lớp trung gian gọi Flowable REST (G2.2). Trình duyệt KHÔNG gọi Flowable trực tiếp cho nghiệp vụ OCOP:

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Kiểm tra THẬT quy trình hồ sơ OCOP qua cổng gác APISIX + Keycloak + trace-api + Flowable (không giả lập).
 // Chạy: node scripts/check-ocop-flow.js   (sau bash scripts/upgrade.sh). Tạo hồ sơ thử mới mỗi lần (mã OCOP-...).
 const fs = require("fs");

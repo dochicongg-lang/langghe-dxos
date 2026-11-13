@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * trace-api — API truy xuất nguồn gốc sản phẩm làng nghề (Tầng 3 của DX-OS).

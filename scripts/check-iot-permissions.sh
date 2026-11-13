@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Kiểm tra thật việc tách quyền ghi dữ liệu IoT: thiết bị (iot-writer) chỉ ghi được vào iot/,
 # nhân viên (editor) đọc được nhưng KHÔNG ghi/xóa được trong iot/, thiết bị không gọi được API nghiệp vụ.
 # Dùng: bash scripts/check-iot-permissions.sh   (sau khi đã chạy setup-keycloak-roles.sh và setup-apisix-routes.sh)

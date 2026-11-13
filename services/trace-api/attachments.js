@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Kiểm tra tệp đính kèm hồ sơ OCOP (G2.4). Logic thuần, không đụng mạng hay cơ sở dữ liệu.

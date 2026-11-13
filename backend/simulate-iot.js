@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 /**
  * Giả lập thiết bị IoT của một xưởng làng nghề (lò nung, xưởng, kho đất sét).
  *
