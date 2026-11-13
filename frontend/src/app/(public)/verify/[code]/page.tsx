@@ -4,7 +4,6 @@
 import { useParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import KilnEvidence from "@/components/KilnEvidence";
-import { config } from "@/lib/config";
 import { fmtDate, stageLabels, type ProductDetail } from "@/lib/trace";
 
 function Verify() {
@@ -14,7 +13,8 @@ function Verify() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${config.apiBaseUrl}/api/public/trace/${encodeURIComponent(code)}`)
+    // cùng nguồn gốc: Next chuyển tiếp tới cổng gác (xem next.config.ts), nên điện thoại quét QR không cần địa chỉ API riêng
+    fetch(`/api/public/trace/${encodeURIComponent(code)}`)
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(res.status === 404 ? "Không tìm thấy sản phẩm với mã này." : (body.error ?? `Lỗi ${res.status}`));
