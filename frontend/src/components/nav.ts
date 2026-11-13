@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Mục điều hướng. "Nghiệp vụ" là việc người dùng làm hằng ngày; "Nền tảng H-P-D-I" là bốn chặng tiến hóa của Tầng 2.
 export interface NavItem {
   href: string;

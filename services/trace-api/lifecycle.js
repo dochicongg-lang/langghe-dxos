@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Vòng đời dữ liệu (nguyên lý "tự động đẩy dữ liệu lịch sử xuống kho lưu trữ mà không gây nghẽn lõi").

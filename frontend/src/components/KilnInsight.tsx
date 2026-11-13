@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 import type { KilnInsight, KilnVerdict } from "@/lib/trace";
 
 export const verdictLabel: Record<KilnVerdict, string> = {

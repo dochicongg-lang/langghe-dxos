@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 export default function Card({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 // Chạy: cd services/trace-api && npm test   (dùng node:test có sẵn, không cần cài thêm gì)
 const test = require("node:test");

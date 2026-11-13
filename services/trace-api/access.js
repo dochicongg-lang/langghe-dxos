@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Phân quyền dựa trên ma trận ở config/access.json (nguồn duy nhất, xem tệp đó).

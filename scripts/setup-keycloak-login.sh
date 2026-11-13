@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Áp dụng theme đăng nhập "dxos" (keycloak/themes/dxos, gắn vào container qua docker-compose.yml) và các tính năng đăng nhập
 # cho realm ĐANG CHẠY. Idempotent. Gồm: giao diện tiếng Việt (chỉ một ngôn ngữ nên không hiện hộp chọn ngôn ngữ và không phụ thuộc ngôn ngữ trình duyệt), "ghi nhớ đăng nhập", và chống dò mật khẩu
 # (nhập sai 10 lần trong 15 phút thì khóa tạm, tăng dần 1 phút mỗi lần, tối đa 5 phút; KHÔNG khóa vĩnh viễn nên không gây kẹt demo).

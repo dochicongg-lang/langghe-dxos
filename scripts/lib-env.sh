@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Hàm dùng chung cho việc đồng bộ file .env (được `source`, không chạy trực tiếp).
 
 rand_secret() { od -An -N24 -tx1 /dev/urandom | tr -d ' \n'; } # 48 ký tự hex ngẫu nhiên

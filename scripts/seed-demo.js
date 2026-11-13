@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Nạp dữ liệu MẪU cho buổi trình diễn, chạy lặp lại an toàn (cái nào đã có thì bỏ qua):
 //   - GOM-BT-0001: đã có mẻ nung chuẩn (đường cong thật + kết luận "đạt chuẩn"), hồ sơ OCOP đã đi hết quy trình (4 sao) kèm ảnh sản phẩm
 //     => trang công khai /verify/GOM-BT-0001 là "đích" của câu chuyện quét QR.

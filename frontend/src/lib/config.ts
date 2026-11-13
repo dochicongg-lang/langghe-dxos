@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Cấu hình dùng chung cho Tầng 2. Mọi lời gọi API đều đi qua API Gateway (APISIX) kèm JWT Keycloak.
 export const config = {
   keycloakUrl: process.env.NEXT_PUBLIC_KEYCLOAK_URL ?? "http://localhost:8080",

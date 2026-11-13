@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright 2026 The Làng Nghề Số contributors
 -- Nhật ký kiểm toán hành vi API (ai gọi gì, khi nào, kết quả ra sao): CHỈ GHI THÊM.
 -- Bất biến ở hai lớp: (1) trigger từ chối UPDATE/DELETE/TRUNCATE; (2) chuỗi băm SHA-256 nối các dòng
 -- (hash = SHA-256(prev_hash + nội dung dòng)) nên mọi sửa/xóa lén, kể cả khi tắt trigger bằng quyền cao, đều bị phát hiện

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Cài đặt hoặc nâng cấp hệ thống bằng MỘT lệnh. Chạy lặp lại an toàn (idempotent).
 #
 #   bash scripts/upgrade.sh              đầy đủ: .env -> docker -> Keycloak -> APISIX/MinIO -> kiểm tra quyền

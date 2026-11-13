@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright 2026 The Làng Nghề Số contributors
 -- Nền: các bảng đã có từ trước khi có cơ chế migration. Dùng IF NOT EXISTS nên chạy an toàn trên CSDL cũ.
 CREATE TABLE IF NOT EXISTS products (
   id          SERIAL PRIMARY KEY,

@@ -2,6 +2,7 @@
   "name": "trace-api",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "API truy xuất nguồn gốc sản phẩm làng nghề (Tầng 3 - DX-OS)",
   "main": "server.js",
   "scripts": {

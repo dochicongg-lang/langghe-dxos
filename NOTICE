@@ -1,0 +1,18 @@
+Làng Nghề Số (DX-OS Open-Core)
+Copyright 2026 The Làng Nghề Số contributors
+
+Phần mềm này được phát hành theo Giấy phép Apache, Phiên bản 2.0 (Apache License, Version 2.0).
+Toàn văn giấy phép nằm ở tệp LICENSE; có thể xem tại https://www.apache.org/licenses/LICENSE-2.0
+
+Mục đích của giấy phép: cho phép bất kỳ ai sử dụng, sao chép, sửa đổi và phân phối phần mềm này (kể cả cho mục đích
+thương mại), kèm quyền sử dụng sáng chế của người đóng góp, với điều kiện giữ nguyên thông báo bản quyền, tệp LICENSE
+và tệp NOTICE này, và ghi rõ các thay đổi đã thực hiện. Phần mềm được cung cấp "NGUYÊN TRẠNG", không có bảo đảm nào.
+
+Mỗi tệp mã nguồn của dự án có dòng "SPDX-License-Identifier: Apache-2.0" ở đầu tệp.
+(Kiểm tra bằng: node scripts/add-license-headers.js --check)
+
+Dự án được xây dựng cho cuộc thi Olympic Tin học Sinh viên Việt Nam, nội dung Phần mềm nguồn mở (OLP PMNM) 2026.
+
+Phần mềm này chạy cùng với các phần mềm mã nguồn mở độc lập (Keycloak, Apache APISIX, Flowable, PostgreSQL, MinIO, etcd)
+dưới dạng các dịch vụ riêng biệt chưa sửa đổi, và dùng các thư viện bên thứ ba qua trình quản lý gói. Chúng giữ nguyên giấy phép
+của chúng; danh mục đầy đủ ở tệp THIRD-PARTY-NOTICES.md.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Phân tích thông minh đường cong nhiệt độ lò nung ([I] của H-P-D-I). Bộ luật thuần, không đụng mạng hay cơ sở dữ liệu.

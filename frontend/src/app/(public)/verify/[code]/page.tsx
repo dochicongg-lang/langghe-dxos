@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use client";
 
 // Trang tra cứu công khai cho người mua: không đăng nhập, chỉ hiện thông tin được phép công bố.

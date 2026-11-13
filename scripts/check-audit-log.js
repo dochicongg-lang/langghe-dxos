@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Kiểm tra THẬT nhật ký kiểm toán: cổng gác APISIX (Lua gắn danh tính + http-logger) -> trace-api (/internal/audit) -> PostgreSQL.
 // Gồm: ghi đúng người/kết quả, danh tính giả mạo không được coi là đã xác thực, không rò token, chỉ quản trị đọc, bất biến ở CSDL,
 // phát hiện sửa lén bằng chuỗi băm (có đối chứng: tắt trigger thì sửa được rồi bị phát hiện, sau đó khôi phục).

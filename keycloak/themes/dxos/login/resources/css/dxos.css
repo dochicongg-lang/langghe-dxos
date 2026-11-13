@@ -1,3 +1,7 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 The Làng Nghề Số contributors
+ */
 /* Theme đăng nhập "Làng Nghề Số": màu đất nung (gốm) trên nền kem ấm. Cùng bảng màu với giao diện web (frontend/src/app/globals.css). */
 :root {
   --dx-brand-50: #fdf4ef;

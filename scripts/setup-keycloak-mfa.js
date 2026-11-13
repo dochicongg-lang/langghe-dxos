@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Bắt buộc OTP (xác thực hai yếu tố) khi ĐĂNG NHẬP BẰNG TRÌNH DUYỆT cho các vai trò có `"mfa": true` trong config/access.json.

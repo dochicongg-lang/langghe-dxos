@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production

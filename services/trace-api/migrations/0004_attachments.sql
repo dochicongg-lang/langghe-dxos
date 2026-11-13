@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright 2026 The Làng Nghề Số contributors
 -- G2.4: tệp đính kèm hồ sơ OCOP (ảnh sản phẩm, giấy tờ). Nội dung nằm ở MinIO (bucket tệp, khóa object_key);
 -- bảng này giữ siêu dữ liệu và băm SHA-256 để kiểm tra toàn vẹn khi tải xuống. Gỡ tệp chỉ đánh dấu removed_at
 -- (đối tượng trong MinIO được giữ làm bằng chứng). Chỉ THÊM bảng.

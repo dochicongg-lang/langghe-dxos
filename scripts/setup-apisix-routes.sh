@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Tạo route APISIX được bảo vệ bằng JWT của Keycloak (plugin openid-connect, bearer_only).
 # Dùng: bash scripts/setup-apisix-routes.sh   (chạy sau khi `docker compose up -d`)
 set -euo pipefail

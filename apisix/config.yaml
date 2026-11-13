@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Cấu hình APISIX (chế độ etcd). Biến ${{VAR}} được đọc từ môi trường container.
 deployment:
   role: traditional

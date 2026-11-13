@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Kiểu dữ liệu và nhãn cho quy trình hỗ trợ hồ sơ OCOP (G2). Hệ thống chỉ hỗ trợ/theo dõi; kết quả chính thức do cơ quan có thẩm quyền.
 
 export const stateLabels: Record<string, string> = {

@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright 2026 The Làng Nghề Số contributors
 -- G2: hồ sơ OCOP, lịch sử xử lý (chỉ ghi thêm) và kết quả chính thức. Chỉ THÊM bảng.
 
 CREATE TABLE IF NOT EXISTS ocop_applications (

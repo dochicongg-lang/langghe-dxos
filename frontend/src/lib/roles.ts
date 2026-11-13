@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Nhãn vai trò hiển thị cho người dùng (tên role Keycloak = tên policy MinIO, xem config/access.json).
 export const roleLabels: Record<string, string> = {
   admin: "Quản trị",

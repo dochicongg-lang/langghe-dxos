@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright 2026 The Làng Nghề Số contributors
 -- Vòng đời dữ liệu: sổ các lần lưu trữ từ tầng nóng (PostgreSQL) sang tầng lạnh (MinIO, tiền tố archive/).
 -- Mỗi dòng trỏ tới một đối tượng NDJSON nén gzip kèm băm SHA-256 để kiểm tra toàn vẹn khi đọc lại. Chỉ THÊM bảng.
 

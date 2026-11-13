@@ -54,6 +54,18 @@ Hướng dẫn từng bước cho người mới: [docs/HUONG-DAN-CHAY.md](docs/
 Địa chỉ: giao diện `http://localhost:3000` · cổng gác `http://localhost:9080` · Keycloak `http://localhost:8080`.
 Trang truy xuất công khai: `http://localhost:3000/verify/GOM-BT-0001` (sau khi nạp dữ liệu mẫu có kết quả OCOP minh họa và kết luận phân tích mẻ nung).
 
+## Build từ mã nguồn
+Toàn bộ hệ thống dựng được từ mã nguồn bằng công cụ mã nguồn mở và cấu hình bằng biến môi trường (không phải sửa tệp mã):
+
+1. **Yêu cầu:** Docker Engine và Docker Compose v2 (Docker Desktop trên Windows/macOS), Node.js 20 trở lên (khuyến nghị 22), Git, Bash (Git Bash trên Windows).
+2. **Lấy mã:** `git clone` kho mã rồi `cd` vào thư mục dự án. Các script tự chuyển về thư mục gốc của kho mã nên chạy từ đâu cũng được.
+3. **Cấu hình:** `scripts/upgrade.sh` tự tạo `.env` từ `.env.example` (các khóa `change_me_*` được sinh ngẫu nhiên). Muốn đổi cấu hình thì sửa `.env`.
+4. **Dựng và chạy hạ tầng:** `bash scripts/upgrade.sh` dựng ảnh `trace-api` từ `services/trace-api/Dockerfile`, kéo các ảnh dịch vụ mã nguồn mở (phiên bản đã ghim trong `docker-compose.yml`), khởi động và cấu hình Keycloak, APISIX, MinIO, Flowable.
+5. **Dựng giao diện:** `cd frontend && npm ci && npm run build && npm run start` (hoặc `npm run dev` khi phát triển).
+6. **Kiểm tra bản dựng:** các lệnh ở mục "Kiểm thử" bên dưới.
+
+Đã thử trên Windows 11 (Git Bash, Docker Desktop). Linux và macOS dùng cùng các lệnh nhưng **chưa thử trên máy thật**.
+
 ## Trình diễn
 - Kịch bản 3 câu chuyện, câu hỏi phản biện thường gặp: [docs/TRINH-DIEN.md](docs/TRINH-DIEN.md).
 - Dàn ý slide: [docs/SLIDE-DAN-Y.md](docs/SLIDE-DAN-Y.md).
@@ -90,5 +102,11 @@ node scripts/check-audit-log.js                     # nhật ký kiểm toán th
 - Giới hạn đã biết: chuỗi băm của nhật ký chưa neo ra ngoài nên không phát hiện được việc cắt bớt các dòng cuối; console MinIO chưa bị chặn kho tệp; cấu hình OCOP và ngưỡng nung chưa được xác nhận. Chi tiết trong `CLAUDE.md`.
 - Hệ thống **hỗ trợ và theo dõi** quy trình chứng nhận; không tự cấp giấy chứng nhận của cơ quan có thẩm quyền.
 
-## Giấy phép
-Chưa có tệp giấy phép trong kho mã; cần chọn một giấy phép nguồn mở trước khi công bố chính thức.
+## Giấy phép và tài liệu dự án
+Dự án phát hành theo **Giấy phép Apache, Phiên bản 2.0** (giấy phép nguồn mở được OSI chấp thuận): toàn văn ở [LICENSE](LICENSE),
+thông báo bản quyền và mục đích giấy phép ở [NOTICE](NOTICE). Mỗi tệp mã nguồn có dòng `SPDX-License-Identifier: Apache-2.0` ở đầu tệp
+(kiểm tra bằng `node scripts/add-license-headers.js --check`).
+
+- Thư viện và dịch vụ bên thứ ba, giấy phép của từng thành phần: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+- Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md). Đóng góp: [CONTRIBUTING.md](CONTRIBUTING.md).
+- Báo lỗi và đề xuất: mục **Issues** của kho mã (có mẫu sẵn). Kiểm tra tự động: GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)).

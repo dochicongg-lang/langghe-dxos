@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * Bằng chứng IoT cho công đoạn nung — máy chủ TỰ đọc số liệu cảm biến từ MinIO rồi tính tóm tắt,

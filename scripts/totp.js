@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
  * In mã OTP 6 số hiện tại (TOTP, RFC 6238: HMAC-SHA1, 30 giây) từ khóa bí mật dạng Base32.

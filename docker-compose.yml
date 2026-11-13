@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # DX-OS Tầng 1 (Headless Core) - chỉ cung cấp dịch vụ qua REST API, không có UI nghiệp vụ.
 # Biến cấu hình lấy từ file .env (bản sao của .env.example).
 
@@ -36,7 +38,7 @@ services:
 
   # ---- Data: Object Storage ----
   minio:
-    image: pgsty/minio:latest
+    image: pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372 # = pgsty/minio:latest ngày 2026-11-13
     container_name: dxos-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"

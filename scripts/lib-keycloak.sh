@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
 # Hàm dùng chung cho các script Keycloak (được `source`, không chạy trực tiếp).
 # Yêu cầu: đã nạp .env (set -a; . ./.env) và Keycloak đang chạy.
 

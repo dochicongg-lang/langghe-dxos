@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Minh họa Zero-Trust CHẠY TRỰC TIẾP cho buổi trình diễn: từng yêu cầu thật gửi qua cổng gác, in kết quả kèm giải thích ngắn,
 // cuối cùng cho thấy chính các lần thử đó đã được ghi vào nhật ký kiểm toán. Không thay đổi dữ liệu nào (chỉ đọc hoặc bị từ chối).
 // Chạy: node scripts/demo-zero-trust.js

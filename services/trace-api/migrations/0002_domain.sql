@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright 2026 The Làng Nghề Số contributors
 -- Mô hình miền: HTX, làng nghề, chủ thể sản xuất, cơ sở; và quyền sở hữu sản phẩm.
 -- Chỉ THÊM bảng/cột (cột mới đều cho phép NULL); không đổi nghĩa bảng hiện có. Hai cột văn bản cũ
 -- products.village và products.artisan được giữ làm tên hiển thị.

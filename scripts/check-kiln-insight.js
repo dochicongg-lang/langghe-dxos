@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 The Làng Nghề Số contributors
 // Kiểm tra THẬT tính năng [I] phân tích đường cong nung: simulator ghi các mẻ nung lùi về quá khứ lên MinIO (qua Keycloak, STS, cổng gác,
 // Object Lock), trace-api tự đọc, đối chiếu và phân tích; kiểm tra kết luận từng mẻ, tổng hợp theo vai trò, trang công khai.
 // Chạy: node scripts/check-kiln-insight.js   (sau bash scripts/upgrade.sh). Tự dọn sản phẩm thử và tệp cảm biến thử (cần Governance).

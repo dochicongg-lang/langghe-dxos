@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
+  SPDX-License-Identifier: Apache-2.0
+  Copyright 2026 The Làng Nghề Số contributors
+-->
+<!--
   Quy trình HỖ TRỢ hồ sơ OCOP (G2.1). Hệ thống chỉ hỗ trợ và theo dõi; kết quả chính thức do cơ quan có thẩm quyền
   ra và cán bộ đầu mối nhập vào ở bước "officialResult". Cấp đánh giá, ngưỡng sao, hạn... nằm ở config/ocop-profiles.json,
   KHÔNG ghi cứng ở đây. targetNamespace="dxos" để trang Process chỉ hiện quy trình của dự án (category = dxos).
