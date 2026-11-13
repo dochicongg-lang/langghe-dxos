@@ -52,6 +52,45 @@ function Verify() {
               ))}
             </dl>
 
+            {product.ocop && (
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <section className="rounded-xl border border-stone-200 p-4" aria-labelledby="ocop-official">
+                  <h2 id="ocop-official" className="text-sm font-semibold text-stone-800">
+                    Kết quả OCOP chính thức
+                  </h2>
+                  {product.ocop.official ? (
+                    <>
+                      <p className="mt-1 text-2xl text-amber-500" aria-label={`${product.ocop.official.stars} sao`}>
+                        {"★".repeat(product.ocop.official.stars)}
+                      </p>
+                      <p className="text-xs text-stone-600">{product.ocop.official.authority}</p>
+                      <p className="mt-1 text-xs text-stone-600">
+                        {product.ocop.official.decision_no} ({product.ocop.official.decided_at})
+                      </p>
+                      <p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${product.ocop.official.active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                        {product.ocop.official.active ? "Còn hiệu lực" : "Đã hết hiệu lực"} đến {product.ocop.official.valid_until}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm text-stone-500">Chưa có kết quả chính thức từ cơ quan có thẩm quyền.</p>
+                  )}
+                </section>
+                <section className="rounded-xl border border-stone-200 bg-stone-50 p-4" aria-labelledby="ocop-platform">
+                  <h2 id="ocop-platform" className="text-sm font-semibold text-stone-800">
+                    Xác nhận của nền tảng
+                  </h2>
+                  {product.ocop.platform ? (
+                    <>
+                      <p className="mt-1 text-sm text-stone-700">{product.ocop.platform.note}</p>
+                      <p className="mt-1 text-xs text-stone-500">Ngày xác nhận: {fmtDate(product.ocop.platform.confirmed_at)}</p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm text-stone-500">Chưa có.</p>
+                  )}
+                </section>
+              </div>
+            )}
+
             <h2 className="mb-3 mt-6 text-base font-semibold text-stone-800">Hành trình sản phẩm</h2>
             {product.events.length === 0 ? (
               <p className="text-sm text-stone-500">Chưa có công đoạn nào được công bố.</p>

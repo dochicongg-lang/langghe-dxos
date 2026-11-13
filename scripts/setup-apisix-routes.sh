@@ -5,6 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 IOT_BUCKET="${IOT_BUCKET:-dxos-iot}"
+DOCS_BUCKET="${DOCS_BUCKET:-dxos-docs}"
 IOT_LOCK_MODE="${IOT_LOCK_MODE:-GOVERNANCE}"
 IOT_RETENTION_DAYS="${IOT_RETENTION_DAYS:-1825}"
 case "$IOT_LOCK_MODE" in GOVERNANCE|COMPLIANCE) ;; *) echo "IOT_LOCK_MODE phải là GOVERNANCE hoặc COMPLIANCE"; exit 1 ;; esac
@@ -104,6 +105,27 @@ POLICY
   && (mc admin policy attach local trace-iot-read --user '$TRACE_S3_USER' >/dev/null 2>&1 || true)"
 echo "OK: tài khoản chỉ đọc '$TRACE_S3_USER' cho trace-api (chỉ đọc tiền tố iot/ của bucket $IOT_BUCKET, gồm cả các phiên bản)."
 
+# ---- Bucket tệp đính kèm hồ sơ OCOP + tài khoản riêng cho trace-api ----
+# trace-api nhận tệp từ người dùng (đã kiểm quyền, loại, cỡ, băm) rồi ghi vào bucket này bằng tài khoản '$TRACE_DOCS_USER' chỉ có
+# quyền ghi/đọc/liệt kê trên applications/ của bucket tệp (KHÔNG xóa: gỡ tệp chỉ đánh dấu trong CSDL, đối tượng giữ làm bằng chứng).
+# Người dùng cuối không chạm được bucket này: policy vai trò Deny, và route S3 ở cổng gác chặn đường dẫn /$DOCS_BUCKET.
+docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
+  && mc mb --ignore-existing local/$DOCS_BUCKET \
+  && mc anonymous set none local/$DOCS_BUCKET \
+  && cat > /tmp/trace-docs-rw.json <<'POLICY'
+{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:PutObject\"], \"Resource\": [\"arn:aws:s3:::$DOCS_BUCKET/applications/*\"] },
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:ListBucket\"], \"Resource\": [\"arn:aws:s3:::$DOCS_BUCKET\"], \"Condition\": { \"StringLike\": { \"s3:prefix\": [\"applications/*\"] } } }
+  ]
+}
+POLICY
+  mc admin policy create local trace-docs-rw /tmp/trace-docs-rw.json >/dev/null \
+  && (mc admin user add local '$TRACE_DOCS_USER' '$TRACE_DOCS_PASSWORD' >/dev/null) \
+  && (mc admin policy attach local trace-docs-rw --user '$TRACE_DOCS_USER' >/dev/null 2>&1 || true)"
+echo "OK: bucket tệp '$DOCS_BUCKET' và tài khoản '$TRACE_DOCS_USER' cho trace-api (ghi/đọc applications/, không xóa)."
+
 # Policy MinIO cho các vai trò Keycloak (claim "policy" = tên role = tên policy), tách quyền ghi dữ liệu IoT:
 #   admin, editor (bí danh tạm), producer, coop-officer, ocop-officer: SINH từ config/access.json (xem bên dưới)
 #   iot-writer  chỉ PutObject vào THƯ MỤC RIÊNG của gateway: iot/${jwt:preferred_username}/* (= service-account-<client>),
@@ -122,7 +144,7 @@ POLICY
 # Policy của admin/editor và các vai trò nghiệp vụ (producer, coop-officer, ocop-officer): SINH từ config/access.json.
 # Tên policy = tên role Keycloak. Mọi policy đều Deny ghi/xóa/đổi khóa/bypass trên bucket IoT; vai trò nghiệp vụ chỉ được ĐỌC bucket IoT.
 GEN_DIR="scripts/.generated/minio-policies"
-GEN_ROLES=$(node scripts/gen-access.js minio "$GEN_DIR" "$IOT_BUCKET" "$MINIO_BUCKET")
+GEN_ROLES=$(node scripts/gen-access.js minio "$GEN_DIR" "$IOT_BUCKET" "$MINIO_BUCKET" "$DOCS_BUCKET")
 docker exec dxos-minio sh -c "rm -rf /tmp/policies && mkdir -p /tmp/policies"
 docker cp "$GEN_DIR/." dxos-minio:/tmp/policies/
 docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null; for f in /tmp/policies/*.json; do n=\${f##*/}; n=\${n%.json}; mc admin policy create local \"\$n\" \"\$f\" >/dev/null || exit 1; done"
@@ -144,7 +166,7 @@ curl -fsS -X PUT "$ADMIN/routes/s3" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JS
   "uri": "/*",
   "hosts": ["s3.localhost", "apisix"],
   "plugins": {
-    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local a = ngx.req.get_uri_args(); if a['retention'] ~= nil or a['legal-hold'] ~= nil or a['object-lock'] ~= nil or ngx.req.get_headers()['x-amz-bypass-governance-retention'] ~= nil then return 403, {error = 'Khong duoc phep thay doi khoa/giu du lieu (Object Lock) qua cong nay'} end end"] }
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local a = ngx.req.get_uri_args(); if a['retention'] ~= nil or a['legal-hold'] ~= nil or a['object-lock'] ~= nil or ngx.req.get_headers()['x-amz-bypass-governance-retention'] ~= nil then return 403, {error = 'Khong duoc phep thay doi khoa/giu du lieu (Object Lock) qua cong nay'} end; local p = ngx.var.uri or ''; if p == '/${DOCS_BUCKET}' or p:find('/${DOCS_BUCKET}/', 1, true) == 1 then return 403, {error = 'Kho tep dinh kem chi truy cap qua API nghiep vu'} end end"] }
   },
   "upstream": { "type": "roundrobin", "pass_host": "pass", "nodes": { "minio:9000": 1 } }
 }
@@ -164,7 +186,7 @@ curl -fsS -X PUT "$ADMIN/routes/trace" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <
     "serverless-pre-function": { "phase": "rewrite", "functions": ["${LUA_TRACE}"] },
     "cors": {
       "allow_origins": "${CORS_ORIGIN}",
-      "allow_methods": "GET,POST,PUT,OPTIONS",
+      "allow_methods": "GET,POST,PUT,DELETE,OPTIONS",
       "allow_headers": "Authorization,Content-Type",
       "max_age": 3600
     },

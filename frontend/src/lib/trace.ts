@@ -63,6 +63,12 @@ export interface ProductSummary {
   coop?: string | null;
 }
 
+/** Thông tin OCOP công khai: "xác nhận của nền tảng" tách bạch với "kết quả OCOP chính thức" do cơ quan có thẩm quyền ra. */
+export interface PublicOcop {
+  platform: { confirmed_at: string; note: string } | null;
+  official: { stars: number; authority: string; decision_no: string; decided_at: string; valid_until: string; active: boolean } | null;
+}
+
 export interface ProductDetail {
   code: string;
   name: string;
@@ -73,6 +79,7 @@ export interface ProductDetail {
   created_by?: string;
   owner?: string | null; // người tạo/chủ sở hữu (chỉ ở API nội bộ)
   coop?: string | null; // mã HTX (chỉ ở API nội bộ)
+  ocop?: PublicOcop | null; // chỉ có ở tra cứu công khai
   can_update?: boolean; // người dùng hiện tại có được thêm công đoạn cho sản phẩm này không (máy chủ tính)
   events: TraceEvent[];
 }

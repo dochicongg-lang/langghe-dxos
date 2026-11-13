@@ -195,6 +195,9 @@ services:
       IOT_DEVICES_FILE: /app/config/iot-devices.json
       ACCESS_FILE: /app/config/access.json
       OCOP_PROFILES_FILE: /app/config/ocop-profiles.json
+      DOCS_BUCKET: ${DOCS_BUCKET:-dxos-docs}
+      DOCS_S3_ACCESS_KEY: ${TRACE_DOCS_USER}
+      DOCS_S3_SECRET_KEY: ${TRACE_DOCS_PASSWORD}
       FLOWABLE_URL: http://flowable:8080/flowable-rest/service
       FLOWABLE_USER: ${FLOWABLE_ADMIN_USER}
       FLOWABLE_PASSWORD: ${FLOWABLE_ADMIN_PASSWORD}

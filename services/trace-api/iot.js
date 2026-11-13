@@ -185,7 +185,7 @@ function assess(pts, from, to, limits = {}) {
   };
 }
 
-// ---------- Truy cập MinIO bằng SigV4 (chỉ GET) ----------
+// ---------- Truy cập MinIO bằng SigV4 (GET và PUT) ----------
 const sha256 = (d) => crypto.createHash("sha256").update(d).digest("hex");
 const hmac = (k, d) => crypto.createHmac("sha256", k).update(d).digest();
 const enc = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
@@ -193,7 +193,8 @@ const enc = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCo
 function createS3Client({ endpoint, accessKey, secretKey, bucket, region = "us-east-1", fetchImpl = fetch }) {
   const url = new URL(endpoint);
 
-  async function get(path, query = {}) {
+  /** Gửi một yêu cầu đã ký SigV4; trả về Response (người gọi kiểm tra ok). body là Buffer hoặc không có. */
+  async function send(method, path, query = {}, body = null, extraHeaders = {}) {
     const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
     const date = amzDate.slice(0, 8);
     const canonicalPath = path.split("/").map(enc).join("/");
@@ -201,10 +202,10 @@ function createS3Client({ endpoint, accessKey, secretKey, bucket, region = "us-e
       .sort()
       .map((k) => `${enc(k)}=${enc(query[k])}`)
       .join("&");
-    const payloadHash = sha256("");
+    const payloadHash = sha256(body ?? "");
     const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
     const canonicalRequest = [
-      "GET",
+      method,
       canonicalPath,
       canonicalQuery,
       `host:${url.host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`,
@@ -216,14 +217,21 @@ function createS3Client({ endpoint, accessKey, secretKey, bucket, region = "us-e
     let key = hmac(`AWS4${secretKey}`, date);
     for (const part of [region, "s3", "aws4_request"]) key = hmac(key, part);
     const signature = crypto.createHmac("sha256", key).update(toSign).digest("hex");
-    const res = await fetchImpl(`${url.origin}${canonicalPath}${canonicalQuery ? `?${canonicalQuery}` : ""}`, {
+    return fetchImpl(`${url.origin}${canonicalPath}${canonicalQuery ? `?${canonicalQuery}` : ""}`, {
+      method,
       headers: {
+        ...extraHeaders,
         "x-amz-date": amzDate,
         "x-amz-content-sha256": payloadHash,
         authorization: `AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
       },
+      body: body ?? undefined,
       signal: AbortSignal.timeout(15000),
     });
+  }
+
+  async function get(path, query = {}) {
+    const res = await send("GET", path, query);
     if (!res.ok) throw new Error(`MinIO trả về ${res.status} cho ${path}`);
     return res.text();
   }
@@ -263,6 +271,17 @@ function createS3Client({ endpoint, accessKey, secretKey, bucket, region = "us-e
     },
     /** Đọc nội dung một phiên bản cụ thể (không truyền versionId hoặc "null" -> bản hiện hành). */
     getObject: (key, versionId) => get(`/${bucket}/${key}`, versionId && versionId !== "null" ? { versionId } : {}),
+    /** Ghi một đối tượng (body là Buffer). Dùng cho tệp đính kèm hồ sơ; tài khoản ghi chỉ có quyền trên bucket tệp. */
+    async putObject(key, body, contentType = "application/octet-stream") {
+      const res = await send("PUT", `/${bucket}/${key}`, {}, body, { "content-type": contentType });
+      if (!res.ok) throw new Error(`MinIO trả về ${res.status} khi ghi ${key}`);
+    },
+    /** Đọc đối tượng thành Buffer (nhị phân, không đổi sang chuỗi). */
+    async getObjectBuffer(key) {
+      const res = await send("GET", `/${bucket}/${key}`);
+      if (!res.ok) throw new Error(`MinIO trả về ${res.status} cho ${key}`);
+      return Buffer.from(await res.arrayBuffer());
+    },
   };
 }
 

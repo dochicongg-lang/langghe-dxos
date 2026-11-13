@@ -138,6 +138,25 @@ HOA_CRED=$(sts "$HOA_JWT"); [ -n "$HOA_CRED" ] || { echo "STS thất bại cho h
 check "producer đọc được số liệu bucket IoT"               ok mcas "$HOA_CRED" ls "x/$B/iot/"
 check "producer KHÔNG ghi được vào thư mục gateway"        deny mcas "$HOA_CRED" cp /tmp/p.txt "x/$B/iot/$GWDIR/perm-test-producer-$TS.txt"
 check "producer KHÔNG xóa/đổi khóa được ở bucket IoT"      deny mcas "$HOA_CRED" rm "x/$B/$FILE_SEED"
+# Kho tệp đính kèm hồ sơ OCOP: chỉ trace-api (tài khoản trace-docs) ghi/đọc; người dùng cuối dùng STS bị Deny
+D="${DOCS_BUCKET:-dxos-docs}"
+dcs() { docker exec -e "MC_HOST_d=http://$TRACE_DOCS_USER:$TRACE_DOCS_PASSWORD@localhost:9000" dxos-minio "$@" >/dev/null 2>&1; } # mc bằng tài khoản trace-docs
+DOCS_OBJ="applications/perm-test-$TS/a.txt"
+echo "== Kho tệp đính kèm ($D) =="
+root "echo docs | mc pipe r/$D/$DOCS_OBJ"
+check "(đối chứng) root đọc được tệp thử trong kho tệp"            ok   root "mc cat r/$D/$DOCS_OBJ"
+OCOP_CRED=$(sts "$OCOP_JWT")
+check "trace-docs đọc được applications/"                         ok   dcs mc cat "d/$D/$DOCS_OBJ"
+check "trace-docs KHÔNG xóa được tệp"                             deny dcs mc rm "d/$D/$DOCS_OBJ"
+check "trace-docs KHÔNG ghi ngoài applications/"                  deny dcs sh -c "echo x | mc pipe d/$D/ngoai-pham-vi-$TS.txt"
+check "trace-docs KHÔNG đọc được bucket IoT"                      deny dcs mc ls "d/$B/iot/"
+check "quản trị (STS) KHÔNG đọc được kho tệp"                     deny mcas "$EDITOR_CRED" cat "x/$D/$DOCS_OBJ"
+check "quản trị (STS) KHÔNG liệt kê được kho tệp"                 deny mcas "$EDITOR_CRED" ls "x/$D/applications/"
+check "producer (STS) KHÔNG đọc được kho tệp"                     deny mcas "$HOA_CRED" cat "x/$D/$DOCS_OBJ"
+check "producer (STS) KHÔNG ghi được vào kho tệp"                 deny mcas "$HOA_CRED" cp /tmp/p.txt "x/$D/applications/perm-test-$TS/b.txt"
+check "ocop-officer (STS) KHÔNG đọc được kho tệp"                 deny mcas "$OCOP_CRED" cat "x/$D/$DOCS_OBJ"
+root "mc rm --force r/$D/$DOCS_OBJ"
+
 # Dọn sản phẩm thử
 docker exec dxos-postgres psql -U "$POSTGRES_USER" -d "$TRACE_DB" -t -c "DELETE FROM products WHERE code='$PCODE';" >/dev/null 2>&1
 

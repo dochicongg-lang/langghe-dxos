@@ -23,6 +23,9 @@ function validateProfiles(cfg) {
     if (sum !== p.scoring.maxTotal) throw new Error(`${where}: tổng điểm các phần (${sum}) khác maxTotal (${p.scoring.maxTotal})`);
     if (!Array.isArray(p.scoring.stars) || !p.scoring.stars.length) throw new Error(`${where}: thiếu scoring.stars`);
     if (!(p.validityMonths > 0)) throw new Error(`${where}: validityMonths phải > 0`);
+    const att = p.attachments;
+    if (!att || !(att.maxBytes > 0) || !(att.maxPerApplication > 0) || !Array.isArray(att.types) || !att.types.length) throw new Error(`${where}: thiếu hoặc sai attachments (maxBytes, maxPerApplication, types)`);
+    if (att.types.some((t) => !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(t))) throw new Error(`${where}: attachments.types chỉ nhận jpeg, png, webp, pdf`);
     if (!Array.isArray(p.groups) || !p.groups.length) throw new Error(`${where}: thiếu groups`);
     if (!Array.isArray(p.checklist)) throw new Error(`${where}: thiếu checklist`);
   }

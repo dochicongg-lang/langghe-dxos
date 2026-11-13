@@ -14,6 +14,7 @@
  *   GET  /products/:code            chi tiết + dòng thời gian     (role editor hoặc readonly)
  *   POST /products/:code/events     thêm công đoạn                (role editor; công đoạn nung có thể kèm iot:{deviceId,from,to},
  *                                                                  máy chủ tự đọc MinIO và tính tóm tắt)
+ *   POST /applications/:code/attachments?doc=&name=   tải tệp (thân thô) | DELETE .../attachments/:id gỡ | GET .../attachments/:id/file xem/tải
  *   GET  /public/:code              tra cứu công khai cho người mua (không cần đăng nhập, ẩn thông tin nội bộ)
  *   GET  /healthz                   kiểm tra sống
  */
@@ -25,7 +26,9 @@ const access = require("./access");
 const { runMigrations } = require("./migrations");
 const { loadDevices } = require("./devices");
 const { IotError, parseWindow, createS3Client, buildEvidence } = require("./iot");
+const crypto = require("node:crypto");
 const ocop = require("./ocop");
+const attachments = require("./attachments");
 const { createFlowableClient } = require("./flowable");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -60,6 +63,17 @@ const OCOP = ocop.loadProfiles(process.env.OCOP_PROFILES_FILE ?? "/app/config/oc
 const flowable = process.env.FLOWABLE_URL
   ? createFlowableClient({ baseUrl: process.env.FLOWABLE_URL, user: process.env.FLOWABLE_USER ?? "rest-admin", password: process.env.FLOWABLE_PASSWORD ?? "" })
   : null;
+
+// Tài khoản MinIO ghi/đọc TỆP ĐÍNH KÈM hồ sơ (chỉ bucket tệp, tiền tố applications/). Không cấu hình thì tắt tính năng tệp.
+const docsS3 =
+  process.env.S3_ENDPOINT && process.env.DOCS_S3_ACCESS_KEY && process.env.DOCS_S3_SECRET_KEY
+    ? createS3Client({
+        endpoint: process.env.S3_ENDPOINT,
+        accessKey: process.env.DOCS_S3_ACCESS_KEY,
+        secretKey: process.env.DOCS_S3_SECRET_KEY,
+        bucket: process.env.DOCS_BUCKET ?? "dxos-docs",
+      })
+    : null;
 
 // Thứ tự các công đoạn của chuỗi sản xuất gốm/thủ công.
 const STAGES = ["nguyen-lieu", "so-che", "tao-hinh", "nung-hoan-thien", "kiem-dinh", "dong-goi", "phan-phoi"];
@@ -241,6 +255,32 @@ async function findProductRow(code) {
   return rows[0] ?? null;
 }
 
+/**
+ * Thông tin OCOP công khai của một sản phẩm, TÁCH BẠCH hai loại (G2.6):
+ *  - platform: "xác nhận của nền tảng": hồ sơ đã được HTX sơ duyệt đạt trên hệ thống (KHÔNG phải giấy chứng nhận OCOP);
+ *  - official: kết quả OCOP CHÍNH THỨC do cơ quan có thẩm quyền ra (hạng sao, cơ quan, số quyết định, hiệu lực).
+ * Chỉ trả các trường được phép công bố, không có tên người dùng hay mã hồ sơ nội bộ.
+ */
+async function publicOcop(productCode) {
+  const off = await pool.query(
+    `SELECT r.stars, r.authority, r.decision_no, r.decided_at::text AS decided_at, r.valid_until::text AS valid_until, (r.valid_until >= CURRENT_DATE) AS active
+     FROM ocop_results r JOIN ocop_applications a ON a.id = r.application_id
+     WHERE lower(a.product_code) = lower($1) AND r.recognized ORDER BY r.decided_at DESC, r.id DESC LIMIT 1`,
+    [productCode],
+  );
+  const plat = await pool.query(
+    `SELECT h.created_at FROM ocop_application_history h JOIN ocop_applications a ON a.id = h.application_id
+     WHERE lower(a.product_code) = lower($1) AND h.action = 'approve' ORDER BY h.id DESC LIMIT 1`,
+    [productCode],
+  );
+  if (!off.rows.length && !plat.rows.length) return null;
+  const o = off.rows[0];
+  return {
+    platform: plat.rows.length ? { confirmed_at: plat.rows[0].created_at, note: "Hồ sơ OCOP đã được hợp tác xã sơ duyệt đạt trên nền tảng. Đây chưa phải giấy chứng nhận OCOP." } : null,
+    official: o ? { stars: o.stars, authority: o.authority, decision_no: o.decision_no, decided_at: o.decided_at, valid_until: o.valid_until, active: o.active } : null,
+  };
+}
+
 /** Chi tiết sản phẩm. Bản công khai không kèm thông tin nội bộ (người tạo, chủ sở hữu, HTX). Bản nội bộ phải qua kiểm tra quyền xem. */
 async function getProduct(code, { publicView = false, user = null } = {}) {
   const p = await findProductRow(code);
@@ -252,6 +292,7 @@ async function getProduct(code, { publicView = false, user = null } = {}) {
   );
   const events = ev.rows.map((e) => (publicView ? { stage: e.stage, note: e.note, location: e.location, iot: e.iot, created_at: e.created_at } : e));
   const product = { code: p.code, name: p.name, category: p.category, village: p.village, artisan: p.artisan, created_at: p.created_at };
+  if (publicView) product.ocop = await publicOcop(p.code);
   if (!publicView) {
     product.created_by = p.created_by;
     product.owner = p.owner;
@@ -365,6 +406,10 @@ async function getApplication(code, user) {
     "SELECT score, stars, authority, decision_no, decided_at::text AS decided_at, valid_until::text AS valid_until, recognized, recorded_by, created_at FROM ocop_results WHERE application_id = $1 ORDER BY id DESC",
     [a.id],
   );
+  const attRows = await pool.query(
+    "SELECT id, doc_key, filename, content_type, size, sha256, uploaded_by, created_at FROM application_attachments WHERE application_id = $1 AND removed_at IS NULL ORDER BY id",
+    [a.id],
+  );
   let expected = null;
   if (a.self_score) {
     try {
@@ -393,6 +438,8 @@ async function getApplication(code, user) {
     expected,
     result: resRows.rows[0] ?? null,
     results: resRows.rows,
+    attachments: attRows.rows.map(attachmentView),
+    attachment_rules: { maxBytes: profile.attachments.maxBytes, maxPerApplication: profile.attachments.maxPerApplication, types: profile.attachments.types, enabled: Boolean(docsS3) },
     history: hist.rows,
     actions,
     can_update: access.authorize(ACCESS, user, "application.update", appResource(a)) && ["draft", "needs_revision"].includes(a.state),
@@ -555,6 +602,125 @@ async function applicationAction(code, body, user) {
   return getApplication(code, user);
 }
 
+// ---------- Tệp đính kèm hồ sơ OCOP (G2.4) ----------
+// Trình duyệt gửi nội dung thô; trace-api kiểm quyền, kiểm loại/cỡ/băm rồi ghi vào bucket tệp bằng tài khoản riêng (trace-docs).
+// Bucket tệp bị cổng gác chặn với mọi người dùng cuối: tệp chỉ lấy ra được qua API này sau khi kiểm quyền xem hồ sơ.
+async function readBuffer(req, limit) {
+  const chunks = [];
+  let size = 0;
+  // Quá cỡ thì vẫn đọc hết thân yêu cầu (bỏ dữ liệu, không giữ trong bộ nhớ) rồi mới trả 413: ngắt giữa chừng làm trình duyệt
+  // thấy kết nối bị cắt thay vì thông báo lỗi. Độ lớn tối đa của thân do cổng gác giới hạn.
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size <= limit) chunks.push(chunk);
+  }
+  if (size > limit) throw new HttpError(413, `Tệp quá lớn (tối đa ${Math.floor(limit / 1024 / 1024)} MB)`);
+  return Buffer.concat(chunks);
+}
+
+const attachmentView = (r) => ({ id: r.id, doc_key: r.doc_key, filename: r.filename, content_type: r.content_type, size: r.size, sha256: r.sha256, uploaded_by: r.uploaded_by, created_at: r.created_at });
+
+async function loadWritableApplication(code, user) {
+  const a = await findApplicationRow(code);
+  if (!a || !access.authorize(ACCESS, user, "application.read", appResource(a))) throw new HttpError(404, "Không tìm thấy hồ sơ");
+  requirePermission(user, "application.update", appResource(a));
+  if (!["draft", "needs_revision"].includes(a.state)) throw new HttpError(409, `Hồ sơ đang ở trạng thái "${a.state}", không đổi được tệp đính kèm`);
+  if (!docsS3) throw new HttpError(503, "Chưa cấu hình tài khoản ghi tệp cho trace-api (DOCS_S3_ACCESS_KEY, DOCS_S3_SECRET_KEY)");
+  return a;
+}
+
+async function uploadAttachment(code, query, req, user) {
+  const a = await loadWritableApplication(code, user);
+  const profile = ocop.getProfile(OCOP, a.profile);
+  const rules = profile.attachments;
+  const docKey = str(query.get("doc"), 60, "doc", true);
+  if (!ocop.checklistFor(profile, a.product_group).some((c) => c.key === docKey)) throw new HttpError(400, "Giấy tờ không có trong danh mục của hồ sơ này");
+  const { rows: cnt } = await pool.query("SELECT count(*)::int AS n FROM application_attachments WHERE application_id = $1 AND removed_at IS NULL", [a.id]);
+  if (cnt[0].n >= rules.maxPerApplication) throw new HttpError(409, `Mỗi hồ sơ tối đa ${rules.maxPerApplication} tệp`);
+  const buf = await readBuffer(req, rules.maxBytes);
+  let info;
+  try {
+    info = attachments.inspect(buf, req.headers["content-type"], query.get("name") ?? "", rules);
+  } catch (e) {
+    if (e instanceof attachments.AttachmentError) throw new HttpError(e.status, e.message);
+    throw e;
+  }
+  const dup = await pool.query("SELECT 1 FROM application_attachments WHERE application_id = $1 AND doc_key = $2 AND sha256 = $3 AND removed_at IS NULL", [a.id, docKey, info.sha256]);
+  if (dup.rowCount) throw new HttpError(409, "Tệp này đã được đính kèm cho giấy tờ này");
+  const key = attachments.objectKey(a.code, docKey, info.sha256, info.name);
+  try {
+    await docsS3.putObject(key, buf, info.type);
+  } catch (e) {
+    console.error("[trace-api] lỗi ghi tệp lên MinIO:", e.message);
+    throw new HttpError(502, "Không lưu được tệp vào kho lưu trữ");
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `INSERT INTO application_attachments (application_id, doc_key, filename, content_type, size, sha256, object_key, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, doc_key, filename, content_type, size, sha256, uploaded_by, created_at`,
+      [a.id, docKey, info.name, info.type, info.size, info.sha256, key, user.name],
+    );
+    // có tệp minh chứng thì giấy tờ được coi là đã có
+    await client.query(
+      "UPDATE ocop_applications SET documents = CASE WHEN documents @> to_jsonb($1::text) THEN documents ELSE documents || to_jsonb($1::text) END, updated_at = now() WHERE id = $2",
+      [docKey, a.id],
+    );
+    await client.query("INSERT INTO ocop_application_history (application_id, action, from_state, to_state, actor, note) VALUES ($1,'attach',$2,$2,$3,$4)", [a.id, a.state, user.name, `${docKey}: ${info.name}`]);
+    await client.query("COMMIT");
+    return attachmentView(rows[0]);
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+async function removeAttachment(code, id, user) {
+  const a = await loadWritableApplication(code, user);
+  const { rows } = await pool.query(
+    "UPDATE application_attachments SET removed_at = now(), removed_by = $3 WHERE id = $1 AND application_id = $2 AND removed_at IS NULL RETURNING doc_key, filename",
+    [Number(id) || 0, a.id, user.name],
+  );
+  if (!rows.length) throw new HttpError(404, "Không tìm thấy tệp");
+  await pool.query("INSERT INTO ocop_application_history (application_id, action, from_state, to_state, actor, note) VALUES ($1,'detach',$2,$2,$3,$4)", [a.id, a.state, user.name, `${rows[0].doc_key}: ${rows[0].filename}`]);
+  return { removed: true };
+}
+
+async function downloadAttachment(code, id, user, res) {
+  const a = await findApplicationRow(code);
+  if (!a || !access.authorize(ACCESS, user, "application.read", appResource(a))) throw new HttpError(404, "Không tìm thấy hồ sơ");
+  if (!docsS3) throw new HttpError(503, "Chưa cấu hình kho lưu trữ tệp");
+  const { rows } = await pool.query("SELECT filename, content_type, size, sha256, object_key FROM application_attachments WHERE id = $1 AND application_id = $2 AND removed_at IS NULL", [Number(id) || 0, a.id]);
+  if (!rows.length) throw new HttpError(404, "Không tìm thấy tệp");
+  const r = rows[0];
+  let buf;
+  try {
+    buf = await docsS3.getObjectBuffer(r.object_key);
+  } catch (e) {
+    console.error("[trace-api] lỗi đọc tệp từ MinIO:", e.message);
+    throw new HttpError(502, "Không đọc được tệp từ kho lưu trữ");
+  }
+  // kiểm tra toàn vẹn: nội dung phải khớp băm lúc tải lên
+  if (crypto.createHash("sha256").update(buf).digest("hex") !== r.sha256) {
+    console.error(`[trace-api] CẢNH BÁO: tệp ${r.object_key} không khớp băm đã lưu`);
+    throw new HttpError(500, "Tệp không toàn vẹn (không khớp băm lúc tải lên)");
+  }
+  const disposition = r.content_type.startsWith("image/") ? "inline" : "attachment";
+  res.writeHead(200, {
+    "content-type": r.content_type,
+    "content-length": buf.length,
+    "content-disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(r.filename)}`,
+    "x-content-type-options": "nosniff",
+    "content-security-policy": "default-src 'none'; sandbox",
+    "cache-control": "private, no-store",
+    "x-sha256": r.sha256,
+  });
+  res.end(buf);
+}
+
 // ---------- Định tuyến ----------
 async function route(req, res) {
   const url = new URL(req.url, "http://x");
@@ -588,6 +754,9 @@ async function route(req, res) {
     if (parts.length === 2 && m === "GET") return send(res, 200, await getApplication(parts[1], user));
     if (parts.length === 2 && m === "PUT") return send(res, 200, await updateApplication(parts[1], await readJson(req), user));
     if (parts.length === 3 && parts[2] === "actions" && m === "POST") return send(res, 200, await applicationAction(parts[1], await readJson(req), user));
+    if (parts.length === 3 && parts[2] === "attachments" && m === "POST") return send(res, 201, await uploadAttachment(parts[1], url.searchParams, req, user));
+    if (parts.length === 4 && parts[2] === "attachments" && m === "DELETE") return send(res, 200, await removeAttachment(parts[1], parts[3], user));
+    if (parts.length === 5 && parts[2] === "attachments" && parts[4] === "file" && m === "GET") return downloadAttachment(parts[1], parts[3], user, res);
   }
   throw new HttpError(404, "Không có tuyến này");
 }

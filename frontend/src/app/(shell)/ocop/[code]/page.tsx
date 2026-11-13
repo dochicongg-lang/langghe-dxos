@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
+import AttachmentList from "@/components/AttachmentList";
 import { fmtDate } from "@/lib/trace";
 import { actionLabels, stateLabels, stateTone, type OcopDetail } from "@/lib/ocop";
 
@@ -150,18 +151,28 @@ function Application() {
             )}
             <div className="space-y-1">
               {app.checklist.map((c) => (
-                <label key={c.key} className="flex items-start gap-2 text-sm text-stone-700">
-                  <input
-                    type="checkbox"
-                    disabled={!app.can_update}
-                    checked={docs.includes(c.key)}
-                    onChange={(e) => setDocs((d) => (e.target.checked ? [...d, c.key] : d.filter((k) => k !== c.key)))}
-                    className="mt-1"
+                <div key={c.key}>
+                  <label className="flex items-start gap-2 text-sm text-stone-700">
+                    <input
+                      type="checkbox"
+                      disabled={!app.can_update}
+                      checked={docs.includes(c.key)}
+                      onChange={(e) => setDocs((d) => (e.target.checked ? [...d, c.key] : d.filter((k) => k !== c.key)))}
+                      className="mt-1"
+                    />
+                    <span>
+                      {c.label} {c.required && <span className="text-red-500">*</span>}
+                    </span>
+                  </label>
+                  <AttachmentList
+                    code={app.code}
+                    docKey={c.key}
+                    items={app.attachments.filter((a) => a.doc_key === c.key)}
+                    canEdit={app.can_update}
+                    rules={app.attachment_rules}
+                    onChange={() => void load()}
                   />
-                  <span>
-                    {c.label} {c.required && <span className="text-red-500">*</span>}
-                  </span>
-                </label>
+                </div>
               ))}
             </div>
             {app.can_update && (
