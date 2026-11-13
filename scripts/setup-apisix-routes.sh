@@ -27,6 +27,12 @@ LUA_WORKFLOW=$(node scripts/gen-access.js lua workflow "$ACCESS_ORIGIN")
 ADMIN="http://localhost:${APISIX_ADMIN_PORT}/apisix/admin"
 FLOWABLE_BASIC=$(printf '%s:%s' "$FLOWABLE_ADMIN_USER" "$FLOWABLE_ADMIN_PASSWORD" | base64 | tr -d '\n')
 
+# Nhật ký kiểm toán: plugin http-logger gửi từng lô yêu cầu về trace-api (/internal/audit) qua mạng nội bộ, kèm khóa AUDIT_INGEST_KEY.
+# KHÔNG ghi tiêu đề Authorization (route workflow còn bị proxy-rewrite thay bằng Basic admin của Flowable: ghi vào nhật ký là lộ mật khẩu).
+# Danh tính lấy từ tiêu đề X-Audit-User/X-Audit-Roles do Lua của hai route trace/workflow gắn (xem scripts/gen-access.js).
+# Lưu ý: trong chuỗi bên dưới các biến $time_iso8601... là biến NGINX, phải giữ nguyên ký tự $ (nên dùng nháy đơn).
+AUDIT_LOGGER='"http-logger": { "uri": "http://trace-api:3000/internal/audit", "auth_header": "Bearer '"$AUDIT_INGEST_KEY"'", "batch_max_size": 20, "inactive_timeout": 2, "buffer_duration": 5, "max_retry_count": 3, "retry_delay": 1, "timeout": 3, "include_req_body": false, "include_resp_body": false, "log_format": { "time": "$time_iso8601", "client_ip": "$remote_addr", "method": "$request_method", "uri": "$request_uri", "status": "$status", "route": "$route_name", "request_time": "$request_time", "audit_user": "$http_x_audit_user", "audit_roles": "$http_x_audit_roles" } }'
+
 # Route workflow còn chặn thêm: tuyến quản trị của Flowable (identity, management) với mọi người, và mọi phương thức thay đổi
 # (POST/PUT/DELETE) với người không có role editor. Lý do: cổng gác gắn tài khoản admin của Flowable cho mọi yêu cầu, nên nếu không
 # chặn thì cả người chỉ-xem (readonly) cũng gọi được Flowable với quyền admin (đã kiểm chứng trước khi sửa).
@@ -38,6 +44,7 @@ curl -fsS -X PUT "$ADMIN/routes/workflow" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @
   "name": "workflow-api",
   "uri": "/api/workflow/*",
   "plugins": {
+    ${AUDIT_LOGGER},
     "serverless-pre-function": { "phase": "rewrite", "functions": ["${LUA_WORKFLOW}"] },
     "cors": {
       "allow_origins": "${FRONTEND_ORIGIN:-http://localhost:3000}",
@@ -166,6 +173,7 @@ curl -fsS -X PUT "$ADMIN/routes/s3" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JS
   "uri": "/*",
   "hosts": ["s3.localhost", "apisix"],
   "plugins": {
+    ${AUDIT_LOGGER},
     "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local a = ngx.req.get_uri_args(); if a['retention'] ~= nil or a['legal-hold'] ~= nil or a['object-lock'] ~= nil or ngx.req.get_headers()['x-amz-bypass-governance-retention'] ~= nil then return 403, {error = 'Khong duoc phep thay doi khoa/giu du lieu (Object Lock) qua cong nay'} end; local p = ngx.var.uri or ''; if p == '/${DOCS_BUCKET}' or p:find('/${DOCS_BUCKET}/', 1, true) == 1 then return 403, {error = 'Kho tep dinh kem chi truy cap qua API nghiep vu'} end end"] }
   },
   "upstream": { "type": "roundrobin", "pass_host": "pass", "nodes": { "minio:9000": 1 } }
@@ -183,6 +191,7 @@ curl -fsS -X PUT "$ADMIN/routes/trace" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <
   "name": "trace-api",
   "uri": "/api/trace/*",
   "plugins": {
+    ${AUDIT_LOGGER},
     "serverless-pre-function": { "phase": "rewrite", "functions": ["${LUA_TRACE}"] },
     "cors": {
       "allow_origins": "${CORS_ORIGIN}",
@@ -210,6 +219,7 @@ curl -fsS -X PUT "$ADMIN/routes/trace-public" -H "X-API-KEY: $APISIX_ADMIN_KEY" 
   "uri": "/api/public/trace/*",
   "methods": ["GET", "OPTIONS"],
   "plugins": {
+    ${AUDIT_LOGGER},
     "cors": {
       "allow_origins": "${CORS_ORIGIN}",
       "allow_methods": "GET,OPTIONS",

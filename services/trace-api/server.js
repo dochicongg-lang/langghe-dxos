@@ -31,6 +31,7 @@ const ocop = require("./ocop");
 const attachments = require("./attachments");
 const lifecycle = require("./lifecycle");
 const kiln = require("./kiln");
+const audit = require("./audit");
 const { createFlowableClient } = require("./flowable");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -803,6 +804,19 @@ function startArchiveScheduler() {
   setInterval(tick, ARCHIVE_INTERVAL_HOURS * 3600_000).unref();
 }
 
+// ---------- Nhật ký kiểm toán ----------
+/** Nhận lô nhật ký từ http-logger của APISIX (mạng nội bộ). Chỉ chấp nhận khi có đúng khóa AUDIT_INGEST_KEY. */
+async function ingestAudit(req) {
+  const key = process.env.AUDIT_INGEST_KEY ?? "";
+  const given = Buffer.from(req.headers.authorization ?? "");
+  const want = Buffer.from(`Bearer ${key}`);
+  if (!key || given.length !== want.length || !crypto.timingSafeEqual(given, want)) throw new HttpError(401, "Không hợp lệ");
+  const body = await readJson(req);
+  const list = (Array.isArray(body) ? body : [body]).slice(0, 200);
+  const entries = list.map(audit.normalize).filter(Boolean).filter(audit.shouldKeep);
+  return { received: list.length, accepted: await audit.appendEntries(pool, entries) };
+}
+
 // ---------- Định tuyến ----------
 async function route(req, res) {
   const url = new URL(req.url, "http://x");
@@ -833,6 +847,22 @@ async function route(req, res) {
     if (parts.length === 2 && m === "GET") return send(res, 200, await getProduct(parts[1], { user }));
     if (parts.length === 3 && parts[2] === "events" && m === "POST") return send(res, 201, await addEvent(parts[1], await readJson(req), user));
   }
+  if (parts[0] === "internal" && parts[1] === "audit" && parts.length === 2 && m === "POST") return send(res, 202, await ingestAudit(req));
+
+  if (parts[0] === "audit") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    requirePermission(user, "audit.read");
+    if (parts.length === 1 && m === "GET") {
+      const q = url.searchParams;
+      const before = Number.parseInt(q.get("before") ?? "", 10);
+      return send(res, 200, {
+        rows: await audit.query(pool, { actor: q.get("actor"), method: q.get("method"), statusClass: q.get("status_class"), q: q.get("q"), before: Number.isInteger(before) ? before : undefined, limit: q.get("limit") }),
+      });
+    }
+    if (parts.length === 2 && parts[1] === "verify" && m === "GET") return send(res, 200, await audit.verifyChain(pool));
+  }
+
   if (parts[0] === "archive") {
     const user = getUser(req);
     if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");

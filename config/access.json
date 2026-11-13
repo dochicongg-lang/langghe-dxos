@@ -24,6 +24,7 @@
     "application.update": { "admin": "all", "coop-officer": "coop", "producer": "own" },
     "application.review": { "admin": "all", "coop-officer": "coop" },
     "application.decide": { "admin": "all", "ocop-officer": "all" },
-    "archive.manage": { "admin": "all" }
+    "archive.manage": { "admin": "all" },
+    "audit.read": { "admin": "all" }
   }
 }
