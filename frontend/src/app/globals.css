@@ -1,26 +1,45 @@
 @import "tailwindcss";
 
+/*
+ * Bảng màu "Làng Nghề Số": đất nung (gốm) làm màu chủ đạo trên nền kem ấm; chữ và đường kẻ dùng gam stone (xám ấm) có sẵn của Tailwind.
+ * Màu thành công/cảnh báo/lỗi giữ nguyên emerald/amber/red để nghĩa trạng thái dễ nhận ra.
+ * Dùng chung với theme đăng nhập Keycloak (keycloak/themes/dxos/login/resources/css/dxos.css): đổi màu thì sửa cả hai nơi.
+ * Độ tương phản chữ trắng trên brand-600 đạt xấp xỉ 5:1 (đủ chuẩn AA cho chữ thường).
+ */
+@theme {
+  --color-brand-50: #fdf4ef;
+  --color-brand-100: #fbe6d9;
+  --color-brand-200: #f6ccb2;
+  --color-brand-300: #efa982;
+  --color-brand-400: #e67f4f;
+  --color-brand-500: #d9602c;
+  --color-brand-600: #c04a1f;
+  --color-brand-700: #9f3a1a;
+  --color-brand-800: #823219;
+  --color-brand-900: #6b2c18;
+  --color-canvas: #faf8f5;
+  --font-sans: var(--font-be-vietnam), "Segoe UI", system-ui, sans-serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-stone-800);
+  font-family: var(--font-sans);
+}
+
+/* Vòng focus rõ ràng cho bàn phím */
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

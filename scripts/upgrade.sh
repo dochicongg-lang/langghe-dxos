@@ -58,9 +58,13 @@ done
 
 step 3 "Keycloak: vai trò, client thiết bị, người dùng thử"
 bash scripts/setup-keycloak-roles.sh | tail -1
+bash scripts/setup-keycloak-login.sh | tail -1
 
 step 4 "APISIX và MinIO: route, policy, tài khoản đọc, chuyển dữ liệu cũ"
 bash scripts/setup-apisix-routes.sh | grep -E '^OK' || true
+
+step 4b "Flowable: nạp quy trình hỗ trợ hồ sơ OCOP"
+bash scripts/setup-ocop-workflow.sh | tail -1
 
 step 5 "Kiểm tra phân quyền thật"
 if [ "$CHECK" = 1 ]; then bash scripts/check-iot-permissions.sh | tail -3; else echo "Bỏ qua (--skip-check)."; fi

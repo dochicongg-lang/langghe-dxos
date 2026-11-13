@@ -48,7 +48,7 @@ export default function QrCode({ url, filename }: { url: string; filename: strin
     <div className="flex flex-col items-center gap-3">
       <svg
         viewBox={`0 0 ${qr.size} ${qr.size}`}
-        className="h-44 w-44 rounded-lg border border-slate-200 bg-white"
+        className="h-44 w-44 rounded-lg border border-stone-200 bg-white"
         shapeRendering="crispEdges"
         role="img"
         aria-label={`Mã QR dẫn tới ${url}`}
@@ -56,12 +56,12 @@ export default function QrCode({ url, filename }: { url: string; filename: strin
         <rect width="100%" height="100%" fill="#fff" />
         <path d={qr.d} fill="#000" />
       </svg>
-      <p className="break-all text-center text-xs text-slate-500">{url}</p>
+      <p className="break-all text-center text-xs text-stone-500">{url}</p>
       <div className="flex gap-2">
-        <button type="button" onClick={download} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700">
+        <button type="button" onClick={download} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">
           Tải mã QR (SVG)
         </button>
-        <button type="button" onClick={copy} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+        <button type="button" onClick={copy} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50">
           {copied ? "Đã chép" : "Chép liên kết"}
         </button>
       </div>

@@ -344,3 +344,16 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 minioadmi
 **Chuyển sang COMPLIANCE.** Đặt `IOT_LOCK_MODE=COMPLIANCE` trong `.env` không đủ: script thiết lập sẽ từ chối và giải thích, vì chế độ này không hoàn tác. Chỉ khi đã chắc chắn mới thêm `IOT_LOCK_CONFIRM_COMPLIANCE=yes`.
 
 Chạy test của backend Tầng 3: `cd services/trace-api` rồi `npm test`. Kiểm thử script đồng bộ `.env`: `bash scripts/tests/test-env-sync.sh`. Kiểm tra phân quyền thật: `bash scripts/check-iot-permissions.sh`.
+
+## 12. Quy trình hồ sơ OCOP (bản khung trình diễn)
+
+Hệ thống chỉ **hỗ trợ và theo dõi** việc lập hồ sơ OCOP. Kết quả chính thức do cơ quan có thẩm quyền quyết định, cán bộ đầu mối nhập vào. Cấu hình mặc định là **Thành phố Hà Nội** trong `config/ocop-profiles.json`, và đang đánh dấu **chưa đối chiếu văn bản gốc**: trước khi dùng cho hồ sơ thật phải kiểm tra lại các quyết định được ghi ở đầu tệp đó.
+
+**Chuẩn bị:** chạy `bash scripts/upgrade.sh` (bước 4b nạp quy trình vào Flowable), rồi `cd frontend && npm run dev`.
+
+**Kịch bản trình diễn (mỗi bước đổi tài khoản; mật khẩu = tên đăng nhập):**
+1. `hoa` (nghệ nhân): vào mục **Hồ sơ OCOP**, tạo hồ sơ (chọn nhóm, tự chấm A/B/C, đánh dấu giấy tờ), mở hồ sơ rồi bấm **Nộp hồ sơ**. Nếu thiếu giấy tờ bắt buộc, hệ thống từ chối và nói rõ.
+2. `tuan` (cán bộ HTX): lần đầu đăng nhập bằng trình duyệt sẽ bị bắt cài OTP (xem mục về OTP; mã tính bằng `node scripts/totp.js <khóa>`). Mở hồ sơ, chọn **Sơ duyệt: Đạt**, **Yêu cầu bổ sung** hoặc **Không đạt** (hai trường hợp sau bắt buộc ghi lý do). Nếu yêu cầu bổ sung, `hoa` nộp lại.
+3. `ocop` (cán bộ đơn vị đầu mối): với hồ sơ đã sơ duyệt đạt, nhập điểm chính thức, số quyết định, ngày quyết định. Hạng sao và ngày hết hạn (36 tháng) do hệ thống tính từ cấu hình.
+
+Trang chi tiết hiển thị bước hiện tại của quy trình, lịch sử xử lý (chỉ ghi thêm) và kết quả chính thức. Tự kiểm tra toàn bộ quy trình thật qua cổng gác, Keycloak và Flowable: `node scripts/check-ocop-flow.js` (mỗi lần chạy tạo vài hồ sơ thử).

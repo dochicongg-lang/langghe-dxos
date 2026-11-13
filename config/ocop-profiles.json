@@ -1,0 +1,64 @@
+{
+  "_doc": "Cấu hình đánh giá, phân hạng OCOP THEO ĐỊA PHƯƠNG (G2.0). Đổi tệp này thì ngưỡng sao, hiệu lực, danh mục hồ sơ, lịch đợt trong API và giao diện đổi theo, không sửa mã. Mỗi hồ sơ OCOP gắn với một profile (mặc định: defaultProfile). Hệ thống chỉ HỖ TRỢ và THEO DÕI; kết quả chính thức do cơ quan có thẩm quyền quyết định và do cán bộ nhập vào.",
+  "defaultProfile": "hanoi-2026",
+  "profiles": {
+    "hanoi-2026": {
+      "name": "Thành phố Hà Nội (giai đoạn 2026-2030)",
+      "effectiveFrom": "2026-05-22",
+      "verified": false,
+      "sourceNote": "Số liệu tổng hợp từ báo chí và cổng thông tin (tra cứu 2026-11-13), CHƯA đối chiếu văn bản gốc. Phải kiểm tra lại Quyết định 26/2026/QĐ-TTg (22/5/2026) và Quyết định 3488/QĐ-UBND (12/7/2026) trước khi dùng cho hồ sơ thật. Hạn ngày, ngưỡng điểm và danh mục giấy tờ có thể đổi.",
+      "legalBasis": [
+        "Quyết định 26/2026/QĐ-TTg ngày 22/5/2026 của Thủ tướng: Bộ tiêu chí và quy trình đánh giá, phân hạng sản phẩm OCOP",
+        "Quyết định 3488/QĐ-UBND ngày 12/7/2026 của UBND TP Hà Nội: Quy chế hoạt động Hội đồng OCOP thành phố 2026-2030",
+        "Trước đó: Quyết định 148/QĐ-TTg (2023) và Quyết định 1489/QĐ-TTg (2025, chuyển đánh giá 3 sao lên cấp tỉnh)"
+      ],
+      "authority": {
+        "coordinatingOffice": "Văn phòng Điều phối Chương trình xây dựng nông thôn mới Thành phố Hà Nội (cơ quan thường trực Hội đồng OCOP)",
+        "council": "Hội đồng OCOP Thành phố (9 thành viên, họp khi có từ 7 thành viên)",
+        "star3and4": "UBND Thành phố Hà Nội (Hội đồng OCOP Thành phố đánh giá)",
+        "star5": "Bộ Nông nghiệp và Môi trường (Thành phố đề nghị)"
+      },
+      "scoring": {
+        "maxTotal": 100,
+        "parts": [
+          { "key": "A", "label": "Sản phẩm và sức mạnh cộng đồng", "max": 40 },
+          { "key": "B", "label": "Khả năng tiếp thị", "max": 25 },
+          { "key": "C", "label": "Chất lượng sản phẩm", "max": 35 }
+        ],
+        "stars": [
+          { "stars": 5, "min": 90, "max": 100, "level": "quoc-gia" },
+          { "stars": 4, "min": 70, "max": 89.99, "level": "tinh" },
+          { "stars": 3, "min": 50, "max": 69.99, "level": "tinh" },
+          { "stars": 2, "min": 30, "max": 49.99, "level": "khong-cong-nhan" },
+          { "stars": 1, "min": 0, "max": 29.99, "level": "khong-cong-nhan" }
+        ],
+        "minStarsRecognized": 3
+      },
+      "validityMonths": 36,
+      "renewalWindowDays": { "from": 180, "to": 120 },
+      "communeReviewWorkingDays": 15,
+      "rounds": [
+        { "name": "Đợt 1", "submitBefore": "04-30", "completeBefore": "06-30" },
+        { "name": "Đợt 2", "submitBefore": "10-30", "completeBefore": "12-30" }
+      ],
+      "groups": [
+        { "key": "thuc-pham", "label": "Thực phẩm" },
+        { "key": "do-uong", "label": "Đồ uống" },
+        { "key": "duoc-lieu", "label": "Dược liệu và sản phẩm từ dược liệu" },
+        { "key": "thu-cong-my-nghe", "label": "Hàng thủ công mỹ nghệ" },
+        { "key": "sinh-vat-canh", "label": "Sinh vật cảnh" },
+        { "key": "du-lich", "label": "Dịch vụ du lịch cộng đồng, du lịch sinh thái, điểm du lịch" }
+      ],
+      "subjectTypes": ["Hợp tác xã", "Tổ hợp tác", "Doanh nghiệp nhỏ và vừa", "Trang trại", "Hộ sản xuất / hộ gia đình có đăng ký kinh doanh"],
+      "checklist": [
+        { "key": "phieu-dang-ky", "label": "Phiếu đăng ký tham gia (Mẫu 01)", "required": true },
+        { "key": "bao-cao-tu-danh-gia", "label": "Báo cáo tự đánh giá (Mẫu 02)", "required": true },
+        { "key": "giay-phep-kinh-doanh", "label": "Giấy tờ pháp lý của chủ thể (đăng ký kinh doanh/HTX)", "required": true },
+        { "key": "anh-san-pham", "label": "Ảnh sản phẩm và bao bì", "required": true },
+        { "key": "san-pham-mau", "label": "5 sản phẩm mẫu (trừ nhóm dịch vụ du lịch)", "required": true, "exceptGroups": ["du-lich"] },
+        { "key": "cong-bo-chat-luong", "label": "Công bố chất lượng / phiếu kiểm nghiệm", "required": true, "onlyGroups": ["thuc-pham", "do-uong", "duoc-lieu"] },
+        { "key": "minh-chung-khac", "label": "Minh chứng khác (giải thưởng, hợp đồng, nguồn gốc nguyên liệu, bảo vệ môi trường)", "required": false }
+      ]
+    }
+  }
+}

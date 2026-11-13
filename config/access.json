@@ -9,9 +9,20 @@
     "readonly": { "desc": "Chỉ xem", "minio": "builtin" },
     "iot-writer": { "desc": "Thiết bị IoT: chỉ ghi số liệu cảm biến vào thư mục của gateway, không dùng API nghiệp vụ", "minio": "iot-writer", "api": false }
   },
+  "_pages_doc": "Trang giao diện nền tảng mà mỗi vai trò thấy (chỉ để ẩn/hiện menu và chặn vào nhầm trang; dữ liệu thật vẫn do cổng gác và API kiểm tra). Trang Truy xuất và Hồ sơ OCOP không khai báo ở đây: hiện khi có quyền product.read / application.read. Trang Human (hồ sơ cá nhân) ai cũng thấy.",
+  "pages": {
+    "process": ["admin", "coop-officer", "ocop-officer"],
+    "data": ["admin", "coop-officer", "ocop-officer", "readonly"],
+    "intelligence": ["admin", "coop-officer", "ocop-officer", "readonly", "producer"]
+  },
   "permissions": {
     "product.read": { "admin": "all", "readonly": "all", "ocop-officer": "all", "coop-officer": "coop", "producer": "coop" },
     "product.create": { "admin": "all", "coop-officer": "coop", "producer": "self" },
-    "product.update": { "admin": "all", "coop-officer": "coop", "producer": "own" }
+    "product.update": { "admin": "all", "coop-officer": "coop", "producer": "own" },
+    "application.read": { "admin": "all", "ocop-officer": "all", "coop-officer": "coop", "producer": "own" },
+    "application.create": { "admin": "all", "coop-officer": "coop", "producer": "self" },
+    "application.update": { "admin": "all", "coop-officer": "coop", "producer": "own" },
+    "application.review": { "admin": "all", "coop-officer": "coop" },
+    "application.decide": { "admin": "all", "ocop-officer": "all" }
   }
 }

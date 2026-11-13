@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Quy trình HỖ TRỢ hồ sơ OCOP (G2.1). Hệ thống chỉ hỗ trợ và theo dõi; kết quả chính thức do cơ quan có thẩm quyền
+  ra và cán bộ đầu mối nhập vào ở bước "officialResult". Cấp đánh giá, ngưỡng sao, hạn... nằm ở config/ocop-profiles.json,
+  KHÔNG ghi cứng ở đây. targetNamespace="dxos" để trang Process chỉ hiện quy trình của dự án (category = dxos).
+  Nạp bằng: bash scripts/setup-ocop-workflow.sh (idempotent, gọi từ upgrade.sh).
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="dxos">
+
+  <process id="dxosOcopSupport" name="Hỗ trợ hồ sơ OCOP" isExecutable="true">
+    <startEvent id="start" name="Người nộp gửi hồ sơ"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="reviewByCoop"/>
+
+    <userTask id="reviewByCoop" name="HTX sơ duyệt hồ sơ" flowable:candidateGroups="coop-officer"/>
+    <sequenceFlow id="f2" sourceRef="reviewByCoop" targetRef="decision"/>
+
+    <exclusiveGateway id="decision" name="Kết quả sơ duyệt" default="fReject"/>
+    <sequenceFlow id="fApprove" name="Đạt" sourceRef="decision" targetRef="officialResult">
+      <conditionExpression xsi:type="tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${decision == 'approve'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="fRevise" name="Cần bổ sung" sourceRef="decision" targetRef="reviseByApplicant">
+      <conditionExpression xsi:type="tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${decision == 'revise'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="fReject" name="Không đạt" sourceRef="decision" targetRef="endRejected"/>
+
+    <userTask id="reviseByApplicant" name="Người nộp bổ sung hồ sơ" flowable:candidateGroups="producer"/>
+    <sequenceFlow id="f3" sourceRef="reviseByApplicant" targetRef="reviewByCoop"/>
+
+    <userTask id="officialResult" name="Ghi kết quả OCOP chính thức (cơ quan có thẩm quyền)" flowable:candidateGroups="ocop-officer"/>
+    <sequenceFlow id="f4" sourceRef="officialResult" targetRef="endDone"/>
+
+    <endEvent id="endDone" name="Đã có kết quả chính thức"/>
+    <endEvent id="endRejected" name="Không đạt sơ duyệt"/>
+  </process>
+</definitions>
