@@ -36,6 +36,9 @@ ensure_user tuan tuan coop-officer        # anh Tuấn, cán bộ HTX
 ensure_user ocop ocop ocop-officer        # cán bộ đơn vị đầu mối OCOP
 for u in hoa tuan; do set_user_attr "$u" coop htx-demo; done
 
+# OTP (xác thực hai yếu tố) cho các vai trò có "mfa": true trong config/access.json (hiện: coop-officer), khi đăng nhập bằng trình duyệt
+node scripts/setup-keycloak-mfa.js
+
 # Gỡ quyền cũ: `readwrite` (MinIO đọc/ghi mọi thứ, gồm cả iot/) không còn dùng
 for u in tester "service-account-$KEYCLOAK_CLIENT_ID"; do
   kc remove-roles -r "$R" --uusername "$u" --rolename readwrite >/dev/null 2>&1 || true

@@ -135,7 +135,8 @@ docker exec dxos-minio sh -c "if [ -z \"\$(mc ls local/$IOT_BUCKET/iot/ 2>/dev/n
 echo "OK: policy MinIO: $GEN_ROLES (sinh từ config/access.json; Deny ghi/xóa/đổi khóa bucket IoT) và 'iot-writer' (chỉ ghi vào thư mục riêng của gateway)."
 
 # Route cũ /api/storage/* (bucket public + JWT ở gateway) đã được thay thế bằng OIDC.
-curl -sS -o /dev/null -X DELETE "$ADMIN/routes/storage" -H "X-API-KEY: $APISIX_ADMIN_KEY" || true
+# (không dùng tùy chọn -o trỏ vào thiết bị null: với MSYS_NO_PATHCONV=1 curl.exe của Windows không ghi được và báo lỗi 23)
+curl -sS -X DELETE "$ADMIN/routes/storage" -H "X-API-KEY: $APISIX_ADMIN_KEY" >/dev/null || true
 
 curl -fsS -X PUT "$ADMIN/routes/s3" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JSON >/dev/null
 {

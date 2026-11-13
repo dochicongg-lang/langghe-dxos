@@ -52,7 +52,7 @@ wait_healthy() { # tên container
 }
 for c in dxos-postgres dxos-minio dxos-keycloak dxos-etcd dxos-apisix; do printf "  chờ %s ... " "$c"; wait_healthy "$c"; echo "sẵn sàng"; done
 for i in $(seq 1 30); do
-  curl -fs -o /dev/null -H "X-API-KEY: $APISIX_ADMIN_KEY" "http://localhost:$APISIX_ADMIN_PORT/apisix/admin/routes" && break
+  curl -fs -H "X-API-KEY: $APISIX_ADMIN_KEY" "http://localhost:$APISIX_ADMIN_PORT/apisix/admin/routes" >/dev/null && break
   [ "$i" = 30 ] && { echo "Admin API của APISIX không phản hồi"; exit 1; }; sleep 2
 done
 

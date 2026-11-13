@@ -21,6 +21,7 @@ function validate(cfg) {
     if (!/^[a-z][a-z0-9-]*$/.test(name)) throw new Error(`access.json: tên role không hợp lệ: ${name}`);
     if (r.alias && !cfg.roles[r.alias]) throw new Error(`access.json: alias của ${name} trỏ tới role không có: ${r.alias}`);
     if (r.alias && cfg.roles[r.alias].alias) throw new Error(`access.json: alias không được nối chuỗi (${name})`);
+    if (r.mfa !== undefined && typeof r.mfa !== "boolean") throw new Error(`access.json: mfa của ${name} phải là true/false`);
   }
   for (const [action, byRole] of Object.entries(cfg.permissions)) {
     for (const [role, scope] of Object.entries(byRole)) {
