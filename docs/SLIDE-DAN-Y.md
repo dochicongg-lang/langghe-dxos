@@ -4,7 +4,7 @@ Nguyên tắc: **3 câu chuyện**, không liệt kê 30 tính năng. Mỗi slid
 
 | # | Tiêu đề slide | Nội dung trên slide | Ý chính khi nói |
 |---|---|---|---|
-| 1 | **Làng Nghề Số** | Tên dự án, logo, đội, OLP 2026 | Mô hình thực hành số cho làng nghề, theo khung DX-OS, hoàn toàn mã nguồn mở |
+| 1 | **Làng Nghề Số** | Tên dự án, logo, đội | Mô hình thực hành số cho làng nghề, theo khung DX-OS, hoàn toàn mã nguồn mở |
 | 2 | **Vấn đề thật** | 3 dòng: nghệ nhân/HTX khó hiểu tiêu chí OCOP; người mua khó kiểm chứng nguồn gốc; số liệu sản xuất rời rạc, dễ bị nghi ngờ | Nút thắt là **niềm tin và hồ sơ**, không phải thiếu công nghệ |
 | 3 | **Ranh giới chúng tôi giữ** | "Hội đồng OCOP của thành phố là nơi quyết định. Hệ thống **hỗ trợ và theo dõi**, không cấp giấy." | Đây là ranh giới pháp lý: tách "xác nhận của nền tảng" và "kết quả chính thức". Hầu hết giải pháp bỏ qua điều này |
 | 4 | **Kiến trúc DX-OS 3 tầng** | Sơ đồ: Tầng 1 (Keycloak, APISIX, Flowable, PostgreSQL, MinIO) / Tầng 2 H-P-D-I / Tầng 3 nghiệp vụ truy xuất + OCOP | Lõi dùng chung, nghiệp vụ là tầng trên cùng. Làng nghề khác chạy nghiệp vụ khác mà không sửa lõi |
