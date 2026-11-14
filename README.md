@@ -110,6 +110,7 @@ Các điểm sau cố ý **không** hiển thị trên giao diện, nhưng cần
 - **Dữ liệu trình diễn** (`node scripts/seed-demo.js`): số quyết định OCOP, điểm và ba sản phẩm gốm là dữ liệu mẫu, không phải hồ sơ thật. Không dùng số quyết định mẫu ở nơi công bố thật.
 - **Dữ liệu cảm biến** do trình giả lập tạo (`node backend/simulate-iot.js --post --interval 2000 --batch 8`); khi chưa có thiết bị thật, trang Intelligence sẽ trống cho tới khi chạy lệnh này.
 - **Quy trình mẫu của Flowable** bị ẩn ở trang Process; chỉ hiện quy trình thuộc hệ thống (`category = dxos`).
+- **OTP của tài khoản `tuan`** (cán bộ HTX, bắt buộc MFA khi đăng nhập trình duyệt): sau khi `tuan` cài OTP, Keycloak cũng đòi mã OTP ở đăng nhập mật khẩu trực tiếp, nên các script kiểm tra đăng nhập bằng `tuan/tuan` (`check-iot-permissions.sh`, `check-ocop-flow.js`...) sẽ bị từ chối. Chạy `bash scripts/reset-otp.sh` để xóa OTP của `tuan` (cài lại ở lần đăng nhập trình duyệt kế tiếp) trước khi chạy script kiểm tra hoặc trước buổi trình diễn. Không có điện thoại thì dùng `node scripts/totp.js <khóa Base32>` để tính mã.
 - **Xác nhận của nền tảng** ở trang công khai `/verify` luôn ghi rõ chưa phải giấy chứng nhận OCOP: đây là ranh giới pháp lý, giữ nguyên.
 
 ## Giấy phép và tài liệu dự án
