@@ -106,13 +106,17 @@ test("trang nền tảng theo vai trò (đúng người đúng việc)", () => {
   const p = (r) => access.pagesOf(CFG, r).sort();
   assert.deepEqual(p(["producer"]), []); // nghệ nhân chỉ cần sản phẩm, hồ sơ và trợ giúp
   assert.deepEqual(p(["readonly"]), ["intelligence"]);
-  assert.deepEqual(p(["coop-officer"]), ["intelligence", "process"]);
-  assert.deepEqual(p(["ocop-officer"]), ["intelligence", "process"]);
-  assert.deepEqual(p(["admin"]), ["data", "intelligence", "platform", "process"]);
+  assert.equal(access.scopeFor(CFG, ["coop-officer"], "overview.read"), "coop"); // tổng quan: cán bộ HTX chỉ thấy HTX của mình
+  assert.equal(access.scopeFor(CFG, ["ocop-officer"], "overview.read"), "all");
+  assert.equal(access.scopeFor(CFG, ["producer"], "overview.read"), null);
+  assert.equal(access.scopeFor(CFG, ["readonly"], "overview.read"), null);
+  assert.deepEqual(p(["coop-officer"]), ["intelligence", "overview", "process"]);
+  assert.deepEqual(p(["ocop-officer"]), ["intelligence", "overview", "process"]);
+  assert.deepEqual(p(["admin"]), ["data", "intelligence", "overview", "platform", "process"]);
   assert.deepEqual(p(["editor"]), p(["admin"])); // bí danh tạm
   assert.deepEqual(p(["iot-writer"]), []);
   assert.deepEqual(p(["role-la"]), []);
-  assert.deepEqual(p(["producer", "coop-officer"]), ["intelligence", "process"]); // nhiều vai trò: hợp của các vai trò
+  assert.deepEqual(p(["producer", "coop-officer"]), ["intelligence", "overview", "process"]); // nhiều vai trò: hợp của các vai trò
   assert.throws(() => access.validate({ roles: { a: {} }, permissions: {}, pages: { x: ["b"] } }), /role không có/);
   assert.throws(() => access.validate({ roles: { a: {} }, permissions: {}, pages: { x: "a" } }), /danh sách/);
 });

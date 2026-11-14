@@ -2,7 +2,7 @@
 // Copyright 2026 The Làng Nghề Số contributors
 // Mục điều hướng, đặt tên theo VIỆC người dùng làm (không dùng thuật ngữ kỹ thuật).
 // "main" là việc hằng ngày; "more" là phần quản lý/nền tảng (H-P-D-I) chỉ hiện với vai trò được phép.
-export type IconName = "home" | "box" | "file" | "user" | "flow" | "database" | "chart" | "help" | "layers";
+export type IconName = "gauge" | "home" | "box" | "file" | "user" | "flow" | "database" | "chart" | "help" | "layers";
 
 export interface NavItem {
   href: string;
@@ -22,12 +22,14 @@ export const helpNav: NavItem = { href: "/help", icon: "help", title: "Trợ gi�
 
 export const platformNav: NavItem[] = [
   { href: "/nen-tang", icon: "layers", title: "Cấu trúc nền tảng", desc: "Gốm và lụa trên một nền tảng" },
+  { href: "/tong-quan", icon: "gauge", title: "Tổng quan", desc: "Hồ sơ chờ lâu, chất lượng mẻ" },
   { href: "/process", icon: "flow", title: "Việc đang xử lý", desc: "Các bước của hồ sơ" },
   { href: "/data", icon: "database", title: "Dữ liệu", desc: "Lưu trữ và nhật ký" },
   { href: "/intelligence", icon: "chart", title: "Phân tích", desc: "Mẻ nung, mẻ nhuộm và trợ lý hỏi đáp" },
 ];
 
 const PATHS: Record<IconName, string> = {
+  gauge: "M4 18a8 8 0 1116 0M12 18l4-6M7 12l.5.5M12 8v1M17 12l-.5.5",
   home: "M3 11l9-8 9 8M5 10v10h14V10",
   box: "M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8",
   file: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",

@@ -36,7 +36,7 @@ export function MiniProgress({ stages, lastStage }: { stages: Stage[]; lastStage
 }
 
 /** Các bước sản xuất của một sản phẩm: đã làm (kèm thời điểm, nơi làm), bước mới nhất, và bước còn lại. */
-export default function ProcessProgress({ stages, events }: { stages: Stage[]; events: Ev[] }) {
+export default function ProcessProgress({ stages, events, onRecord, skip = [] }: { stages: Stage[]; events: Ev[]; onRecord?: (stageKey: string) => void; skip?: string[] }) {
   const byStage = new Map<string, Ev>();
   for (const e of events) byStage.set(e.stage, e); // lấy lần ghi mới nhất của mỗi công đoạn
   const doneKeys = new Set(byStage.keys());
@@ -74,6 +74,11 @@ export default function ProcessProgress({ stages, events }: { stages: Stage[]; e
                   <p className={`text-[11px] font-medium ${isLatest ? "text-brand-700" : done ? "text-emerald-700" : "text-stone-400"}`}>{isLatest ? "Mới nhất" : done ? "Hoàn tất" : "Chưa thực hiện"}</p>
                 </div>
               </div>
+              {!done && onRecord && !skip.includes(s.key) && (
+                <button type="button" onClick={() => onRecord(s.key)} className="mt-2 w-full rounded-lg border border-brand-300 bg-white px-2 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50">
+                  Ghi nhận công đoạn này
+                </button>
+              )}
               {ev && (
                 <p className="mt-2 text-xs leading-relaxed text-stone-600">
                   {fmtDate(ev.created_at)}

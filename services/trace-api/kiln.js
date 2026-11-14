@@ -204,4 +204,80 @@ function analyze(iot, profile, { baselinePeaks = [] } = {}) {
   return { verdict, summary, findings, metrics, baseline, profile: { id: profile.id, name: profile.name, verified: profile.verified === true, terms: T } };
 }
 
-module.exports = { loadProfiles, validateProfiles, pickProfile, publicAllows, minutesAbove, maxRatePerHour, analyze };
+
+// ---------- Đường cong chuẩn: so sánh cả đường cong với các mẻ ĐẠT khác trên cùng thiết bị ----------
+const REF_POINTS = 60;
+const REF_MIN_PEERS = 3;
+
+/** Lấy lại đường cong [thời điểm, giá trị] thành n điểm cách đều theo tỉ lệ thời gian từ đầu đến cuối mẻ (nội suy tuyến tính). */
+function resampleCurve(curve, n = REF_POINTS) {
+  const pts = (Array.isArray(curve) ? curve : []).filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])).sort((a, b) => a[0] - b[0]);
+  if (pts.length < 2 || pts[pts.length - 1][0] <= pts[0][0]) return null;
+  const t0 = pts[0][0];
+  const t1 = pts[pts.length - 1][0];
+  const out = [];
+  let j = 0;
+  for (let i = 0; i < n; i++) {
+    const t = t0 + ((t1 - t0) * i) / (n - 1);
+    while (j < pts.length - 2 && pts[j + 1][0] < t) j++;
+    const [ta, va] = pts[j];
+    const [tb, vb] = pts[j + 1];
+    out.push(tb === ta ? va : va + ((vb - va) * (Math.min(Math.max(t, ta), tb) - ta)) / (tb - ta));
+  }
+  return out;
+}
+
+const quantile = (sorted, q) => {
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+};
+const r1 = (x) => Math.round(x * 10) / 10;
+
+/**
+ * Đường chuẩn từ các đường cong của những mẻ ĐẠT khác: trung vị và dải giữa (phân vị 25 đến 75) tại từng điểm.
+ * Cần ít nhất `minPeers` mẻ; ít hơn thì trả enough=false (không vẽ đường chuẩn để khỏi gây hiểu lầm).
+ */
+function referenceCurve(curves, { minPeers = REF_MIN_PEERS, n = REF_POINTS } = {}) {
+  const rs = curves.map((c) => resampleCurve(c, n)).filter(Boolean);
+  if (rs.length < minPeers) return { n: rs.length, enough: false, points: [] };
+  const points = [];
+  for (let i = 0; i < n; i++) {
+    const vals = rs.map((r) => r[i]).sort((a, b) => a - b);
+    points.push([Math.round((i / (n - 1)) * 1000) / 1000, r1(quantile(vals, 0.5)), r1(quantile(vals, 0.25)), r1(quantile(vals, 0.75))]);
+  }
+  return { n: rs.length, enough: true, points };
+}
+
+/** Một câu bằng lời: mẻ này lệch khỏi dải thường gặp ở đoạn nào (đoạn liên tiếp dài nhất nằm ngoài dải, cùng một phía). */
+function compareToReference(curve, ref, terms = {}) {
+  if (!ref?.enough) return null;
+  const T = { ...DEFAULT_TERMS, ...terms };
+  const pts = (Array.isArray(curve) ? curve : []).filter((p) => Array.isArray(p) && Number.isFinite(p[0])).sort((a, b) => a[0] - b[0]);
+  const r = resampleCurve(curve, ref.points.length);
+  if (!r || pts.length < 2) return null;
+  const spanMin = (pts[pts.length - 1][0] - pts[0][0]) / 60000;
+  const meds = ref.points.map((p) => p[1]);
+  const tol = Math.max(2, 0.01 * (Math.max(...meds) - Math.min(...meds)));
+  let best = null;
+  let cur = null;
+  r.forEach((v, i) => {
+    const [, , lo, hi] = ref.points[i];
+    const side = v < lo - tol ? -1 : v > hi + tol ? 1 : 0;
+    if (side !== 0 && cur && cur.side === side) {
+      cur.end = i;
+      cur.sum += v - ref.points[i][1];
+    } else if (side !== 0) {
+      cur = { side, start: i, end: i, sum: v - ref.points[i][1] };
+    } else cur = null;
+    if (cur && (!best || cur.end - cur.start > best.end - best.start)) best = { ...cur };
+  });
+  if (!best || best.end - best.start + 1 < 3) return { level: "ok", text: `${T.curve} nằm trong dải thường gặp của các ${T.batch} đạt trước đó.` };
+  const len = best.end - best.start + 1;
+  const hour = (i) => Math.round(((i / (r.length - 1)) * spanMin) / 6) / 10;
+  const diff = Math.round(Math.abs(best.sum / len));
+  return { level: "warn", text: `Từ khoảng giờ thứ ${hour(best.start)} đến giờ thứ ${hour(best.end)}, ${T.batch} này ${best.side > 0 ? "cao hơn" : "thấp hơn"} dải thường gặp của các ${T.batch} đạt khoảng ${diff} °C.` };
+}
+
+module.exports = { loadProfiles, validateProfiles, pickProfile, publicAllows, minutesAbove, maxRatePerHour, analyze, resampleCurve, referenceCurve, compareToReference };
