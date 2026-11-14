@@ -4,8 +4,8 @@
 //   - GOM-BT-0001: đã có mẻ nung chuẩn (đường cong thật + kết luận "đạt chuẩn"), hồ sơ OCOP đã đi hết quy trình (4 sao) kèm ảnh sản phẩm
 //     => trang công khai /verify/GOM-BT-0001 là "đích" của câu chuyện quét QR.
 //   - GOM-BT-0002: mẻ nung QUÁ NHIỆT (cảnh báo); GOM-BT-0003: gia nhiệt QUÁ NHANH (cần xem lại) => trang Intelligence có đủ ba mức.
-// KHÔNG tạo sẵn hồ sơ OCOP để làm trực tiếp trên sân khấu (chị Hoa lập, anh Tuấn duyệt, cán bộ đầu mối ghi kết quả).
-// Số liệu OCOP (số quyết định, điểm) là MINH HỌA. Dữ liệu cảm biến ghi vào bucket có Object Lock (Governance, giữ lâu): xem docs/TRINH-DIEN.md mục dọn dẹp.
+// KHÔNG tạo sẵn hồ sơ OCOP để người dùng tự thử trên giao diện (chị Hoa lập, anh Tuấn duyệt, cán bộ đầu mối ghi kết quả).
+// Số liệu OCOP (số quyết định, điểm) là MINH HỌA. Dữ liệu cảm biến ghi vào bucket có Object Lock (Governance, giữ lâu) nên khi cần dọn phải xóa bằng quyền bypass của quản trị MinIO (`mc rm --recursive --versions --force --bypass`).
 // Chạy: node scripts/seed-demo.js   (sau bash scripts/upgrade.sh)
 const fs = require("fs");
 const zlib = require("zlib");

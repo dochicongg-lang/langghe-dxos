@@ -65,9 +65,8 @@ Toàn bộ hệ thống dựng được từ mã nguồn bằng công cụ mã n
 
 Đã thử trên Windows 11 (Git Bash, Docker Desktop). Linux và macOS dùng cùng các lệnh nhưng **chưa thử trên máy thật**.
 
-## Trình diễn
-- Kịch bản 3 câu chuyện, câu hỏi phản biện thường gặp: [docs/TRINH-DIEN.md](docs/TRINH-DIEN.md).
-- Dàn ý slide: [docs/SLIDE-DAN-Y.md](docs/SLIDE-DAN-Y.md).
+## Dữ liệu mẫu và công cụ thử
+- Nạp dữ liệu mẫu (chạy lặp lại an toàn): `node scripts/seed-demo.js`.
 - Minh họa Zero-Trust chạy trực tiếp (không đổi dữ liệu): `node scripts/demo-zero-trust.js`.
 - Giả lập cảm biến lò: `node backend/simulate-iot.js --post` (liên tục) hoặc `--scenario firing|overheat|fast-ramp|low-peak --days-ago N` (ghi lùi một mẻ nung hoàn chỉnh).
 
