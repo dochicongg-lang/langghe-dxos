@@ -5,6 +5,15 @@ Số `#n` là pull request trên GitHub.
 
 ## [Chưa phát hành]
 
+### Thêm
+- Logo Làng Nghề Số (nền trong suốt, màu đất nung): thanh bên, trang giới thiệu, màn hình chờ/lỗi/404, trang đăng nhập Keycloak, biểu tượng tab (`frontend/src/components/Logo.tsx`).
+- Chú giải (title) tự gắn cho nút chỉ có biểu tượng, ở ứng dụng (`AutoTitle.tsx`) và trang đăng nhập (`js/dxos.js`).
+
+### Sửa
+- Trang đăng nhập: cảnh báo hiện màu đỏ, dịch "đăng nhập lại để tiếp tục" sang tiếng Việt, bỏ tiêu đề cạnh logo.
+- Chế độ dev: ẩn nhãn công cụ phát triển (N · Insight) và tắt kiểm tra tự động Instant Insight.
+- `docs/HUONG-DAN-CHAY.md`: tên trang theo menu hiện tại, mô tả biểu mẫu lập hồ sơ mới.
+
 ## [0.3.1] - 2026-11-15
 
 ### Thêm
