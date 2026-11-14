@@ -369,6 +369,11 @@ bash scripts/backup.sh                 # ra backups/<ngày-giờ>/
 bash scripts/backup.sh /đường/dẫn/khác # hoặc chọn thư mục
 ```
 
+**Sao lưu định kỳ và giữ N bản:** `bash scripts/backup.sh --keep 7` sau khi sao lưu xong chỉ giữ 7 bản mới nhất trong `backups/` (chỉ xóa thư mục tên dạng ngày-giờ có `SHA256SUMS`, không đụng thư mục khác). Chạy lặp trong một cửa sổ: `bash scripts/backup-loop.sh 24 7` (mỗi 24 giờ, giữ 7 bản). Hệ thống KHÔNG tự cài lịch vào hệ điều hành; muốn chạy nền hãy tự đặt lịch:
+
+- Linux/macOS (cron): `0 2 * * * cd /đường/dẫn/dự-án && bash scripts/backup.sh --keep 7 >> backups/backup.log 2>&1`
+- Windows (Task Scheduler, mở PowerShell): `schtasks /Create /SC DAILY /ST 02:00 /TN "LangNgheSo-Backup" /TR "\"C:\Program Files\Git\bin\bash.exe\" -lc 'cd /c/đường/dẫn/dự-án && bash scripts/backup.sh --keep 7'"`
+
 Bản sao lưu gồm: từng CSDL PostgreSQL (Keycloak, Flowable, truy xuất), toàn bộ dữ liệu MinIO (mọi bucket, phiên bản, khóa Object Lock, tài khoản và policy), `.env`, thư mục `config/` và tệp mã kiểm tra `SHA256SUMS`. **Thư mục này chứa mật khẩu trong `.env`**: cất ở nơi an toàn, không đưa lên git (`backups/` đã được loại khỏi git).
 
 **Khôi phục** (XÓA dữ liệu hiện có và thay bằng bản sao lưu, nên bắt buộc có `--yes`):
