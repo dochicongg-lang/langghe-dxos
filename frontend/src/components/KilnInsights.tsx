@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import Card from "./Card";
 import { useAuth } from "./AuthProvider";
+import Pager, { usePaged } from "./Pager";
 import { VerdictBadge } from "./KilnInsight";
 import type { KilnInsight, KilnVerdict } from "@/lib/trace";
 
@@ -54,8 +55,10 @@ export default function KilnInsights() {
   const order: Record<KilnVerdict, number> = { alert: 0, warn: 1, insufficient: 2, ok: 3 };
   const runs = data ? [...data.runs].sort((a, b) => order[a.insight.verdict] - order[b.insight.verdict] || Date.parse(b.at) - Date.parse(a.at)) : [];
 
+  const paged = usePaged(runs, 5);
+
   return (
-    <Card title="Phân tích thông minh các mẻ nung">
+    <Card title="Phân tích thông minh các mẻ nung và mẻ nhuộm">
       {error && (
         <p className="text-sm text-red-600" role="alert">
           Không tải được: {error}
@@ -65,7 +68,7 @@ export default function KilnInsights() {
       {data && (
         <>
           <p className="text-sm text-stone-600">
-            Hệ thống tự đối chiếu đường cong nhiệt độ của từng mẻ với hồ sơ nung{data.profile ? ` "${data.profile.name}"` : ""}: đỉnh nhiệt, thời gian giữ, tốc độ gia nhiệt và làm nguội, so với các mẻ khác của cùng lò, và độ tin cậy của số liệu.
+            Hệ thống tự đối chiếu đường cong nhiệt độ của từng mẻ (nung gốm, nhuộm lụa) với hồ sơ ngưỡng của nghề đó: đỉnh nhiệt, thời gian giữ, tốc độ nâng và hạ nhiệt, so với các mẻ khác trên cùng thiết bị, và độ tin cậy của số liệu.
           </p>
           <dl className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
             {(
@@ -83,10 +86,10 @@ export default function KilnInsights() {
             ))}
           </dl>
           {runs.length === 0 ? (
-            <p className="mt-4 text-sm text-stone-500">Chưa có công đoạn nung nào gắn dữ liệu cảm biến trong phạm vi bạn được xem.</p>
+            <p className="mt-4 text-sm text-stone-500">Chưa có công đoạn nung hoặc nhuộm nào gắn dữ liệu cảm biến trong phạm vi bạn được xem.</p>
           ) : (
             <ul className="mt-4 divide-y divide-stone-100">
-              {runs.slice(0, 12).map((r) => {
+              {paged.items.map((r) => {
                 const notable = r.insight.findings.filter((f) => f.level === "alert" || f.level === "warn");
                 return (
                   <li key={`${r.product_code}-${r.at}`} className="py-3">
@@ -117,6 +120,7 @@ export default function KilnInsights() {
               })}
             </ul>
           )}
+          <Pager paged={paged} noun="mẻ" />
         </>
       )}
     </Card>

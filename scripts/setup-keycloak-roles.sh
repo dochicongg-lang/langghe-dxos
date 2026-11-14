@@ -38,6 +38,11 @@ ensure_user tuan tuan coop-officer        # anh Tuấn, cán bộ HTX
 ensure_user ocop ocop ocop-officer        # cán bộ đơn vị đầu mối OCOP
 for u in hoa tuan; do set_user_attr "$u" coop htx-demo; done
 
+# Làng lụa Vạn Phúc: hợp tác xã riêng `htx-lua` (tách khỏi HTX gốm) và một tài khoản chủ thể sản xuất của làng lụa.
+ensure_user lua lua producer              # nghệ nhân dệt lụa Vạn Phúc (chỉ thấy sản phẩm của HTX lụa)
+ensure_user htxlua htxlua coop-officer     # cán bộ HTX lụa Vạn Phúc (sơ duyệt hồ sơ của HTX lụa; bắt buộc OTP như tuan)
+for u in lua htxlua; do set_user_attr "$u" coop htx-lua; done
+
 # OTP (xác thực hai yếu tố) cho các vai trò có "mfa": true trong config/access.json (hiện: coop-officer), khi đăng nhập bằng trình duyệt
 node scripts/setup-keycloak-mfa.js
 
@@ -47,4 +52,4 @@ for u in tester "service-account-$KEYCLOAK_CLIENT_ID"; do
 done
 kc delete roles/readwrite -r "$R" >/dev/null 2>&1 || true
 
-echo "OK: realm $R có các role từ config/access.json (admin, editor tạm, producer, coop-officer, ocop-officer, readonly, iot-writer), claim coop và persona hoa/tuan/ocop; gateway '$KEYCLOAK_IOT_CLIENT_ID' chỉ có iot-writer; role readwrite đã gỡ."
+echo "OK: realm $R có các role từ config/access.json (admin, editor tạm, producer, coop-officer, ocop-officer, readonly, iot-writer), claim coop và persona hoa/tuan/ocop/lua/htxlua; gateway '$KEYCLOAK_IOT_CLIENT_ID' chỉ có iot-writer; role readwrite đã gỡ."

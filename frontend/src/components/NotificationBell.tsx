@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Pager, { usePaged } from "./Pager";
 import { useAuth } from "./AuthProvider";
 import { fmtDate } from "@/lib/trace";
 
@@ -26,6 +27,7 @@ export default function NotificationBell() {
   const { apiFetch } = useAuth();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<{ unread: number; notifications: Notice[] } | null>(null);
+  const paged = usePaged(data?.notifications ?? [], 5);
   const box = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -97,7 +99,7 @@ export default function NotificationBell() {
             <p className="px-4 py-6 text-center text-sm text-stone-500">Chưa có thông báo nào.</p>
           ) : (
             <ul className="max-h-96 divide-y divide-stone-100 overflow-y-auto">
-              {data.notifications.map((n) => (
+              {paged.items.map((n) => (
                 <li key={n.id} className={n.read ? "bg-white" : "bg-brand-50/50"}>
                   <Link
                     href={n.link ?? "/"}
@@ -119,6 +121,11 @@ export default function NotificationBell() {
                 </li>
               ))}
             </ul>
+          )}
+          {data && data.notifications.length > 0 && (
+            <div className="border-t border-stone-100 px-4 pb-3">
+              <Pager paged={paged} noun="thông báo" showTotal={false} />
+            </div>
           )}
         </div>
       )}

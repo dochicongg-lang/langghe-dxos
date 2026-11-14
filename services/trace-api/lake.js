@@ -142,7 +142,7 @@ const DATASETS = {
     },
   },
   kiln_runs: {
-    title: "Mẻ nung có bằng chứng cảm biến",
+    title: "Mẻ nung và mẻ nhuộm có bằng chứng cảm biến",
     columns: [
       { name: "product_code", type: "VARCHAR" }, { name: "category", type: "VARCHAR" }, { name: "device_id", type: "VARCHAR" }, { name: "started_at", type: "TIMESTAMP" },
       { name: "ended_at", type: "TIMESTAMP" }, { name: "peak", type: "DOUBLE" }, { name: "avg_temp", type: "DOUBLE" }, { name: "min_temp", type: "DOUBLE" },
@@ -190,7 +190,7 @@ const ANALYTICS = {
     sql: "SELECT strftime(created_at, '%Y-%m') AS month, count(*) AS n, round(avg(stars), 2) AS avg_stars FROM {FILE} GROUP BY 1 ORDER BY 1",
   },
   "history-by-tier": { dataset: "application_history", title: "Lịch sử xử lý theo tầng lưu trữ", sql: "SELECT tier, action, count(*) AS n FROM {FILE} GROUP BY tier, action ORDER BY tier, n DESC, action" },
-  "kiln-by-verdict": { dataset: "kiln_runs", title: "Mẻ nung theo kết luận", sql: "SELECT coalesce(verdict, 'không rõ') AS verdict, count(*) AS runs, round(avg(peak), 1) AS avg_peak, max(peak) AS max_peak FROM {FILE} GROUP BY 1 ORDER BY runs DESC, verdict" },
+  "kiln-by-verdict": { dataset: "kiln_runs", title: "Mẻ nung và mẻ nhuộm theo kết luận", sql: "SELECT coalesce(verdict, 'không rõ') AS verdict, count(*) AS runs, round(avg(peak), 1) AS avg_peak, max(peak) AS max_peak FROM {FILE} GROUP BY 1 ORDER BY runs DESC, verdict" },
   "audit-by-status": { dataset: "audit_events", title: "Yêu cầu API theo nhóm mã trạng thái", sql: "SELECT (status // 100) * 100 AS status_class, count(*) AS n, round(avg(latency_ms), 1) AS avg_latency_ms FROM {FILE} GROUP BY 1 ORDER BY 1" },
 };
 

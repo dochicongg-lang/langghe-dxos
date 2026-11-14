@@ -14,11 +14,12 @@ function proposeFromKiln({ product, eventId, insight }) {
   const issues = (insight.findings ?? []).filter((f) => f.level === "alert" || f.level === "warn").map((f) => f.text);
   const toCoop = product.coop ? "coop-officer" : "admin"; // sản phẩm chưa gắn HTX thì báo quản trị
   const name = product.name;
+  const batch = insight.profile?.terms?.batch ?? "mẻ nung";
   return {
     dedupe_key: `kiln:${eventId}`,
     kind: "kiln_review",
     severity,
-    title: severity === "alert" ? `Đề nghị kiểm tra gấp mẻ nung của "${name}" (${product.code})` : `Đề nghị xem lại mẻ nung của "${name}" (${product.code})`,
+    title: severity === "alert" ? `Đề nghị kiểm tra gấp ${batch} của "${name}" (${product.code})` : `Đề nghị xem lại ${batch} của "${name}" (${product.code})`,
     rationale: `${insight.summary}${issues.length ? ` Căn cứ: ${issues.join(" ")}` : ""}`,
     subject: product.code,
     coop: product.coop ?? null,
@@ -27,7 +28,7 @@ function proposeFromKiln({ product, eventId, insight }) {
       for_role: toCoop,
       for_coop: product.coop ?? null,
       level: severity,
-      title: severity === "alert" ? `Cần kiểm tra gấp mẻ nung ${product.code}` : `Cần xem lại mẻ nung ${product.code}`,
+      title: severity === "alert" ? `Cần kiểm tra gấp ${batch} ${product.code}` : `Cần xem lại ${batch} ${product.code}`,
       body: `${insight.summary}${issues.length ? ` ${issues.join(" ")}` : ""} Đề xuất đã được người có thẩm quyền duyệt.`,
       link: `/trace/${product.code}`,
     },

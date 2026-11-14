@@ -18,6 +18,12 @@
       "min": -10,
       "max": 60,
       "maxRatePerSec": 5
+    },
+    "dye-01": {
+      "gateway": "dxos-iot",
+      "min": 0,
+      "max": 110,
+      "maxRatePerSec": 2
     }
   }
 }

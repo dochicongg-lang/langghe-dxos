@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import Card from "./Card";
+import Pager, { usePaged } from "./Pager";
 import { useAuth } from "./AuthProvider";
 import { fmtDate } from "@/lib/trace";
 
@@ -23,7 +24,7 @@ interface Proposal {
 
 const statusText = { approved: "Đã duyệt", rejected: "Đã từ chối", pending: "Chờ duyệt" } as const;
 
-/** Đề xuất của hệ thống về các mẻ nung cần xem lại. Hệ thống chỉ đề xuất; hành động chỉ thực hiện sau khi người có thẩm quyền duyệt. */
+/** Đề xuất của hệ thống về các mẻ nung và mẻ nhuộm cần xem lại. Hệ thống chỉ đề xuất; hành động chỉ thực hiện sau khi người có thẩm quyền duyệt. */
 export default function ProposalsPanel() {
   const { apiFetch, user } = useAuth();
   const allowed = Boolean(user.permissions["application.review"]);
@@ -65,12 +66,14 @@ export default function ProposalsPanel() {
     }
   }
 
-  if (!allowed) return null;
   const pending = items?.filter((p) => p.status === "pending") ?? [];
   const done = items?.filter((p) => p.status !== "pending") ?? [];
+  const pendingPaged = usePaged(pending, 5);
+  const donePaged = usePaged(done, 5);
+  if (!allowed) return null;
   return (
     <Card title="Đề xuất của hệ thống chờ bạn duyệt">
-      <p className="text-sm text-stone-600">Khi phân tích mẻ nung cho kết luận Cần xem lại hoặc Cảnh báo, hệ thống đề xuất một việc cần làm kèm lý do và căn cứ. Hệ thống không tự làm: chỉ khi bạn duyệt thì thông báo mới được gửi đi.</p>
+      <p className="text-sm text-stone-600">Khi phân tích mẻ nung hoặc mẻ nhuộm cho kết luận Cần xem lại hoặc Cảnh báo, hệ thống đề xuất một việc cần làm kèm lý do và căn cứ. Hệ thống không tự làm: chỉ khi bạn duyệt thì thông báo mới được gửi đi.</p>
       {error && (
         <p className="mt-3 text-sm text-red-600" role="alert">
           {error}
@@ -78,7 +81,7 @@ export default function ProposalsPanel() {
       )}
       {items && pending.length === 0 && <p className="mt-3 text-sm text-stone-500">Không có đề xuất nào đang chờ duyệt.</p>}
       <ul className="mt-3 space-y-3">
-        {pending.map((p) => (
+        {pendingPaged.items.map((p) => (
           <li key={p.id} className="rounded-lg border border-stone-200 p-3">
             <p className="text-sm font-semibold text-stone-900">
               <span aria-hidden="true" className={p.severity === "alert" ? "text-red-700" : "text-amber-700"}>
@@ -116,17 +119,19 @@ export default function ProposalsPanel() {
           </li>
         ))}
       </ul>
+      <Pager paged={pendingPaged} noun="đề xuất" />
       {done.length > 0 && (
         <details className="mt-4">
           <summary className="cursor-pointer text-xs font-medium text-brand-700">Đã xử lý ({done.length})</summary>
           <ul className="mt-2 space-y-1 text-sm text-stone-600">
-            {done.map((p) => (
+            {donePaged.items.map((p) => (
               <li key={p.id}>
                 {statusText[p.status]} bởi {p.decided_by}: {p.title}
                 {p.decision_note ? ` (${p.decision_note})` : ""}
               </li>
             ))}
           </ul>
+          <Pager paged={donePaged} noun="đề xuất" />
         </details>
       )}
     </Card>

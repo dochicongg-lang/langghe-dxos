@@ -3,7 +3,7 @@
 import type { KilnInsight, KilnVerdict } from "@/lib/trace";
 
 export const verdictLabel: Record<KilnVerdict, string> = {
-  ok: "Đạt chuẩn nung",
+  ok: "Đạt chuẩn",
   warn: "Cần xem lại",
   alert: "Cảnh báo",
   insufficient: "Chưa đủ dữ liệu",
@@ -48,7 +48,7 @@ export default function KilnInsightPanel({ insight }: { insight: KilnInsight }) 
         ))}
       </ul>
       <p className="mt-2 text-[11px] leading-snug text-stone-500">
-        Phân tích tự động theo hồ sơ nung &ldquo;{insight.profile.name}&rdquo;.
+        Phân tích tự động theo {insight.profile.terms?.profile ?? "hồ sơ nung"} &ldquo;{insight.profile.name}&rdquo;.
       </p>
     </div>
   );

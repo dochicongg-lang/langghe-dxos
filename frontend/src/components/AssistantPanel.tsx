@@ -2,18 +2,58 @@
 // Copyright 2026 The Làng Nghề Số contributors
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import Card from "./Card";
 import { useAuth } from "./AuthProvider";
+import ContactList from "./ContactList";
+import { contactChannels } from "@/lib/contact";
 
 interface Answer {
   matched: boolean;
+  referral?: boolean; // không tìm thấy: chỉ đường tới người có thẩm quyền
   answer: string;
   related?: { title: string; text: string }[];
   sources: { title: string; ref: string }[];
 }
 
 const EXAMPLES = ["Hồ sơ OCOP nhóm hàng thủ công cần giấy tờ gì?", "Bao nhiêu điểm thì được 4 sao?", "Kết quả OCOP có hiệu lực bao lâu?", "Kết luận Cảnh báo của mẻ nung nghĩa là gì?"];
+
+/** Chỉ đường khi trợ lý không biết: hỏi đúng người theo việc của họ. */
+function Referral() {
+  const { user } = useAuth();
+  const reviewer = Boolean(user.permissions["application.review"]);
+  const targets = reviewer
+    ? [
+        { who: "Đơn vị đầu mối OCOP hoặc cơ quan có thẩm quyền", why: "Quy định, cách chấm điểm, kết quả chính thức và hiệu lực." },
+        { who: "Quản trị viên hệ thống", why: "Tài khoản, quyền truy cập và lỗi của phần mềm." },
+      ]
+    : [
+        { who: user.coop ? `Cán bộ hợp tác xã ${user.coop}` : "Cán bộ hợp tác xã của bạn", why: "Việc liên quan hồ sơ và sản phẩm của bạn." },
+        { who: "Cơ quan có thẩm quyền về OCOP", why: "Quy định, điều kiện và kết quả chính thức." },
+      ];
+  return (
+    <div className="mt-4 rounded-lg border border-brand-200 bg-brand-50 p-4">
+      <p className="text-sm font-semibold text-stone-900">Bạn có thể hỏi trực tiếp</p>
+      <ul className="mt-2 space-y-2">
+        {targets.map((t) => (
+          <li key={t.who} className="text-sm text-stone-700">
+            <span className="font-medium text-stone-900">{t.who}</span>
+            <span className="block text-xs text-stone-600">{t.why}</span>
+          </li>
+        ))}
+      </ul>
+      {contactChannels().length > 0 && (
+        <div className="mt-3">
+          <ContactList />
+        </div>
+      )}
+      <Link href="/help#lien-he" className="mt-3 inline-block rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+        Xem cách liên hệ
+      </Link>
+    </div>
+  );
+}
 
 /** Hỏi đáp: tra cứu trong quy định và hướng dẫn của hệ thống, trả lời bằng cách trích lại đoạn phù hợp kèm nguồn. */
 export default function AssistantPanel() {
@@ -91,6 +131,7 @@ export default function AssistantPanel() {
         <div className="mt-4 rounded-lg border border-stone-200 bg-stone-50 p-4" role="status">
           <p className="text-xs text-stone-500">Câu hỏi: {asked}</p>
           <p className={`mt-1 text-sm leading-relaxed ${res.matched ? "text-stone-900" : "text-stone-600"}`}>{res.answer}</p>
+          {res.referral && <Referral />}
           {res.sources.length > 0 && (
             <p className="mt-3 text-xs text-stone-500">
               Nguồn: {res.sources.map((s) => `${s.title} (${s.ref})`).join("; ")}

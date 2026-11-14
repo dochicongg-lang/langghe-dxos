@@ -1,5 +1,5 @@
 {
-  "_doc": "Hồ sơ nung dùng cho phân tích thông minh đường cong nhiệt độ lò (tính năng [I]). Bộ luật chạy trên bằng chứng IoT đã được máy chủ đối chiếu: đỉnh nhiệt, thời gian giữ trên ngưỡng, tốc độ gia nhiệt/làm nguội, so với các mẻ trước của cùng lò, và độ tin cậy dữ liệu. Ngưỡng ở đây là SỐ LIỆU MINH HỌA (verified=false), phải được thợ gốm/chuyên gia xác nhận cho từng loại men và lò trước khi dùng thật. publicInsight quy định kết luận nào được hiện ở trang công khai cho người mua: all (mọi kết luận), ok-only (chỉ khi đạt chuẩn) hoặc none (không hiện). Khi ngưỡng còn là số liệu minh họa nên cân nhắc ok-only hoặc none cho sản phẩm thật. Chọn hồ sơ theo danh mục sản phẩm (byCategory), không có thì dùng defaultProfile. Đổi file rồi chạy: docker compose restart trace-api",
+  "_doc": "Hồ sơ nung dùng cho phân tích thông minh đường cong nhiệt độ lò (tính năng [I]). Bộ luật chạy trên bằng chứng IoT đã được máy chủ đối chiếu: đỉnh nhiệt, thời gian giữ trên ngưỡng, tốc độ gia nhiệt/làm nguội, so với các mẻ trước của cùng lò, và độ tin cậy dữ liệu. Ngưỡng ở đây là SỐ LIỆU MINH HỌA (verified=false), phải được thợ gốm/chuyên gia xác nhận cho từng loại men và lò trước khi dùng thật. publicInsight quy định kết luận nào được hiện ở trang công khai cho người mua: all (mọi kết luận), ok-only (chỉ khi đạt chuẩn) hoặc none (không hiện). Khi ngưỡng còn là số liệu minh họa nên cân nhắc ok-only hoặc none cho sản phẩm thật. Chọn hồ sơ theo danh mục sản phẩm (byCategory), không có thì dùng defaultProfile. Đổi file rồi chạy: docker compose restart trace-api Hồ sơ nhuộm tơ (lua-nhuom) dùng cho ngành lụa: cùng bộ luật nhưng ngưỡng và câu chữ (terms) theo nghề nhuộm; chọn theo từ khóa danh mục (byKeyword).",
   "defaultProfile": "gom-men-rach",
   "publicInsight": "all",
   "byCategory": {
@@ -11,12 +11,84 @@
       "verified": false,
       "note": "Ngưỡng minh họa theo hiểu biết chung về nung gốm, cần thợ gốm hoặc chuyên gia xác nhận theo loại men, kích thước sản phẩm và lò thực tế.",
       "minSamples": 20,
-      "peak": { "min": 1100, "max": 1220 },
+      "peak": {
+        "min": 1100,
+        "max": 1220
+      },
       "criticalMax": 1300,
-      "hold": { "aboveC": 1100, "minMinutes": 60 },
-      "ramp": { "fromC": 300, "maxPerHour": 250, "windowMin": 30 },
-      "cooling": { "fromC": 1000, "toC": 400, "maxPerHour": 300, "windowMin": 30 },
-      "baseline": { "minRuns": 3, "maxDeviationPct": 6 }
+      "hold": {
+        "aboveC": 1100,
+        "minMinutes": 60
+      },
+      "ramp": {
+        "fromC": 300,
+        "maxPerHour": 250,
+        "windowMin": 30
+      },
+      "cooling": {
+        "fromC": 1000,
+        "toC": 400,
+        "maxPerHour": 300,
+        "windowMin": 30
+      },
+      "baseline": {
+        "minRuns": 3,
+        "maxDeviationPct": 6
+      }
+    },
+    "lua-nhuom": {
+      "name": "Nhuộm tơ tằm bằng thuốc nhuộm axit",
+      "verified": false,
+      "note": "Ngưỡng THAM KHẢO tổng hợp từ tài liệu (khuyến cáo CSTRI về nhuộm tơ tằm bằng thuốc nhuộm axit: 85–90 °C, pH 4–6, giữ khoảng 35–40 phút; khuyến cáo không để sôi; tốc độ nâng nhiệt khoảng 1 °C mỗi phút trong nghiên cứu nhuộm tơ). Không phải số liệu riêng của làng lụa Vạn Phúc: cần nghệ nhân nhuộm hoặc chuyên gia xác nhận theo loại thuốc nhuộm, khối lượng vải và tỉ lệ nước.",
+      "minSamples": 20,
+      "peak": {
+        "min": 85,
+        "max": 93
+      },
+      "criticalMax": 100,
+      "hold": {
+        "aboveC": 82,
+        "minMinutes": 30
+      },
+      "ramp": {
+        "fromC": 30,
+        "maxPerHour": 90,
+        "windowMin": 15
+      },
+      "cooling": {
+        "fromC": 80,
+        "toC": 40,
+        "maxPerHour": 120,
+        "windowMin": 15
+      },
+      "baseline": {
+        "minRuns": 3,
+        "maxDeviationPct": 5
+      },
+      "terms": {
+        "profile": "hồ sơ nhuộm",
+        "curve": "Đường cong nhuộm",
+        "batch": "mẻ nhuộm",
+        "batchCap": "Mẻ nhuộm",
+        "equipment": "bể nhuộm",
+        "criticalNote": "nước sôi có thể làm hỏng sợi tơ và làm màu không đều",
+        "peakLowNote": "thuốc nhuộm có thể chưa bám đủ màu",
+        "rampNote": "nguy cơ loang màu, nhuộm không đều",
+        "coolNote": "nguy cơ nhăn, co rút không đều"
+      }
     }
-  }
+  },
+  "byKeyword": [
+    {
+      "match": [
+        "lụa",
+        "lua",
+        "dệt",
+        "tơ",
+        "vải",
+        "thổ cẩm"
+      ],
+      "profile": "lua-nhuom"
+    }
+  ]
 }

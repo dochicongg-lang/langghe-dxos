@@ -20,24 +20,49 @@ export interface Series {
   points: { t: number; v: number }[]; // sắp xếp theo thời gian
 }
 
-/** Đọc các tệp NDJSON mới nhất do backend/simulate-iot.js ghi vào MinIO. */
-export async function fetchReadings(maxObjects = 30): Promise<{ readings: Reading[]; objects: number }> {
-  // Tệp nằm trong iot/<gateway>/<ngày>/<thời gian>.ndjson: sắp xếp theo tên tệp (thời gian) để lấy đúng các tệp mới nhất của mọi gateway
-  const base = (k: string) => k.slice(k.lastIndexOf("/") + 1);
-  const keys = (await s3ListKeys(config.iotBucket, "iot/")).sort((a, b) => base(a).localeCompare(base(b))).slice(-maxObjects);
-  const bodies = await Promise.all(keys.map((k) => s3Get(`/${config.iotBucket}/${k}`)));
+// Các thư mục ngày đã qua không đổi nữa, nên giữ lại để không đọc lại mỗi lần làm mới (mỗi mẻ nung hoặc nhuộm nằm gọn trong một ngày).
+const pastDays = new Map<string, Reading[]>();
+
+/**
+ * Đọc các tệp NDJSON do cảm biến ghi vào MinIO, theo từng thư mục ngày từ mới đến cũ, cho tới khi đã thấy đủ các thiết bị cần theo dõi
+ * (lò nung, bể nhuộm) hoặc hết `maxDays` ngày. Nhờ vậy mỗi thiết bị đều có dữ liệu gần nhất, dù thiết bị khác ghi mới hơn.
+ */
+export async function fetchReadings(maxDays = 6, need: string[] = ["kiln-01", "dye-01"]): Promise<{ readings: Reading[]; objects: number }> {
+  const keys = await s3ListKeys(config.iotBucket, "iot/");
+  const day = (k: string) => k.split("/")[2] ?? "";
+  const byDay = new Map<string, string[]>();
+  for (const k of keys) byDay.set(day(k), [...(byDay.get(day(k)) ?? []), k]);
+  const days = [...byDay.keys()].sort().reverse().slice(0, maxDays);
+  const today = new Date().toISOString().slice(0, 10);
   const readings: Reading[] = [];
-  for (const body of bodies) {
-    for (const line of body.split("\n")) {
-      if (!line.trim()) continue;
-      try {
-        readings.push(JSON.parse(line) as Reading);
-      } catch {
-        // bỏ qua dòng lỗi (tệp đang ghi dở)
+  const seen = new Set<string>();
+  let objects = 0;
+  for (const d of days) {
+    let part = pastDays.get(d);
+    const dayKeys = (byDay.get(d) ?? []).sort((x, y) => x.localeCompare(y));
+    if (!part) {
+      part = [];
+      const bodies = await Promise.all(dayKeys.map((k) => s3Get(`/${config.iotBucket}/${k}`)));
+      for (const body of bodies) {
+        for (const line of body.split("\n")) {
+          if (!line.trim()) continue;
+          try {
+            part.push(JSON.parse(line) as Reading);
+          } catch {
+            // bỏ qua dòng lỗi (tệp đang ghi dở)
+          }
+        }
       }
+      if (d < today) pastDays.set(d, part);
     }
+    objects += dayKeys.length;
+    for (const r of part) {
+      readings.push(r);
+      seen.add(r.deviceId);
+    }
+    if (need.every((n) => seen.has(n))) break;
   }
-  return { readings, objects: keys.length };
+  return { readings, objects };
 }
 
 export function toSeries(readings: Reading[]): Series[] {
@@ -53,4 +78,11 @@ export function toSeries(readings: Reading[]): Series[] {
   }
   for (const s of map.values()) s.points.sort((a, b) => a.t - b.t);
   return Array.from(map.values());
+}
+
+/** Giữ lại đợt đo gần nhất của một chuỗi: tách đợt khi hai điểm liền nhau cách quá `gapMs` (mặc định 3 giờ). */
+export function latestBatch(s: Series, gapMs = 3 * 3600_000): Series {
+  let start = 0;
+  for (let i = 1; i < s.points.length; i++) if (s.points[i].t - s.points[i - 1].t > gapMs) start = i;
+  return start === 0 ? s : { ...s, points: s.points.slice(start) };
 }

@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Card from "./Card";
+import Pager, { usePaged } from "./Pager";
 import { useAuth } from "./AuthProvider";
 import { visibleRoles } from "@/lib/roles";
 
@@ -36,6 +37,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { dateStyle: 
 export default function AuditLog() {
   const { apiFetch } = useAuth();
   const [rows, setRows] = useState<Row[] | null>(null);
+  const paged = usePaged(rows ?? [], 10);
   const [error, setError] = useState<string | null>(null);
   const [verify, setVerify] = useState<Verify | null>(null);
   const [busy, setBusy] = useState(false);
@@ -169,7 +171,7 @@ export default function AuditLog() {
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {rows.map((r) => (
+              {paged.items.map((r) => (
                 <tr key={r.id}>
                   <td className="py-1.5 pr-2 text-stone-400">{r.id}</td>
                   <td className="whitespace-nowrap py-1.5 pr-3 text-stone-600">{fmt(r.ts)}</td>
@@ -196,6 +198,7 @@ export default function AuditLog() {
             </tbody>
           </table>
         )}
+        <Pager paged={paged} noun="dòng đã tải" />
         {rows && rows.length >= 50 && rows.length % 50 === 0 && (
           <button onClick={() => void load(rows[rows.length - 1].id)} disabled={busy} className="mt-3 rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50">
             Tải thêm

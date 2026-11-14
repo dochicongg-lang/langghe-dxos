@@ -112,39 +112,61 @@ const SAMPLES = [
     log(`+ ${s.code}: mẻ nung "${s.scenario}" -> ${r.events.find((e) => e.iot)?.insight?.verdict}`);
   }
 
-  // ---- Ngành lụa: cùng nền tảng nhưng chuỗi công đoạn riêng (nuôi tằm, ươm tơ, dệt, nhuộm...) ----
+  // ---- Ngành lụa: cùng nền tảng, chuỗi công đoạn riêng. Làng Vạn Phúc chủ yếu DỆT: tơ nhập từ nơi nuôi tằm (Bảo Lộc...), nên
+  // nuôi tằm và ươm tơ nằm ở khâu nguyên liệu. Mẻ nhuộm có cảm biến bể nhuộm (dye-01) như gốm có cảm biến lò. ----
+  const COMMON = [
+    ["nguyen-lieu", "Tơ tằm nhập từ Bảo Lộc (Lâm Đồng), kiểm tra độ đều và độ bóng của sợi", "Kho tơ Vạn Phúc"],
+    ["so-che", "Đánh ống, se sợi và mắc sợi chuẩn bị lên khung", "Xưởng chuẩn bị sợi"],
+  ];
   const SILK = [
     {
       code: "LUA-VP-0008",
-      name: "Khăn lụa tơ tằm nhuộm củ nâu",
-      stages: [
-        ["nguyen-lieu", "Kén tằm vàng nuôi tại Bảo Lộc, thu hoạch sau 26 ngày", "Trại tằm Bảo Lộc"],
-        ["so-che", "Ươm tơ và se sợi thủ công, độ săn đạt yêu cầu", "Xưởng ươm tơ Vạn Phúc"],
-        ["tao-hinh", "Dệt khung gỗ, khổ 50 x 180 cm, mật độ sợi đều", "Xưởng dệt Vạn Phúc"],
-        ["nhuom-hoan-thien", "Nhuộm củ nâu tự nhiên, ngâm bùn, phơi nắng ba ngày", "Xưởng nhuộm Vạn Phúc"],
-        ["kiem-dinh", "Đạt chuẩn: màu bền, không phai khi giặt thử", "Tổ kiểm định HTX"],
-        ["dong-goi", "Gấp và đóng hộp giấy tái chế", "Kho đóng gói"],
+      name: "Khăn lụa tơ tằm nhuộm axit",
+      scenario: "dye-ok",
+      daysAgo: 43,
+      before: [...COMMON, ["tao-hinh", "Dệt trên khung cửi, hoa văn đối xứng", "Xưởng dệt Vạn Phúc"]],
+      dyeNote: "Chuội keo rồi nhuộm bằng thuốc nhuộm axit, nâng nhiệt từ từ, giữ khoảng 88 °C (số liệu cảm biến bể nhuộm)",
+      after: [
+        ["kiem-dinh", "Đạt chuẩn: thử giặt và ủi không phai màu", "Tổ kiểm định HTX"],
+        ["dong-goi", "Gấp, ủi phẳng và đóng hộp giấy", "Kho đóng gói"],
       ],
     },
     {
       code: "LUA-VP-0009",
-      name: "Áo dài lụa Hà Đông họa tiết sen",
-      stages: [
-        ["nguyen-lieu", "Tơ tằm loại một từ Bảo Lộc", "Kho tơ Vạn Phúc"],
-        ["so-che", "Nhuộm sợi trước khi dệt, giữ màu đồng nhất", "Xưởng nhuộm sợi"],
-        ["tao-hinh", "Dệt hoa sen nổi trên khung Jacquard", "Xưởng dệt Vạn Phúc"],
-      ],
+      name: "Áo dài lụa Hà Đông họa tiết sen (nâng nhiệt nhanh)",
+      scenario: "dye-fast",
+      daysAgo: 44,
+      before: [...COMMON, ["tao-hinh", "Dệt họa tiết sen trên khung, đường nét đối xứng", "Xưởng dệt Vạn Phúc"]],
+      dyeNote: "Mẻ nhuộm nâng nhiệt quá nhanh",
+      after: [],
+    },
+    {
+      code: "LUA-VP-0010",
+      name: "Lụa vân Hà Đông (mẻ nhuộm để sôi)",
+      scenario: "dye-boil",
+      daysAgo: 45,
+      before: [...COMMON, ["tao-hinh", "Dệt lụa vân trên khung cơ khí", "Xưởng dệt Vạn Phúc"]],
+      dyeNote: "Mẻ nhuộm có sự cố để nước sôi",
+      after: [],
     },
   ];
   for (const s of SILK) {
-    const d = await api(tester, "GET", `/api/trace/products/${s.code}`);
-    if (d.status !== 404) {
-      log(`= ${s.code}: đã có, bỏ qua`);
-      continue;
+    let d = await api(tester, "GET", `/api/trace/products/${s.code}`);
+    if (d.status === 404) {
+      must(await api(tester, "POST", "/api/trace/products", { code: s.code, name: s.name, category: "Lụa và dệt", village: "Làng lụa Vạn Phúc, Hà Đông", artisan: "Hợp tác xã lụa Vạn Phúc", coop: "htx-lua" }), `tạo ${s.code}`);
+      for (const [stage, note, location] of s.before) must(await api(tester, "POST", `/api/trace/products/${s.code}/events`, { stage, note, location }), `công đoạn ${stage} của ${s.code}`);
+      d = await api(tester, "GET", `/api/trace/products/${s.code}`);
+      log(`+ tạo sản phẩm lụa ${s.code}`);
     }
-    must(await api(tester, "POST", "/api/trace/products", { code: s.code, name: s.name, category: "Lụa và dệt", village: "Làng lụa Vạn Phúc, Hà Đông", artisan: "Hợp tác xã lụa Vạn Phúc", coop: "htx-demo" }), `tạo ${s.code}`);
-    for (const [stage, note, location] of s.stages) must(await api(tester, "POST", `/api/trace/products/${s.code}/events`, { stage, note, location }), `công đoạn ${stage} của ${s.code}`);
-    log(`+ tạo sản phẩm lụa ${s.code} (${s.stages.length} công đoạn)`);
+    if (!d.json.events.some((e) => e.iot)) {
+      const out = execFileSync("node", ["backend/simulate-iot.js", "--post", "--scenario", s.scenario, "--days-ago", String(s.daysAgo)], { stdio: ["ignore", "pipe", "pipe"] }).toString().trim().split("\n").pop();
+      const win = JSON.parse(out);
+      const r = must(await api(tester, "POST", `/api/trace/products/${s.code}/events`, { stage: "nhuom-hoan-thien", note: s.dyeNote, location: "Bể nhuộm số 1", iot: { deviceId: win.deviceId, from: win.from, to: win.to } }), `gắn mẻ nhuộm ${s.scenario}`);
+      for (const [stage, note, location] of s.after) must(await api(tester, "POST", `/api/trace/products/${s.code}/events`, { stage, note, location }), `công đoạn ${stage} của ${s.code}`);
+      log(`+ ${s.code}: mẻ nhuộm "${s.scenario}" -> ${r.events.find((e) => e.iot)?.insight?.verdict}`);
+    } else {
+      log(`= ${s.code}: đã có bằng chứng nhuộm, bỏ qua`);
+    }
   }
 
   // ---- Hồ sơ OCOP đã đi hết quy trình cho GOM-BT-0001 ----

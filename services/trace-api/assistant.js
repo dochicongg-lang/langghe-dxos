@@ -27,7 +27,7 @@ function buildKnowledge({ profile, kilnCfg, accessCfg, faq }) {
   const chunks = [];
   const add = (id, title, text, ref) => chunks.push({ id, title, text, ref });
   const p = profile;
-  const ref = "quy định OCOP (config/ocop-profiles.json)";
+  const ref = "quy định OCOP";
 
   const parts = p.scoring.parts.map((x) => `${x.label} (${x.key}) tối đa ${x.max} điểm`).join("; ");
   const stars = [...p.scoring.stars]
@@ -46,7 +46,7 @@ function buildKnowledge({ profile, kilnCfg, accessCfg, faq }) {
   add("doi-tuong", "Đối tượng được tham gia OCOP", `Chủ thể được tham gia: ${p.subjectTypes.join("; ")}. Nhóm sản phẩm: ${p.groups.map((g) => g.label).join("; ")}.`, ref);
 
   const att = p.attachments;
-  add("tep-dinh-kem", "Tệp đính kèm hồ sơ", `Mỗi tệp tối đa ${Math.floor(att.maxBytes / 1024 / 1024)} MB, mỗi hồ sơ tối đa ${att.maxPerApplication} tệp, định dạng được nhận: ảnh JPEG, PNG, WEBP hoặc PDF. Hệ thống kiểm tra nội dung thật của tệp và quét mã độc trước khi lưu.`, "quy định OCOP (config/ocop-profiles.json)");
+  add("tep-dinh-kem", "Tệp đính kèm hồ sơ", `Mỗi tệp tối đa ${Math.floor(att.maxBytes / 1024 / 1024)} MB, mỗi hồ sơ tối đa ${att.maxPerApplication} tệp, định dạng được nhận: ảnh JPEG, PNG, WEBP hoặc PDF. Hệ thống kiểm tra nội dung thật của tệp và quét mã độc trước khi lưu.`, "quy định OCOP");
 
   for (const g of p.groups) {
     const items = p.checklist.filter((c) => (!c.onlyGroups || c.onlyGroups.includes(g.key)) && !(c.exceptGroups && c.exceptGroups.includes(g.key)));
@@ -56,15 +56,15 @@ function buildKnowledge({ profile, kilnCfg, accessCfg, faq }) {
   }
 
   for (const [id, k] of Object.entries(kilnCfg.profiles ?? {})) {
-    add(`nung-${id}`, `Ngưỡng của hồ sơ nung ${k.name}`, `Đỉnh nhiệt chuẩn từ ${k.peak.min} đến ${k.peak.max} độ C, ngưỡng nguy hiểm trên ${k.criticalMax} độ C. Giữ trên ${k.hold.aboveC} độ C ít nhất ${k.hold.minMinutes} phút. Gia nhiệt tối đa ${k.ramp.maxPerHour} độ C mỗi giờ (tính từ ${k.ramp.fromC} độ C, cửa sổ ${k.ramp.windowMin} phút). Làm nguội tối đa ${k.cooling.maxPerHour} độ C mỗi giờ (từ ${k.cooling.fromC} xuống ${k.cooling.toC} độ C). Cần tối thiểu ${k.minSamples} mẫu đo.`, "hồ sơ nung (config/kiln-profiles.json)");
+    add(`nung-${id}`, `Ngưỡng của ${k.terms?.profile ?? "hồ sơ nung"} ${k.name}`, `Đỉnh nhiệt chuẩn từ ${k.peak.min} đến ${k.peak.max} độ C, ngưỡng nguy hiểm trên ${k.criticalMax} độ C. Giữ trên ${k.hold.aboveC} độ C ít nhất ${k.hold.minMinutes} phút. Gia nhiệt tối đa ${k.ramp.maxPerHour} độ C mỗi giờ (tính từ ${k.ramp.fromC} độ C, cửa sổ ${k.ramp.windowMin} phút). Làm nguội tối đa ${k.cooling.maxPerHour} độ C mỗi giờ (từ ${k.cooling.fromC} xuống ${k.cooling.toC} độ C). Cần tối thiểu ${k.minSamples} mẫu đo.`, `quy định phân tích ${k.terms?.batch ?? "mẻ nung"}`);
   }
 
   for (const [role, def] of Object.entries(accessCfg.roles ?? {})) {
     if (def.alias) continue; // bí danh tạm
-    add(`vai-tro-${role}`, `Vai trò ${ROLE_NAMES[role] ?? role} (${role})`, `${def.desc}.`, "vai trò (config/access.json)");
+    add(`vai-tro-${role}`, `Vai trò ${ROLE_NAMES[role] ?? role}`, `${def.desc}.`, "phân quyền theo vai trò");
   }
 
-  for (const e of faq.entries ?? []) add(`faq-${e.id}`, e.title, e.text, "hướng dẫn sử dụng (config/assistant-faq.json)");
+  for (const e of faq.entries ?? []) add(`faq-${e.id}`, e.title, e.text, "hướng dẫn sử dụng");
   return chunks;
 }
 
@@ -117,7 +117,7 @@ function ask(index, question) {
     .filter((x) => x.coverage >= 0.5)
     .sort((a, b) => b.s - a.s);
   if (ranked.length === 0) {
-    return { matched: false, answer: "Tôi chưa tìm thấy thông tin phù hợp trong quy định và hướng dẫn của hệ thống. Bạn thử hỏi cách khác, hoặc liên hệ cán bộ hợp tác xã hoặc quản trị.", sources: [] };
+    return { matched: false, referral: true, answer: "Tôi chưa tìm thấy thông tin phù hợp trong quy định và hướng dẫn của hệ thống nên không trả lời để tránh đoán sai. Bạn thử hỏi cách khác, hoặc hỏi trực tiếp người có thẩm quyền như gợi ý bên dưới.", sources: [] };
   }
   const top = ranked[0];
   const picks = [top, ...ranked.slice(1, 3).filter((x) => x.s >= top.s * 0.6)];

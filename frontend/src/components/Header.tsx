@@ -2,6 +2,7 @@
 // Copyright 2026 The Làng Nghề Số contributors
 "use client";
 
+import Link from "next/link";
 import { useAuth } from "./AuthProvider";
 import NotificationBell from "./NotificationBell";
 import { initials, visibleRoles } from "@/lib/roles";
@@ -25,16 +26,18 @@ export default function Header({ onMenu }: { onMenu: () => void }) {
       </div>
       <div className="flex items-center gap-3">
         <NotificationBell />
-        <span
-          aria-hidden="true"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-800"
-        >
-          {initials(user.name)}
-        </span>
-        <div className="hidden text-right leading-tight sm:block">
-          <p className="text-sm font-medium text-stone-800">{user.name}</p>
-          <p className="text-xs text-stone-500">{roles.join(" · ") || user.email || user.username}</p>
-        </div>
+        <Link href="/human" title="Tài khoản của tôi" className="flex items-center gap-3 rounded-lg px-1 py-0.5 hover:bg-stone-100">
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-800"
+          >
+            {initials(user.name)}
+          </span>
+          <div className="hidden text-right leading-tight sm:block">
+            <p className="text-sm font-medium text-stone-800">{user.name}</p>
+            <p className="text-xs text-stone-500">{roles.join(" · ") || user.email || user.username}</p>
+          </div>
+        </Link>
         <button onClick={logout} className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100">
           Đăng xuất
         </button>

@@ -9,11 +9,12 @@
     "readonly": { "desc": "Chỉ xem", "minio": "builtin" },
     "iot-writer": { "desc": "Thiết bị IoT: chỉ ghi số liệu cảm biến vào thư mục của gateway, không dùng API nghiệp vụ", "minio": "iot-writer", "api": false }
   },
-  "_pages_doc": "Trang giao diện nền tảng mà mỗi vai trò thấy (chỉ để ẩn/hiện menu và chặn vào nhầm trang; dữ liệu thật vẫn do cổng gác và API kiểm tra). Trang Truy xuất và Hồ sơ OCOP không khai báo ở đây: hiện khi có quyền product.read / application.read. Trang Human (hồ sơ cá nhân) ai cũng thấy.",
+  "_pages_doc": "Trang giao diện nền tảng mà mỗi vai trò thấy (chỉ để ẩn/hiện menu và chặn vào nhầm trang; dữ liệu thật vẫn do cổng gác và API kiểm tra). Trang Truy xuất và Hồ sơ OCOP không khai báo ở đây: hiện khi có quyền product.read / application.read. Trang tài khoản (/human), trợ lý (/tro-ly) và trợ giúp (/help) ai cũng thấy; mỗi vai trò chỉ thấy các trang thuộc việc của mình.",
   "pages": {
+    "platform": ["admin"],
     "process": ["admin", "coop-officer", "ocop-officer"],
-    "data": ["admin", "coop-officer", "ocop-officer", "readonly"],
-    "intelligence": ["admin", "coop-officer", "ocop-officer", "readonly", "producer"]
+    "data": ["admin"],
+    "intelligence": ["admin", "coop-officer", "ocop-officer", "readonly"]
   },
   "permissions": {
     "product.read": { "admin": "all", "readonly": "all", "ocop-officer": "all", "coop-officer": "coop", "producer": "coop" },

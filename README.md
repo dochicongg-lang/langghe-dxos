@@ -48,7 +48,7 @@ npm run dev                      # mở http://localhost:3000
 Hướng dẫn từng bước cho người mới: [docs/HUONG-DAN-CHAY.md](docs/HUONG-DAN-CHAY.md).
 
 **Tài khoản thử** (chỉ môi trường phát triển; mật khẩu trùng tên đăng nhập; đổi hoặc xóa trước khi triển khai thật):
-`hoa` (nghệ nhân), `tuan` (cán bộ HTX, bắt dùng OTP), `ocop` (cán bộ đơn vị đầu mối), `tester` (quản trị), `viewer` (chỉ xem).
+`hoa` (nghệ nhân gốm), `tuan` (cán bộ HTX gốm, bắt dùng OTP), `lua` (nghệ nhân lụa), `htxlua` (cán bộ HTX lụa, bắt dùng OTP), `ocop` (cán bộ đơn vị đầu mối), `tester` (quản trị), `viewer` (chỉ xem). Hai làng có hai HTX riêng (`htx-demo`, `htx-lua`) nên không thấy dữ liệu của nhau.
 
 Địa chỉ: giao diện `http://localhost:3000` · cổng gác `http://localhost:9080` · Keycloak `http://localhost:8080`.
 Trang truy xuất công khai: `http://localhost:3000/verify/GOM-BT-0001` (sau khi nạp dữ liệu mẫu có kết quả OCOP minh họa và kết luận phân tích mẻ nung).
@@ -121,7 +121,7 @@ Các điểm sau cố ý **không** hiển thị trên giao diện, nhưng cần
 - **Dữ liệu trình diễn** (`node scripts/seed-demo.js`): số quyết định OCOP, điểm và ba sản phẩm gốm là dữ liệu mẫu, không phải hồ sơ thật. Không dùng số quyết định mẫu ở nơi công bố thật.
 - **Dữ liệu cảm biến** do trình giả lập tạo (`node backend/simulate-iot.js --post --interval 2000 --batch 8`); khi chưa có thiết bị thật, trang Intelligence sẽ trống cho tới khi chạy lệnh này.
 - **Ảnh chụp minh họa** (`frontend/public/photos/`, giấy phép Pexels) không đi kèm kho mã; thiếu ảnh thì giao diện dùng hình vẽ. Xem `frontend/public/photos/CREDITS.md`. **Kênh liên hệ hỗ trợ** (điện thoại, Zalo, Facebook) do đơn vị vận hành đặt bằng `NEXT_PUBLIC_SUPPORT_*`; chưa đặt thì không hiện.
-- **Ngành lụa** có chuỗi công đoạn riêng nhưng chưa có phân tích riêng (chỉ gốm có phân tích mẻ nung).
+- **Ngành lụa** có chuỗi công đoạn riêng, cảm biến bể nhuộm và phân tích mẻ nhuộm theo cùng bộ luật với mẻ nung. Chuỗi công đoạn lấy theo thực tế làng Vạn Phúc (chủ yếu dệt, tơ nhập từ nơi nuôi tằm như Bảo Lộc). Ngưỡng nhuộm (`lua-nhuom` trong `config/kiln-profiles.json`) là **số liệu tham khảo** tổng hợp từ tài liệu về nhuộm tơ tằm bằng thuốc nhuộm axit (85–90 °C, giữ khoảng 35–40 phút, không để sôi), không phải số liệu riêng của làng và chưa được nghệ nhân hoặc chuyên gia xác nhận (`"verified": false`).
 - **Quy trình mẫu của Flowable** bị ẩn ở trang Process; chỉ hiện quy trình thuộc hệ thống (`category = dxos`).
 - **OTP của tài khoản `tuan`** (cán bộ HTX, bắt buộc MFA khi đăng nhập trình duyệt): sau khi `tuan` cài OTP, Keycloak cũng đòi mã OTP ở đăng nhập mật khẩu trực tiếp, nên các script kiểm tra đăng nhập bằng `tuan/tuan` (`check-iot-permissions.sh`, `check-ocop-flow.js`...) sẽ bị từ chối. Chạy `bash scripts/reset-otp.sh` để xóa OTP của `tuan` (cài lại ở lần đăng nhập trình duyệt kế tiếp) trước khi chạy script kiểm tra hoặc trước buổi trình diễn. Không có điện thoại thì dùng `node scripts/totp.js <khóa Base32>` để tính mã.
 - **Xác nhận của nền tảng** ở trang công khai `/verify` luôn ghi rõ chưa phải giấy chứng nhận OCOP: đây là ranh giới pháp lý, giữ nguyên.

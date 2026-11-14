@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
+import Pager, { usePaged } from "@/components/Pager";
 import { useAuth } from "@/components/AuthProvider";
 import { stateLabels, stateTone, type OcopSummary } from "@/lib/ocop";
 
@@ -31,6 +32,8 @@ export default function ProcessPage() {
   }, [apiFetch]);
 
   const inStage = (s: (typeof stages)[number]) => (apps ?? []).filter((a) => s.states.includes(a.state));
+  const attention = (apps ?? []).filter((a) => ["in_review", "needs_revision", "awaiting_result"].includes(a.state));
+  const paged = usePaged(attention, 5);
   const revisions = (apps ?? []).filter((a) => a.state === "needs_revision").length;
 
   return (
@@ -61,14 +64,11 @@ export default function ProcessPage() {
       <div className="mt-6">
         <Card title="Hồ sơ cần chú ý">
           {!apps && !error && <p className="text-sm text-stone-500">Đang tải…</p>}
-          {apps && apps.filter((a) => ["in_review", "needs_revision", "awaiting_result"].includes(a.state)).length === 0 && (
+          {apps && attention.length === 0 && (
             <p className="text-sm text-stone-600">Không có hồ sơ nào đang chờ xử lý. Mọi hồ sơ đều đã được giải quyết hoặc còn ở dạng nháp.</p>
           )}
           <ul className="divide-y divide-stone-100">
-            {(apps ?? [])
-              .filter((a) => ["in_review", "needs_revision", "awaiting_result"].includes(a.state))
-              .slice(0, 12)
-              .map((a) => (
+            {paged.items.map((a) => (
                 <li key={a.code}>
                   <Link href={`/ocop/${encodeURIComponent(a.code)}`} className="flex items-center justify-between gap-3 py-3 hover:bg-stone-50">
                     <span className="min-w-0">
@@ -82,6 +82,7 @@ export default function ProcessPage() {
                 </li>
               ))}
           </ul>
+          <Pager paged={paged} noun="hồ sơ" />
         </Card>
       </div>
     </>

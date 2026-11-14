@@ -32,7 +32,7 @@ const guides = [
     title: "Tra cứu nguồn gốc và quét mã QR",
     steps: [
       "Người mua mở camera điện thoại, quét mã QR trên sản phẩm hoặc tem. Không cần đăng nhập.",
-      "Trang hiện người làm ra, mẻ nung (kèm đường cong nhiệt độ), kiểm định và kết quả OCOP.",
+      "Trang hiện người làm ra, mẻ nung hoặc mẻ nhuộm (kèm đường cong nhiệt độ), kiểm định và kết quả OCOP.",
       "Kết quả OCOP chính thức và xác nhận của nền tảng được ghi riêng, tránh nhầm lẫn.",
     ],
   },
