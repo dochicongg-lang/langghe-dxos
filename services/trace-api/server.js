@@ -35,6 +35,7 @@ const lifecycle = require("./lifecycle");
 const kiln = require("./kiln");
 const audit = require("./audit");
 const scan = require("./scan");
+const reminders = require("./reminders");
 const { createFlowableClient } = require("./flowable");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -840,6 +841,75 @@ function startArchiveScheduler() {
   setInterval(tick, ARCHIVE_INTERVAL_HOURS * 3600_000).unref();
 }
 
+// ---------- Thông báo, nhắc hạn, leo thang ----------
+const NOTIFY_INTERVAL_MINUTES = Number(process.env.NOTIFY_INTERVAL_MINUTES ?? 60);
+
+/** Quét hồ sơ, tạo thông báo còn thiếu (mỗi sự việc đúng một lần nhờ dedupe_key). Trả { scanned, created }. */
+async function scanReminders() {
+  const { rows } = await pool.query(
+    `SELECT a.code, a.product_name, a.owner_username AS owner, c.code AS coop, a.state, a.profile,
+       (SELECT max(h.created_at) FROM ocop_application_history h WHERE h.application_id = a.id AND h.to_state = a.state AND h.action <> 'archive') AS state_since,
+       (SELECT r.valid_until FROM ocop_results r WHERE r.application_id = a.id AND r.recognized ORDER BY r.id DESC LIMIT 1) AS valid_until
+     FROM ocop_applications a LEFT JOIN cooperatives c ON c.id = a.coop_id
+     WHERE a.state IN ('in_review','needs_revision','awaiting_result','recognized')`,
+  );
+  const now = new Date();
+  let created = 0;
+  for (const a of rows) {
+    for (const n of reminders.computeReminders(now, [a], ocop.getProfile(OCOP, a.profile))) {
+      created += await insertNotification(n);
+    }
+  }
+  return { scanned: rows.length, created };
+}
+
+/** Thêm một thông báo; trả 1 nếu mới, 0 nếu đã có (cùng dedupe_key). */
+async function insertNotification(n) {
+  const r = await pool.query(
+    `INSERT INTO notifications (dedupe_key, kind, level, title, body, link, for_user, for_role, for_coop)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (dedupe_key) DO NOTHING`,
+    [n.dedupe_key, n.kind, n.level, n.title, n.body, n.link ?? null, n.for_user ?? null, n.for_role ?? null, n.for_coop ?? null],
+  );
+  return r.rowCount;
+}
+
+/** Thông báo người dùng được thấy: gửi cho chính họ, hoặc cho vai trò của họ (nếu gắn HTX thì chỉ HTX đó, trừ vai trò có phạm vi toàn hệ thống). */
+async function visibleNotifications(user, limit = 300) {
+  const roles = [...access.expand(ACCESS, user.roles)];
+  const seeAll = access.scopeFor(ACCESS, user.roles, "application.read") === "all";
+  const { rows } = await pool.query(
+    `SELECT n.id, n.kind, n.level, n.title, n.body, n.link, n.for_user, n.for_coop, n.created_at, (r.username IS NOT NULL) AS read
+     FROM notifications n LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.username = $1
+     WHERE n.for_user = $1 OR n.for_role = ANY($2::text[])
+     ORDER BY n.created_at DESC, n.id DESC LIMIT $3`,
+    [user.name, roles, limit],
+  );
+  return rows.filter((n) => n.for_user === user.name || !n.for_coop || seeAll || n.for_coop === user.coop).map(({ for_user: _u, for_coop: _c, ...n }) => n);
+}
+
+async function listNotifications(user) {
+  const all = await visibleNotifications(user);
+  return { unread: all.filter((n) => !n.read).length, notifications: all.slice(0, 50) };
+}
+
+async function markNotificationsRead(user, id) {
+  const visible = await visibleNotifications(user);
+  const ids = id === null ? visible.filter((n) => !n.read).map((n) => n.id) : visible.filter((n) => String(n.id) === String(id)).map((n) => n.id);
+  if (id !== null && !ids.length) throw new HttpError(404, "Không tìm thấy thông báo");
+  if (ids.length) await pool.query("INSERT INTO notification_reads (notification_id, username) SELECT unnest($1::bigint[]), $2 ON CONFLICT DO NOTHING", [ids, user.name]);
+  return { marked: ids.length };
+}
+
+function startNotifyScheduler() {
+  if (!(NOTIFY_INTERVAL_MINUTES > 0)) return;
+  const tick = () =>
+    scanReminders()
+      .then((r) => r.created && console.log(`[trace-api] nhắc hạn: ${r.created} thông báo mới (quét ${r.scanned} hồ sơ)`))
+      .catch((e) => console.error("[trace-api] quét nhắc hạn lỗi:", e.message));
+  setTimeout(tick, 45_000).unref();
+  setInterval(tick, NOTIFY_INTERVAL_MINUTES * 60_000).unref();
+}
+
 // ---------- Neo băm nhật ký kiểm toán ----------
 const ANCHOR_INTERVAL_MINUTES = Number(process.env.ANCHOR_INTERVAL_MINUTES ?? 60);
 
@@ -903,6 +973,18 @@ async function route(req, res) {
     const user = getUser(req);
     if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
     return send(res, 200, { username: user.name, roles: user.roles, coop: user.coop, permissions: access.permissionsOf(ACCESS, user.roles), pages: access.pagesOf(ACCESS, user.roles) });
+  }
+
+  if (parts[0] === "notifications") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    if (parts.length === 1 && m === "GET") return send(res, 200, await listNotifications(user));
+    if (parts.length === 2 && parts[1] === "scan" && m === "POST") {
+      requirePermission(user, "audit.read"); // chỉ quản trị quét tay
+      return send(res, 200, await scanReminders());
+    }
+    if (parts.length === 2 && parts[1] === "read-all" && m === "POST") return send(res, 200, await markNotificationsRead(user, null));
+    if (parts.length === 3 && parts[2] === "read" && m === "POST") return send(res, 200, await markNotificationsRead(user, parts[1]));
   }
 
   if (parts[0] === "insights" && parts[1] === "kilns" && parts.length === 2 && m === "GET") {
@@ -1014,6 +1096,7 @@ async function main() {
   }
   startArchiveScheduler();
   startAnchorScheduler();
+  startNotifyScheduler();
   server.listen(PORT, () => console.log(`[trace-api] lắng nghe cổng ${PORT}, database "${DB_NAME}"`));
 }
 

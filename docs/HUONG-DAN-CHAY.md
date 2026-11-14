@@ -403,3 +403,18 @@ Chuỗi băm của nhật ký một mình không phát hiện được việc c�
 Flowable REST không có phân quyền mịn: một tài khoản chỉ có quyền `access-rest-api` vẫn quản lý được engine, tạo/xóa người dùng và triển khai/xóa quy trình. Vì vậy hệ thống không dựa vào "người dùng Flowable ít quyền" mà giới hạn ở cổng gác. `trace-api` gọi Flowable qua một **route nội bộ** của APISIX trên cổng 9081 (chỉ trong mạng Docker, không publish ra máy chủ), kèm khóa riêng `FLOWABLE_PROXY_KEY` trong `.env`. Route này gắn mật khẩu admin của Flowable ở phía cổng gác và chỉ cho đúng ba thao tác: bắt đầu quy trình hồ sơ OCOP, xem việc của MỘT tiến trình, hoàn thành việc. Mọi thao tác khác trả 403, nên nếu `trace-api` bị chiếm thì kẻ tấn công cũng không xóa được quy trình hay tạo người dùng Flowable.
 
 Khi đổi `apisix/config.yaml` hoặc nạp lại route: `docker compose restart apisix` rồi `bash scripts/setup-apisix-routes.sh` (hoặc `bash scripts/upgrade.sh`). Kiểm chứng thật: `node scripts/check-flowable-internal.js` (thử từ bên trong container `trace-api` mọi thao tác nguy hiểm, cộng luồng OCOP đầy đủ).
+
+## 17. Nhắc hạn, leo thang và thông báo
+
+Hệ thống tự quét hồ sơ OCOP mỗi giờ (`NOTIFY_INTERVAL_MINUTES` trong `.env`, 0 để tắt) và tạo thông báo hiện ở **chuông** trên thanh đầu của giao diện:
+
+| Tình huống | Ai được nhắc | Mức |
+|---|---|---|
+| Hồ sơ chờ HTX sơ duyệt đủ 12 ngày làm việc | Cán bộ HTX của hợp tác xã đó | Cảnh báo |
+| Quá hạn sơ duyệt 15 ngày làm việc | Cán bộ HTX, quản trị và cán bộ đầu mối OCOP (leo thang) | Khẩn |
+| HTX yêu cầu bổ sung đã 7 ngày chưa nộp lại | Người nộp hồ sơ | Cảnh báo |
+| Đã sơ duyệt đạt, chờ kết quả chính thức 20 ngày | Cán bộ đầu mối OCOP | Cảnh báo |
+| Kết quả OCOP còn 180 ngày (mở cửa sổ gia hạn) | Chủ hồ sơ và cán bộ HTX | Cảnh báo |
+| Còn 120 ngày (nhắc gấp) hoặc đã hết hiệu lực | Chủ hồ sơ và cán bộ HTX | Khẩn |
+
+Mỗi sự việc chỉ thông báo một lần; trạng thái "đã đọc" riêng cho từng người; thông báo gắn với một hợp tác xã không hiện cho người của hợp tác xã khác. Các ngưỡng nằm trong `config/ocop-profiles.json` (`communeReviewWorkingDays`, `renewalWindowDays`, khối `reminders`). Quản trị có thể quét ngay bằng `POST /api/trace/notifications/scan`. **Giới hạn:** ngày làm việc chỉ trừ thứ Bảy và Chủ nhật (chưa trừ ngày lễ); chưa gửi email (cần máy chủ SMTP). Kiểm chứng thật: `node scripts/check-notifications.js`.

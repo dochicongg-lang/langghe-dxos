@@ -38,6 +38,7 @@
       "validityMonths": 36,
       "renewalWindowDays": { "from": 180, "to": 120 },
       "communeReviewWorkingDays": 15,
+      "reminders": { "reviewWarnWorkingDays": 12, "revisionReminderDays": 7, "awaitingResultReminderDays": 20 },
       "rounds": [
         { "name": "Đợt 1", "submitBefore": "04-30", "completeBefore": "06-30" },
         { "name": "Đợt 2", "submitBefore": "10-30", "completeBefore": "12-30" }
