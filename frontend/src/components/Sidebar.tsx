@@ -6,30 +6,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { canSee } from "@/lib/pages";
-import { businessNav, platformNav, type NavItem } from "./nav";
+import { businessNav, helpNav, homeNav, iconPath, platformNav, type NavItem } from "./nav";
 
 function NavLink({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {
   const pathname = usePathname();
-  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
   return (
     <Link
       href={item.href}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
-        active ? "bg-stone-800 text-white" : "text-stone-300 hover:bg-stone-800/60 hover:text-white"
+        active ? "bg-brand-600 text-white" : "text-stone-300 hover:bg-stone-800 hover:text-white"
       }`}
     >
-      <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
-          active ? "bg-brand-500 text-white" : "bg-stone-800 text-stone-400"
-        }`}
-      >
-        {item.letter}
-      </span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+        <path d={iconPath(item.icon)} />
+      </svg>
       <span>
         <span className="block font-medium">{item.title}</span>
-        <span className="block text-xs text-stone-400">{item.desc}</span>
+        <span className={`block text-xs ${active ? "text-brand-100" : "text-stone-400"}`}>{item.desc}</span>
       </span>
     </Link>
   );
@@ -49,22 +45,24 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
         }`}
       >
         <Link href="/" onClick={onClose} className="flex items-center gap-3 border-b border-stone-800 px-6 py-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 font-bold text-white">DX</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 font-bold text-white">LN</span>
           <span className="leading-tight">
             <span className="block font-semibold text-white">Làng Nghề Số</span>
-            <span className="block text-xs text-stone-400">DX-OS · Tầng 2</span>
+            <span className="block text-xs text-stone-400">Cổng dịch vụ làng nghề</span>
           </span>
         </Link>
         <nav className="flex-1 space-y-1 overflow-y-auto p-4" aria-label="Điều hướng chính">
-          <NavLink item={{ href: "/", letter: "◎", title: "Tổng quan", desc: "Việc của bạn" }} onNavigate={onClose} />
-          {business.length > 0 && <p className="px-3 pb-2 pt-5 text-xs font-medium uppercase tracking-wider text-stone-500">Nghiệp vụ · Tầng 3</p>}
+          <NavLink item={homeNav} onNavigate={onClose} />
           {business.map((i) => (
             <NavLink key={i.href} item={i} onNavigate={onClose} />
           ))}
-          <p className="px-3 pb-2 pt-5 text-xs font-medium uppercase tracking-wider text-stone-500">Nền tảng H-P-D-I</p>
+          {platform.length > 0 && <p className="px-3 pb-1 pt-5 text-xs font-medium uppercase tracking-wider text-stone-500">Quản lý</p>}
           {platform.map((i) => (
             <NavLink key={i.href} item={i} onNavigate={onClose} />
           ))}
+          <div className="pt-4">
+            <NavLink item={helpNav} onNavigate={onClose} />
+          </div>
         </nav>
       </aside>
     </>

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import AssistantPanel from "@/components/AssistantPanel";
 import KilnInsights from "@/components/KilnInsights";
+import Photo from "@/components/Photo";
 import ProposalsPanel from "@/components/ProposalsPanel";
 import { fetchReadings, toSeries, type Reading, type Series } from "@/lib/iot";
 
@@ -94,7 +95,10 @@ export default function IntelligencePage() {
 
   return (
     <>
-      <PageTitle title="Intelligence" desc="Nhận định về các mẻ nung và số liệu từ cảm biến trong xưởng, cập nhật liên tục." />
+      <div className="flex items-start justify-between gap-6">
+        <PageTitle title="Phân tích và trợ lý" desc="Nhận định về các mẻ nung và số liệu từ cảm biến trong xưởng, cập nhật liên tục." />
+        <Photo src="/illustrations/kiln.svg" className="-mt-1 mb-4 hidden h-24 w-44 shrink-0 rounded-xl object-cover md:block" />
+      </div>
 
       <div className="mb-6">
         <KilnInsights />

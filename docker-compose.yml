@@ -219,6 +219,7 @@ services:
       ACCESS_FILE: /app/config/access.json
       OCOP_PROFILES_FILE: /app/config/ocop-profiles.json
       KILN_PROFILES_FILE: /app/config/kiln-profiles.json
+      SECTORS_FILE: /app/config/sectors.json
       AUDIT_INGEST_KEY: ${AUDIT_INGEST_KEY}
       DOCS_BUCKET: ${DOCS_BUCKET:-dxos-docs}
       ARCHIVE_KEEP_DAYS: ${ARCHIVE_KEEP_DAYS:-90}
@@ -242,6 +243,7 @@ services:
       - ./config/access.json:/app/config/access.json:ro
       - ./config/ocop-profiles.json:/app/config/ocop-profiles.json:ro
       - ./config/kiln-profiles.json:/app/config/kiln-profiles.json:ro
+      - ./config/sectors.json:/app/config/sectors.json:ro
       - ./config/assistant-faq.json:/app/config/assistant-faq.json:ro
     depends_on:
       postgres:

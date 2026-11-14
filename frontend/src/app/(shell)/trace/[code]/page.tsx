@@ -9,6 +9,9 @@ import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
 import KilnEvidence from "@/components/KilnEvidence";
 import QrCode from "@/components/QrCode";
+import ProductImage from "@/components/ProductImage";
+import Photo from "@/components/Photo";
+import StageIcon from "@/components/StageIcon";
 import { config } from "@/lib/config";
 import { fmtDate, stageLabels, stageOrder, type ProductDetail } from "@/lib/trace";
 
@@ -95,6 +98,9 @@ function Product() {
   if (!product) return <p className="text-sm text-stone-500">Đang tải…</p>;
 
   const canWrite = product.can_update === true; // máy chủ tính theo vai trò, sở hữu và HTX
+  // chuỗi công đoạn của NGÀNH sản phẩm này (gốm, lụa...), do máy chủ trả về
+  const stages = product.stages ?? stageOrder.map((k) => ({ key: k, label: stageLabels[k] }));
+  const lbl = (k: string) => stages.find((s) => s.key === k)?.label ?? stageLabels[k] ?? k;
   const done = new Set(product.events.map((e) => e.stage));
   const publicPath = `/verify/${encodeURIComponent(product.code)}`;
 
@@ -104,14 +110,14 @@ function Product() {
         ← Quay lại danh sách
       </Link>
       <div className="mt-3">
-        <PageTitle title={product.name} desc={`Mã ${product.code} · ${product.category || "Chưa phân loại"}`} />
+        <PageTitle title={product.name} desc={`Mã ${product.code} · ${product.category || "Chưa phân loại"}${product.sector_label ? ` · Ngành ${product.sector_label}` : ""}`} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           <Card title="Tiến trình công đoạn">
             <ol className="flex flex-wrap gap-2">
-              {stageOrder.map((s) => (
+              {stages.map(({ key: s }) => (
                 <li
                   key={s}
                   className={`rounded-full px-3 py-1 text-xs font-medium ${
@@ -119,7 +125,7 @@ function Product() {
                   }`}
                 >
                   {done.has(s) ? "✓ " : ""}
-                  {stageLabels[s]}
+                  {lbl(s)}
                 </li>
               ))}
             </ol>
@@ -132,8 +138,10 @@ function Product() {
               <ol className="relative ml-2 border-l-2 border-stone-200">
                 {product.events.map((ev, i) => (
                   <li key={i} className="mb-5 ml-5 last:mb-0">
-                    <span className="absolute -left-[7px] mt-1.5 h-3 w-3 rounded-full border-2 border-white bg-brand-500" />
-                    <p className="text-sm font-semibold text-stone-800">{stageLabels[ev.stage] ?? ev.stage}</p>
+                    <span className="absolute -left-[17px] flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow">
+                      <StageIcon stage={ev.stage} className="h-4 w-4" />
+                    </span>
+                    <p className="pt-1 text-sm font-semibold text-stone-800">{lbl(ev.stage)}</p>
                     <p className="text-xs text-stone-500">
                       {fmtDate(ev.created_at)}
                       {ev.location ? ` · ${ev.location}` : ""}
@@ -150,6 +158,7 @@ function Product() {
 
         <div className="space-y-4">
           <Card title="Thông tin">
+            <ProductImage category={product.category} seed={product.code} className="-mt-2 mb-4 h-36 w-full rounded-lg" />
             <dl className="divide-y divide-stone-100 text-sm">
               {[
                 ["Làng nghề", product.village || "—"],
@@ -172,13 +181,14 @@ function Product() {
           <Card title="Mã QR tra cứu nguồn gốc">
             {origin ? (
               <>
+                <Photo src="/illustrations/qr.svg" className="mb-4 w-full rounded-lg" />
                 <QrCode url={`${origin}${publicPath}`} filename={`qr-${product.code}`} />
                 <p className="mt-3 text-xs text-stone-500">
                   In và dán lên sản phẩm: người mua quét để xem hành trình và dữ liệu nung, không cần đăng nhập.
                 </p>
                 {/localhost|127\.0\.0\.1/.test(origin) && (
                   <p className="mt-2 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
-                    Đang dùng địa chỉ máy bạn nên điện thoại chưa quét được. Khi triển khai, đặt NEXT_PUBLIC_PUBLIC_BASE_URL thành tên miền thật.
+                    Mã này đang trỏ về máy chủ nội bộ nên điện thoại bên ngoài chưa quét được. Hãy nhờ quản trị viên cài đặt địa chỉ công khai trước khi in tem.
                   </p>
                 )}
               </>
@@ -198,9 +208,9 @@ function Product() {
                     <option value="" disabled>
                       Chọn công đoạn…
                     </option>
-                    {stageOrder.map((s) => (
+                    {stages.map(({ key: s }) => (
                       <option key={s} value={s}>
-                        {stageLabels[s]}
+                        {lbl(s)}
                       </option>
                     ))}
                   </select>

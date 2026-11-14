@@ -7,15 +7,62 @@
 import { useParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import KilnCurve from "@/components/KilnCurve";
+import StageIcon from "@/components/StageIcon";
 import { flagText, fmtDuration, fmtTime } from "@/components/KilnEvidence";
 import KilnInsightPanel, { VerdictBadge } from "@/components/KilnInsight";
 import { fmtDate, stageLabels, stageOrder, type ProductDetail, type TraceEvent } from "@/lib/trace";
 
-const chapters = [
-  { id: "nguoi-lam", no: "01", title: "Người làm ra", lead: "Nguyên liệu và đôi tay tạo hình", stages: ["nguyen-lieu", "so-che", "tao-hinh"] },
-  { id: "ngon-lua", no: "02", title: "Ngọn lửa", lead: "Mẻ nung để lại dấu vân tay nhiệt", stages: ["nung-hoan-thien"] },
-  { id: "chung-nhan", no: "03", title: "Chứng nhận và hành trình", lead: "Kiểm định, kết quả OCOP và đường tới người mua", stages: ["kiem-dinh", "dong-goi", "phan-phoi"] },
-] as const;
+type Stage = { key: string; label: string };
+interface Chapter {
+  id: string;
+  no: string;
+  title: string;
+  lead: string;
+  stages: string[];
+  photo: string | null;
+  cap: string;
+}
+
+// Mỗi ngành có chuỗi công đoạn riêng (từ máy chủ); ba chương chia theo vị trí: 3 công đoạn đầu, công đoạn thứ tư (nung hoặc nhuộm), phần còn lại.
+const COPY: Record<string, { c1: [string, string, string]; c2: [string, string, string]; c3: [string, string, string]; photos: [string, string, string] }> = {
+  gom: {
+    c1: ["Người làm ra", "Nguyên liệu và đôi tay tạo hình", "Nặn và hoàn thiện sản phẩm ngay tại xưởng"],
+    c2: ["Ngọn lửa", "Mẻ nung để lại dấu vân tay nhiệt", "Men màu rực rỡ sau khi ra lò"],
+    c3: ["Chứng nhận và hành trình", "Kiểm định, kết quả OCOP và đường tới người mua", "Gốm trưng bày và đến tay người mua"],
+    photos: ["/photos/chapter-nguoi-lam.jpg", "/photos/chapter-ngon-lua.jpg", "/photos/chapter-hanh-trinh.jpg"],
+  },
+  lua: {
+    c1: ["Từ con tằm đến sợi tơ", "Nuôi tằm, ươm tơ và dệt bằng tay", "Sợi tơ được se và dệt thủ công"],
+    c2: ["Sắc màu", "Nhuộm và hoàn thiện cho màu bền, vải mềm", "Màu nhuộm trên khung dệt"],
+    c3: ["Chứng nhận và hành trình", "Kiểm định, kết quả OCOP và đường tới người mua", "Lụa đến tay người mua"],
+    photos: ["/photos/craft-1.jpg", "/photos/craft-2.jpg", "/photos/craft-3.jpg"],
+  },
+};
+
+function chaptersFor(product: ProductDetail | null): Chapter[] {
+  const stages: Stage[] = product?.stages ?? stageOrder.map((k) => ({ key: k, label: stageLabels[k] }));
+  const copy = COPY[product?.sector ?? "gom"] ?? COPY.gom;
+  const keys = stages.map((s) => s.key);
+  const parts = [keys.slice(0, 3), keys.slice(3, 4), keys.slice(4)];
+  return (["c1", "c2", "c3"] as const).map((k, i) => ({
+    id: ["nguoi-lam", "ngon-lua", "chung-nhan"][i],
+    no: ["01", "02", "03"][i],
+    title: copy[k][0],
+    lead: copy[k][1],
+    stages: parts[i],
+    photo: copy.photos[i],
+    cap: copy[k][2],
+  }));
+}
+
+/** Vòng tròn biểu tượng đặt trên đường dọc của hành trình. */
+function Dot({ stage, muted = false }: { stage: string; muted?: boolean }) {
+  return (
+    <span className={`absolute -left-[17px] top-0 flex h-8 w-8 items-center justify-center rounded-full border-2 ${muted ? "border-dashed border-stone-300 bg-canvas text-stone-400" : "border-white bg-brand-600 text-white shadow"}`}>
+      <StageIcon stage={stage} className="h-4 w-4" />
+    </span>
+  );
+}
 
 function useActiveChapter(ids: string[], enabled: boolean) {
   const [active, setActive] = useState(ids[0]);
@@ -34,21 +81,21 @@ function useActiveChapter(ids: string[], enabled: boolean) {
   return active;
 }
 
-function Gap({ stage }: { stage: string }) {
+function Gap({ stage, label }: { stage: string; label: string }) {
   return (
-    <li className="relative border-l-2 border-dashed border-stone-300 pb-6 pl-6 last:pb-0">
-      <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-dashed border-stone-400 bg-canvas" />
-      <p className="text-sm font-semibold text-stone-500">{stageLabels[stage] ?? stage}</p>
+    <li className="relative border-l-2 border-dashed border-stone-300 pb-6 pl-8 last:pb-0">
+      <Dot stage={stage} muted />
+      <p className="text-sm font-semibold text-stone-500">{label}</p>
       <p className="text-sm text-stone-500">Chưa có bản ghi được công bố cho công đoạn này.</p>
     </li>
   );
 }
 
-function Step({ ev }: { ev: TraceEvent }) {
+function Step({ ev, label }: { ev: TraceEvent; label: string }) {
   return (
-    <li className="relative border-l-2 border-brand-200 pb-6 pl-6 last:pb-0">
-      <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-brand-600" />
-      <p className="text-base font-semibold text-stone-900">{stageLabels[ev.stage] ?? ev.stage}</p>
+    <li className="relative border-l-2 border-brand-200 pb-6 pl-8 last:pb-0">
+      <Dot stage={ev.stage} />
+      <p className="text-base font-semibold text-stone-900">{label}</p>
       <p className="text-xs text-stone-500">
         {fmtDate(ev.created_at)}
         {ev.location ? ` · ${ev.location}` : ""}
@@ -125,28 +172,40 @@ function Verify() {
     };
   }, [code]);
 
-  const ids = useMemo(() => chapters.map((c) => c.id), []);
+  const chapters = useMemo(() => chaptersFor(product), [product]);
+  const labelOf = (key: string) => product?.stages?.find((s) => s.key === key)?.label ?? stageLabels[key] ?? key;
+  const ids = useMemo(() => chapters.map((c) => c.id), [chapters]);
   const active = useActiveChapter(ids, Boolean(product));
 
   // công đoạn lạ (không nằm trong 7 công đoạn chuẩn) được xếp vào chương cuối để không mất thông tin
   const byChapter = useMemo(() => {
-    const known = new Set<string>(stageOrder);
+    const known = new Set<string>(chapters.flatMap((c) => c.stages));
     return chapters.map((c, i) => {
-      const own = (product?.events ?? []).filter((e) => (c.stages as readonly string[]).includes(e.stage) || (i === chapters.length - 1 && !known.has(e.stage)));
+      const own = (product?.events ?? []).filter((e) => c.stages.includes(e.stage) || (i === chapters.length - 1 && !known.has(e.stage)));
       return { ...c, events: own };
     });
-  }, [product]);
+  }, [product, chapters]);
 
   const fire = product?.events.find((e) => e.iot && e.insight);
   const official = product?.ocop?.official;
+  const hasPhotos = true; // ảnh minh họa theo ngành (gốm, lụa); thiếu tệp ảnh thì tự ẩn
 
   return (
     <div className="min-h-screen bg-canvas">
       <header className="relative overflow-hidden bg-stone-900 text-white">
+        {hasPhotos && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={product?.sector === "lua" ? "/photos/craft-1.jpg" : "/photos/hero-painter.jpg"} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.style.display = "none"; }} className="absolute inset-0 h-full w-full object-cover opacity-40" />
+        )}
         <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_85%_0%,rgba(217,96,44,0.55),transparent_55%),radial-gradient(ellipse_at_0%_100%,rgba(130,50,25,0.6),transparent_50%)]" />
         <div className="relative mx-auto max-w-5xl px-4 pb-16 pt-8 sm:pt-12">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-300">Làng Nghề Số · Tra cứu nguồn gốc</p>
-          {error && <p className="mt-10 rounded-lg border border-red-300/40 bg-red-950/40 p-4 text-sm text-red-100">{error}</p>}
+          {error && (
+            <div className="mt-10 rounded-lg border border-red-300/40 bg-red-950/40 p-4 text-sm text-red-100" role="alert">
+              <p>{error}</p>
+              <p className="mt-2 text-red-200">Kiểm tra lại mã in trên tem hoặc mã QR, hoặc liên hệ nơi bán hàng.</p>
+            </div>
+          )}
           {!error && !product && <p className="mt-10 text-sm text-stone-300">Đang tải…</p>}
           {product && (
             <>
@@ -214,6 +273,12 @@ function Verify() {
                     {c.title}
                   </h2>
                   <p className="mt-1 text-sm text-stone-600">{c.lead}</p>
+                  {hasPhotos && c.photo && (
+                    <figure className="mt-4 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={c.photo} alt={c.cap} loading="lazy" onError={(e) => { e.currentTarget.closest("figure")?.setAttribute("hidden", ""); }} className="h-48 w-full object-cover sm:h-72" />
+                    </figure>
+                  )}
 
                   {c.id === "chung-nhan" && product.ocop && (
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -258,23 +323,23 @@ function Verify() {
                   <ol className="mt-6">
                     {c.stages.map((st) => {
                       const evs = c.events.filter((e) => e.stage === st);
-                      if (evs.length === 0) return <Gap key={st} stage={st} />;
+                      if (evs.length === 0) return <Gap key={st} stage={st} label={labelOf(st)} />;
                       return evs.map((ev, i) =>
                         ev.iot ? (
-                          <li key={`${st}-${i}`} className="relative border-l-2 border-brand-200 pb-6 pl-6 last:pb-0">
-                            <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-brand-600" />
-                            <p className="mb-3 text-base font-semibold text-stone-900">{stageLabels[st] ?? st}</p>
+                          <li key={`${st}-${i}`} className="relative border-l-2 border-brand-200 pb-6 pl-8 last:pb-0">
+                            <Dot stage={st} />
+                            <p className="mb-3 text-base font-semibold text-stone-900">{labelOf(st)}</p>
                             <FireStory ev={ev} />
                           </li>
                         ) : (
-                          <Step key={`${st}-${i}`} ev={ev} />
+                          <Step key={`${st}-${i}`} ev={ev} label={labelOf(ev.stage)} />
                         ),
                       );
                     })}
                     {c.events
-                      .filter((e) => !(c.stages as readonly string[]).includes(e.stage))
+                      .filter((e) => !c.stages.includes(e.stage))
                       .map((ev, i) => (
-                        <Step key={`x-${i}`} ev={ev} />
+                        <Step key={`x-${i}`} ev={ev} label={labelOf(ev.stage)} />
                       ))}
                   </ol>
                 </section>
@@ -282,7 +347,7 @@ function Verify() {
             </div>
           </div>
 
-          <aside className="mt-14 rounded-2xl border border-stone-200 bg-white p-5 text-sm text-stone-700">
+          <aside className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 text-sm text-stone-700">
             <h2 className="text-base font-semibold text-stone-900">Vì sao có thể tin trang này</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>Số liệu cảm biến lò được ghi vào kho dữ liệu có khóa chống sửa và chống xóa; nếu bị ghi đè, hệ thống chỉ dùng bản ghi đầu tiên và gắn cờ cảnh báo.</li>

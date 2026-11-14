@@ -8,6 +8,8 @@ import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
 import EmptyState from "@/components/EmptyState";
+import Photo from "@/components/Photo";
+import ProductImage from "@/components/ProductImage";
 import { fmtDate } from "@/lib/trace";
 import { stateLabels, stateTone, starsForScore, type OcopProfile, type OcopSummary } from "@/lib/ocop";
 
@@ -26,6 +28,17 @@ export default function OcopPage() {
   const [group, setGroup] = useState("thu-cong-my-nghe");
   const [score, setScore] = useState<Record<string, string>>({ A: "", B: "", C: "" });
   const [docs, setDocs] = useState<string[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState("all");
+
+  // Từ trang chủ bấm "Lập hồ sơ mới" thì mở sẵn biểu mẫu
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (new URLSearchParams(window.location.search).get("new") === "1") setShowForm(true);
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -72,133 +85,161 @@ export default function OcopPage() {
     }
   }
 
+  const group_of = (s: string) => (s === "draft" ? "draft" : ["in_review", "awaiting_result"].includes(s) ? "review" : s === "needs_revision" ? "todo" : "done");
+  const chips = [
+    ["all", "Tất cả"],
+    ["todo", "Cần xử lý"],
+    ["draft", "Nháp"],
+    ["review", "Đang duyệt"],
+    ["done", "Đã có kết quả"],
+  ];
+  const countOf = (k: string) => (apps ?? []).filter((a) => k === "all" || group_of(a.state) === k).length;
+  const shown = (apps ?? []).filter((a) => (filter === "all" || group_of(a.state) === filter) && `${a.product_name} ${a.code}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const groupLabel = (key?: string) => profile?.groups.find((g) => g.key === key)?.label;
+
   return (
     <>
-      <PageTitle title="Hồ sơ OCOP" desc="Hỗ trợ lập hồ sơ, sơ duyệt tại HTX và theo dõi kết quả. Kết quả chính thức do cơ quan có thẩm quyền quyết định." />
-      {profile && <p className="mb-4 text-sm text-stone-600">Quy định áp dụng: {profile.name}</p>}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <Card title="Hồ sơ">
-            {error && <p className="text-sm text-red-600">Không tải được dữ liệu: {error}</p>}
-            {!error && !apps && <p className="text-sm text-stone-500">Đang tải…</p>}
-            {apps && apps.length === 0 && (
-              <EmptyState
-                title="Chưa có hồ sơ nào"
-                hint={canCreate ? "Lập hồ sơ đầu tiên ở khung bên cạnh: chọn nhóm sản phẩm, tự chấm điểm dự kiến và đánh dấu giấy tờ đã có." : "Hồ sơ của hợp tác xã hoặc đang chờ bạn xử lý sẽ hiện ở đây."}
-              />
-            )}
-            {apps && apps.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="text-xs uppercase text-stone-500">
-                    <tr>
-                      <th className="pb-2">Mã</th>
-                      <th className="pb-2">Sản phẩm</th>
-                      <th className="pb-2">Người nộp</th>
-                      <th className="pb-2">Trạng thái</th>
-                      <th className="pb-2">Cập nhật</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {apps.map((a) => (
-                      <tr key={a.code} className="hover:bg-stone-50">
-                        <td className="py-2 pr-3 font-mono">
-                          <Link href={`/ocop/${encodeURIComponent(a.code)}`} className="text-brand-600 hover:underline">
-                            {a.code}
-                          </Link>
-                        </td>
-                        <td className="py-2 pr-3 text-stone-800">{a.product_name}</td>
-                        <td className="py-2 pr-3 text-stone-600">{a.owner}</td>
-                        <td className="py-2 pr-3">
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${stateTone[a.state] ?? ""}`}>{stateLabels[a.state] ?? a.state}</span>
-                          {a.stars ? <span className="ml-2 text-amber-500">{"★".repeat(a.stars)}</span> : null}
-                        </td>
-                        <td className="py-2 text-stone-500">{fmtDate(a.updated_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageTitle title="Hồ sơ OCOP" desc="Lập hồ sơ, HTX sơ duyệt, rồi theo dõi kết quả. Kết quả chính thức do cơ quan có thẩm quyền quyết định." />
+        <Photo src="/illustrations/ocop.svg" className="order-last hidden h-24 w-44 shrink-0 rounded-xl object-cover md:block" />
+        {canCreate && (
+          <button onClick={() => setShowForm((v) => !v)} className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
+            {showForm ? "Đóng biểu mẫu" : "+ Lập hồ sơ mới"}
+          </button>
+        )}
+      </div>
+      {profile && <p className="-mt-3 mb-4 text-xs text-stone-500">Quy định áp dụng: {profile.name}</p>}
+
+      <div className="space-y-4">
+        {showForm && (
+          <Card title="Lập hồ sơ mới">
+            {!profile ? <p className="text-sm text-stone-500">Đang tải cấu hình…</p> : (
+              <form onSubmit={onCreate} className="space-y-3">
+                            <label className="block text-sm">
+                              <span className="mb-1 block text-stone-600">Tên sản phẩm *</span>
+                              <input name="product_name" required maxLength={200} className={inputCls} placeholder="Bình gốm men rạn" />
+                            </label>
+                            <label className="block text-sm">
+                              <span className="mb-1 block text-stone-600">Nhóm sản phẩm *</span>
+                              <select value={group} onChange={(e) => setGroup(e.target.value)} className={inputCls}>
+                                {profile.groups.map((g) => (
+                                  <option key={g.key} value={g.key}>
+                                    {g.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="block text-sm">
+                              <span className="mb-1 block text-stone-600">Mã truy xuất liên quan (nếu có)</span>
+                              <input name="product_code" maxLength={40} className={inputCls} placeholder="GOM-BT-0001" />
+                            </label>
+                            <label className="block text-sm">
+                              <span className="mb-1 block text-stone-600">Mô tả</span>
+                              <textarea name="description" rows={2} maxLength={2000} className={inputCls} />
+                            </label>
+                            <fieldset className="rounded-lg border border-stone-200 p-3">
+                              <legend className="px-1 text-sm text-stone-600">Tự chấm điểm (dự kiến)</legend>
+                              <div className="grid grid-cols-3 gap-2">
+                                {parts.map((p) => (
+                                  <label key={p.key} className="block text-xs text-stone-500" title={p.label}>
+                                    {p.key} (tối đa {p.max})
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={p.max}
+                                      step="0.5"
+                                      value={score[p.key]}
+                                      onChange={(e) => setScore((s) => ({ ...s, [p.key]: e.target.value }))}
+                                      className={inputCls}
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                              {total !== null && (
+                                <p className="mt-2 text-sm text-stone-700">
+                                  Tổng {total} điểm → hạng dự kiến {expectedStars ? "★".repeat(expectedStars) : "ngoài khoảng"}
+                                </p>
+                              )}
+                            </fieldset>
+                            <fieldset className="rounded-lg border border-stone-200 p-3">
+                              <legend className="px-1 text-sm text-stone-600">Giấy tờ đã có</legend>
+                              <div className="space-y-1">
+                                {checklist.map((c) => (
+                                  <label key={c.key} className="flex items-start gap-2 text-sm text-stone-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={docs.includes(c.key)}
+                                      onChange={(e) => setDocs((d) => (e.target.checked ? [...d, c.key] : d.filter((k) => k !== c.key)))}
+                                      className="mt-1"
+                                    />
+                                    <span>
+                                      {c.label} {c.required && <span className="text-red-500">*</span>}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </fieldset>
+                            {formError && <p className="text-sm text-red-600">{formError}</p>}
+                            <button type="submit" disabled={saving} className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+                              {saving ? "Đang lưu…" : "Tạo hồ sơ nháp"}
+                            </button>
+                          </form>
             )}
           </Card>
-        </div>
+        )}
 
-        <Card title="Lập hồ sơ mới">
-          {!canCreate ? (
-            <p className="text-sm text-stone-500">Vai trò của bạn không lập hồ sơ OCOP.</p>
-          ) : !profile ? (
-            <p className="text-sm text-stone-500">Đang tải cấu hình…</p>
-          ) : (
-            <form onSubmit={onCreate} className="space-y-3">
-              <label className="block text-sm">
-                <span className="mb-1 block text-stone-600">Tên sản phẩm *</span>
-                <input name="product_name" required maxLength={200} className={inputCls} placeholder="Bình gốm men rạn" />
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1 block text-stone-600">Nhóm sản phẩm *</span>
-                <select value={group} onChange={(e) => setGroup(e.target.value)} className={inputCls}>
-                  {profile.groups.map((g) => (
-                    <option key={g.key} value={g.key}>
-                      {g.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1 block text-stone-600">Mã truy xuất liên quan (nếu có)</span>
-                <input name="product_code" maxLength={40} className={inputCls} placeholder="GOM-BT-0001" />
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1 block text-stone-600">Mô tả</span>
-                <textarea name="description" rows={2} maxLength={2000} className={inputCls} />
-              </label>
-              <fieldset className="rounded-lg border border-stone-200 p-3">
-                <legend className="px-1 text-sm text-stone-600">Tự chấm điểm (dự kiến)</legend>
-                <div className="grid grid-cols-3 gap-2">
-                  {parts.map((p) => (
-                    <label key={p.key} className="block text-xs text-stone-500" title={p.label}>
-                      {p.key} (tối đa {p.max})
-                      <input
-                        type="number"
-                        min={0}
-                        max={p.max}
-                        step="0.5"
-                        value={score[p.key]}
-                        onChange={(e) => setScore((s) => ({ ...s, [p.key]: e.target.value }))}
-                        className={inputCls}
-                      />
-                    </label>
+        <Card>
+          {error && <p className="text-sm text-red-600">Không tải được dữ liệu: {error}</p>}
+          {!error && !apps && <p className="text-sm text-stone-500">Đang tải…</p>}
+          {apps && apps.length === 0 && (
+            <EmptyState
+              title="Chưa có hồ sơ nào"
+              hint={canCreate ? "Bấm \"+ Lập hồ sơ mới\" ở trên: chọn nhóm sản phẩm, tự chấm điểm dự kiến và đánh dấu giấy tờ đã có." : "Hồ sơ của hợp tác xã hoặc đang chờ bạn xử lý sẽ hiện ở đây."}
+            />
+          )}
+          {apps && apps.length > 0 && (
+            <>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2" role="tablist" aria-label="Lọc hồ sơ">
+                  {chips.map(([k, label]) => (
+                    <button
+                      key={k}
+                      role="tab"
+                      aria-selected={filter === k}
+                      onClick={() => setFilter(k)}
+                      className={`rounded-full px-3.5 py-1.5 text-sm transition ${filter === k ? "bg-brand-600 font-semibold text-white" : "bg-stone-100 text-stone-700 hover:bg-stone-200"}`}
+                    >
+                      {label} <span className="opacity-70">{countOf(k)}</span>
+                    </button>
                   ))}
                 </div>
-                {total !== null && (
-                  <p className="mt-2 text-sm text-stone-700">
-                    Tổng {total} điểm → hạng dự kiến {expectedStars ? "★".repeat(expectedStars) : "ngoài khoảng"}
-                  </p>
-                )}
-              </fieldset>
-              <fieldset className="rounded-lg border border-stone-200 p-3">
-                <legend className="px-1 text-sm text-stone-600">Giấy tờ đã có</legend>
-                <div className="space-y-1">
-                  {checklist.map((c) => (
-                    <label key={c.key} className="flex items-start gap-2 text-sm text-stone-700">
-                      <input
-                        type="checkbox"
-                        checked={docs.includes(c.key)}
-                        onChange={(e) => setDocs((d) => (e.target.checked ? [...d, c.key] : d.filter((k) => k !== c.key)))}
-                        className="mt-1"
-                      />
-                      <span>
-                        {c.label} {c.required && <span className="text-red-500">*</span>}
-                      </span>
-                    </label>
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo tên hoặc mã" aria-label="Tìm hồ sơ" className={`${inputCls} max-w-xs`} />
+              </div>
+              {shown.length === 0 ? (
+                <p className="py-6 text-center text-sm text-stone-500">Không có hồ sơ nào khớp. Thử bỏ bớt bộ lọc.</p>
+              ) : (
+                <ul className="divide-y divide-stone-100">
+                  {shown.map((a) => (
+                    <li key={a.code}>
+                      <Link href={`/ocop/${encodeURIComponent(a.code)}`} className="flex items-center gap-4 py-3 hover:bg-stone-50">
+                        <ProductImage group={a.product_group} seed={a.code} className="h-14 w-20 shrink-0 rounded-lg border border-stone-200" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-stone-900">{a.product_name}</span>
+                          <span className="block truncate text-xs text-stone-500">
+                            <span className="font-mono">{a.code}</span>
+                            {groupLabel(a.product_group) ? ` · ${groupLabel(a.product_group)}` : ""} · {a.owner} · cập nhật {fmtDate(a.updated_at)}
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${stateTone[a.state] ?? ""}`}>{stateLabels[a.state] ?? a.state}</span>
+                          {a.stars ? <span className="text-amber-500">{"★".repeat(a.stars)}</span> : null}
+                        </span>
+                      </Link>
+                    </li>
                   ))}
-                </div>
-              </fieldset>
-              {formError && <p className="text-sm text-red-600">{formError}</p>}
-              <button type="submit" disabled={saving} className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
-                {saving ? "Đang lưu…" : "Tạo hồ sơ nháp"}
-              </button>
-            </form>
+                </ul>
+              )}
+            </>
           )}
         </Card>
       </div>

@@ -114,8 +114,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       <Screen>
         <p className="text-lg font-semibold text-stone-900">Không thể kết nối hệ thống đăng nhập</p>
         <p className="mt-2 text-sm text-stone-600">
-          Hãy thử lại sau ít phút. Nếu vẫn không được, báo người quản trị hệ thống. (Chi tiết cho kỹ thuật viên: {error}; dịch vụ đăng nhập tại {config.keycloakUrl}.)
+          Hãy thử lại sau ít phút. Nếu vẫn không được, báo người quản trị hệ thống.
         </p>
+        <details className="mt-3 text-left text-xs text-stone-500">
+          <summary className="cursor-pointer text-center">Thông tin cho kỹ thuật viên</summary>
+          <p className="mt-2 break-words">{error}</p>
+          <p className="break-words">Dịch vụ đăng nhập: {config.keycloakUrl}</p>
+        </details>
         <button onClick={() => window.location.reload()} className="mt-5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
           Thử lại
         </button>
@@ -151,7 +156,7 @@ function Screen({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
       <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-sm">
-        <span className="mx-auto mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 font-bold text-white">DX</span>
+        <span className="mx-auto mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 font-bold text-white">LN</span>
         {children}
       </div>
     </div>

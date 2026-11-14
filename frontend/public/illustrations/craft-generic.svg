@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Hình minh họa sản phẩm thủ công">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBEFE2"/><stop offset="1" stop-color="#F0D6BE"/></linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <circle cx="80" cy="70" r="46" fill="#F6C79C" opacity=".55"/>
+  <rect x="0" y="236" width="400" height="64" fill="#C98456"/>
+  <ellipse cx="200" cy="246" rx="160" ry="8" fill="#5E2F14" opacity=".18"/>
+  <g stroke="#7A4A25" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <!-- giỏ đan -->
+    <path d="M120 238 L108 170 H292 L280 238Z" fill="#D9A25F"/>
+    <path d="M114 190 H286 M118 210 H282 M126 228 H274" stroke-width="2.5" fill="none"/>
+    <path d="M138 170 L148 238 M166 170 L170 238 M194 170 V238 M222 170 L218 238 M250 170 L242 238 M274 170 L262 238" stroke-width="2" fill="none" opacity=".7"/>
+    <path d="M108 170 C112 120 288 120 292 170" fill="none" stroke-width="4"/>
+    <!-- khăn thêu -->
+    <path d="M150 170 q10 -26 26 -22 q14 -26 38 -8 q22 -6 28 30z" fill="#C0623A"/>
+    <path d="M168 164 l8 -10 l8 10 l8 -10 l8 10" stroke="#FFE5C7" stroke-width="2.5" fill="none"/>
+  </g>
+</svg>

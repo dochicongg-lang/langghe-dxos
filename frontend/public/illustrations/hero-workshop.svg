@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Minh họa xưởng gốm làng nghề">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F8D9BE"/><stop offset="1" stop-color="#FBEFE2"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFC46B"/><stop offset="1" stop-color="#FFC46B" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#sky)"/>
+  <circle cx="500" cy="90" r="46" fill="#F6A25F" opacity=".9"/>
+  <circle cx="500" cy="90" r="78" fill="url(#glow)"/>
+  <path d="M0 250 Q120 190 240 235 T480 225 T640 240 V360 H0Z" fill="#E7B995"/>
+  <path d="M0 285 Q160 245 320 280 T640 270 V360 H0Z" fill="#C97B50"/>
+  <!-- xưởng -->
+  <rect x="70" y="170" width="190" height="105" fill="#FFF7EE" stroke="#9F3A1A" stroke-width="3"/>
+  <path d="M55 172 L165 108 L275 172Z" fill="#B5502B" stroke="#7E2C12" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="150" y="215" width="32" height="60" fill="#7E2C12"/>
+  <rect x="88" y="195" width="42" height="34" fill="#F3E3D6" stroke="#9F3A1A" stroke-width="2.5"/>
+  <rect x="200" y="195" width="42" height="34" fill="#F3E3D6" stroke="#9F3A1A" stroke-width="2.5"/>
+  <path d="M109 195v34M88 212h42M221 195v34M200 212h42" stroke="#9F3A1A" stroke-width="2"/>
+  <!-- lò nung -->
+  <path d="M330 275 V215 Q330 160 385 160 Q440 160 440 215 V275Z" fill="#8F3A1D" stroke="#5E2410" stroke-width="3"/>
+  <rect x="372" y="120" width="26" height="52" fill="#6F2C14" stroke="#5E2410" stroke-width="3"/>
+  <path d="M385 112 q-10 -18 2 -34 q4 14 14 18 q-10 8 -16 16z" fill="#D9D2CC" opacity=".8"/>
+  <path d="M360 275 V240 Q360 215 385 215 Q410 215 410 240 V275Z" fill="#2B1208"/>
+  <path d="M372 275 q-6 -22 6 -34 q2 10 10 14 q8 -10 6 -20 q14 18 6 40z" fill="#FF8A2B"/>
+  <path d="M380 275 q-3 -12 5 -20 q6 8 4 20z" fill="#FFD36B"/>
+  <!-- đồ gốm -->
+  <g stroke="#7E2C12" stroke-width="2.5" stroke-linejoin="round">
+    <path d="M480 275 q-22 -6 -18 -38 q4 -12 -2 -26 h40 q-6 14 -2 26 q4 32 -18 38z" fill="#E9CBA6" transform="translate(10 0)"/>
+    <path d="M560 275 q-26 -2 -28 -26 q10 -8 28 -8 q18 0 28 8 q-2 24 -28 26z" fill="#2F6F73"/>
+    <path d="M598 275 q-14 -2 -14 -24 q0 -14 14 -14 q14 0 14 14 q0 22 -14 24z" fill="#C0623A"/>
+  </g>
+  <path d="M475 236 l6 8 l-4 8 M492 232 l4 10 M506 240 l-5 7" stroke="#9F6B42" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="320" cy="285" rx="300" ry="6" fill="#7E2C12" opacity=".12"/>
+</svg>

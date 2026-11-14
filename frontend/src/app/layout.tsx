@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Làng Nghề Số · DX-OS",
-  description: "Cổng dịch vụ dùng chung Tầng 2 (H-P-D-I) của DX-OS Open-Core",
+  title: "Làng Nghề Số",
+  description: "Cổng dịch vụ làng nghề: truy xuất nguồn gốc và hồ sơ OCOP",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

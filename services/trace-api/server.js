@@ -33,6 +33,7 @@ const ocop = require("./ocop");
 const attachments = require("./attachments");
 const lifecycle = require("./lifecycle");
 const kiln = require("./kiln");
+const sectors = require("./sectors");
 const audit = require("./audit");
 const scan = require("./scan");
 const reminders = require("./reminders");
@@ -79,6 +80,8 @@ const flowable = process.env.FLOWABLE_URL
   : null;
 
 // Hồ sơ nung cho phân tích thông minh đường cong lò (nguồn: config/kiln-profiles.json).
+// Ngành nghề (gốm, lụa...) và chuỗi công đoạn riêng của từng ngành (nguồn: config/sectors.json).
+const SECTORS = sectors.load(process.env.SECTORS_FILE ?? "/app/config/sectors.json");
 const KILN = kiln.loadProfiles(process.env.KILN_PROFILES_FILE ?? "/app/config/kiln-profiles.json");
 
 // Tài khoản MinIO ghi/đọc TỆP ĐÍNH KÈM hồ sơ (chỉ bucket tệp, tiền tố applications/). Không cấu hình thì tắt tính năng tệp.
@@ -108,8 +111,8 @@ const anchorS3 =
       })
     : null;
 
-// Thứ tự các công đoạn của chuỗi sản xuất gốm/thủ công.
-const STAGES = ["nguyen-lieu", "so-che", "tao-hinh", "nung-hoan-thien", "kiem-dinh", "dong-goi", "phan-phoi"];
+// Công đoạn của ngành mặc định (giữ cho giao diện cũ); mỗi sản phẩm dùng công đoạn của NGÀNH mình (SECTORS).
+const STAGES = sectors.stagesFor(SECTORS, null).map((s) => s.key);
 const CODE_RE = /^[A-Za-z0-9][A-Za-z0-9-]{2,39}$/;
 
 let pool;
@@ -276,7 +279,7 @@ async function listProducts(user) {
     GROUP BY p.id, c.code ORDER BY p.created_at DESC`,
     scope === "all" ? [] : [user.coop],
   );
-  return rows;
+  return rows.map((r) => ({ ...r, sector: sectors.sectorOf(SECTORS, r.category).key }));
 }
 
 async function findProductRow(code) {
@@ -368,7 +371,8 @@ async function getProduct(code, { publicView = false, user = null } = {}) {
     const { id: _id, ...rest } = e;
     events.push(publicView ? { stage: e.stage, note: e.note, location: e.location, iot: e.iot, ...(insight && kiln.publicAllows(KILN, insight.verdict) ? { insight } : {}), created_at: e.created_at } : { ...rest, ...(insight ? { insight } : {}) });
   }
-  const product = { code: p.code, name: p.name, category: p.category, village: p.village, artisan: p.artisan, created_at: p.created_at };
+  const sector = sectors.sectorOf(SECTORS, p.category);
+  const product = { code: p.code, name: p.name, category: p.category, sector: sector.key, sector_label: sector.label, stages: sector.stages, village: p.village, artisan: p.artisan, created_at: p.created_at };
   if (publicView) product.ocop = await publicOcop(p.code);
   if (!publicView) {
     product.created_by = p.created_by;
@@ -416,12 +420,13 @@ async function addEvent(code, body, user) {
   if (!access.authorize(ACCESS, user, "product.read", product)) throw new HttpError(404, "Không tìm thấy sản phẩm");
   requirePermission(user, "product.update", product);
   const stage = str(body.stage, 40, "stage", true);
-  if (!STAGES.includes(stage)) throw new HttpError(400, `Công đoạn không hợp lệ. Hợp lệ: ${STAGES.join(", ")}`);
+  const allowedStages = sectors.stagesFor(SECTORS, product.category).map((s) => s.key);
+  if (!allowedStages.includes(stage)) throw new HttpError(400, `Công đoạn không hợp lệ cho ngành này. Hợp lệ: ${allowedStages.join(", ")}`);
   const note = str(body.note, 1000, "note");
   const location = str(body.location, 200, "location");
   let iot = null;
   if (body.iot !== undefined && body.iot !== null) {
-    if (stage !== "nung-hoan-thien") throw new HttpError(400, "Chỉ gắn dữ liệu IoT vào công đoạn nung-hoan-thien");
+    if (stage !== "nung-hoan-thien") throw new HttpError(400, "Chỉ gắn dữ liệu cảm biến vào công đoạn nung-hoan-thien (ngành gốm)");
     if (!s3) throw new HttpError(503, "Chưa cấu hình tài khoản đọc MinIO cho trace-api (S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY)");
     const win = parseWindow(body.iot); // chỉ nhận { deviceId, from, to }; số liệu do máy chủ tự đọc và tính
     const device = devices.get(win.deviceId);
@@ -1152,10 +1157,16 @@ async function route(req, res) {
     return send(res, 200, await kilnInsights(user));
   }
 
+  if (parts[0] === "sectors" && parts.length === 1 && m === "GET") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    return send(res, 200, sectors.publicView(SECTORS));
+  }
+
   if (parts[0] === "products") {
     const user = getUser(req);
     if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này"); // token thiết bị (iot-writer) không đọc được dữ liệu nghiệp vụ
-    if (parts.length === 1 && m === "GET") return send(res, 200, { stages: STAGES, products: await listProducts(user) });
+    if (parts.length === 1 && m === "GET") return send(res, 200, { stages: STAGES, sectors: sectors.publicView(SECTORS).sectors, products: await listProducts(user) });
     if (parts.length === 1 && m === "POST") return send(res, 201, await createProduct(await readJson(req), user));
     if (parts.length === 2 && m === "GET") return send(res, 200, await getProduct(parts[1], { user }));
     if (parts.length === 3 && parts[2] === "events" && m === "POST") return send(res, 201, await addEvent(parts[1], await readJson(req), user));

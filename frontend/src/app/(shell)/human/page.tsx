@@ -21,7 +21,7 @@ export default function HumanPage() {
 
   return (
     <>
-      <PageTitle title="Human" desc="Bạn là ai trong hệ thống và bạn được làm những việc gì. Đăng nhập một lần là dùng được mọi trang." />
+      <PageTitle title="Tài khoản của tôi" desc="Bạn là ai trong hệ thống và bạn được làm những việc gì. Đăng nhập một lần là dùng được mọi trang." />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Tài khoản của bạn">
           <dl className="divide-y divide-stone-100 text-sm">
