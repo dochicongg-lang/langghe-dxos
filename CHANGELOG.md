@@ -5,6 +5,15 @@ Số `#n` là pull request trên GitHub.
 
 ## [Chưa phát hành]
 
+## [0.2.1] - 2026-11-14
+
+### Sửa
+- Tài liệu `docs/HUONG-DAN-CHAY.md`: sửa mục xác thực hai yếu tố (OTP): sau khi người dùng cài OTP, đăng nhập mật khẩu trực tiếp cũng bị đòi mã, kèm cách xử lý bằng `bash scripts/reset-otp.sh`; cập nhật mô tả trang Human, Process, Data, Intelligence và tên các màn hình tiếng Việt của Keycloak.
+- Làm gọn tài liệu và lời văn trong README, NOTICE, CLAUDE.md và chú thích của `scripts/add-license-headers.js`; `scripts/seed-demo.js` không còn trỏ tới tài liệu đã gỡ.
+
+### Xóa
+- Gỡ khỏi kho mã hai tài liệu nội bộ không thuộc mã nguồn.
+
 ## [0.2.0] - 2026-11-14
 
 ### Thay đổi
