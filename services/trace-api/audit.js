@@ -131,4 +131,71 @@ async function query(pool, f = {}) {
   return rows;
 }
 
-module.exports = { GENESIS, normalize, shouldKeep, entryHash, appendEntries, checkRows, verifyChain, query };
+// ---------- Neo băm đầu chuỗi ra kho khóa chống sửa ----------
+// Chuỗi băm một mình không phát hiện được hai việc: cắt bớt các dòng CUỐI chuỗi, và kẻ có quyền siêu người dùng CSDL tính lại
+// toàn bộ chuỗi. Vì vậy định kỳ ghi "bản neo" { id, hash } của dòng cuối vào bucket riêng có Object Lock (không sửa, không xóa
+// trong thời hạn giữ). Khi kiểm tra, mọi bản neo phải khớp một dòng còn nguyên trong CSDL: dòng bị cắt thì không còn, chuỗi bị
+// tính lại thì băm lệch.
+const ANCHOR_PREFIX = "anchors/";
+
+/** Khóa bản neo: sắp được theo id; 12 ký tự đầu của băm làm dấu nhận dạng. */
+const anchorKey = (id, hash) => `${ANCHOR_PREFIX}${String(id).padStart(12, "0")}-${String(hash).slice(0, 12)}.json`;
+
+function parseAnchorKey(key) {
+  const m = /^anchors\/(\d{12})-([0-9a-f]{12})\.json$/.exec(String(key));
+  return m ? { id: Number(m[1]), hashPrefix: m[2] } : null;
+}
+
+/** Ghi bản neo cho dòng cuối hiện tại nếu chưa có bản neo nào mới hơn. Trả null (chưa có nhật ký) hoặc { skipped } hoặc { id, hash, key }. */
+async function writeAnchor(pool, s3, now = new Date()) {
+  const head = (await pool.query("SELECT id, hash FROM audit_log ORDER BY id DESC LIMIT 1")).rows[0];
+  if (!head) return null;
+  const count = Number((await pool.query("SELECT count(*) AS n FROM audit_log")).rows[0].n);
+  const lastId = Math.max(0, ...(await s3.listKeys(ANCHOR_PREFIX)).map((k) => parseAnchorKey(k)?.id ?? 0));
+  if (Number(head.id) <= lastId) return { skipped: "unchanged", id: lastId };
+  const key = anchorKey(head.id, head.hash);
+  const body = Buffer.from(JSON.stringify({ v: 1, id: Number(head.id), hash: head.hash, count, at: now.toISOString() }));
+  await s3.putObject(key, body, "application/json");
+  return { id: Number(head.id), hash: head.hash, count, key };
+}
+
+/**
+ * Đối chiếu các bản neo với các dòng hiện có (hàm thuần). anchors: [{ id, hash }]; rowsById: Map(id -> hash).
+ * Trả { ok, checked, latest, broken: null | { id, reason } }.
+ */
+function checkAnchors(anchors, rowsById) {
+  const sorted = [...anchors].sort((a, b) => a.id - b.id);
+  for (const a of sorted) {
+    const h = rowsById.get(a.id);
+    if (h === undefined) return { ok: false, checked: sorted.length, latest: sorted.at(-1)?.id ?? null, broken: { id: a.id, reason: `Dòng #${a.id} đã có bản neo nhưng không còn trong nhật ký (bị xóa hoặc cắt bớt)` } };
+    if (h !== a.hash) return { ok: false, checked: sorted.length, latest: sorted.at(-1)?.id ?? null, broken: { id: a.id, reason: `Băm của dòng #${a.id} khác bản neo (chuỗi đã bị tính lại)` } };
+  }
+  return { ok: true, checked: sorted.length, latest: sorted.at(-1)?.id ?? null, broken: null };
+}
+
+/** Đọc các bản neo mới nhất từ kho và đối chiếu với CSDL. Bản neo tự mâu thuẫn (nội dung khác tên khóa) cũng bị coi là can thiệp. */
+async function verifyAnchors(pool, s3, limit = 500) {
+  const keys = (await s3.listKeys(ANCHOR_PREFIX))
+    .map((k) => ({ k, p: parseAnchorKey(k) }))
+    .filter((x) => x.p)
+    .sort((a, b) => a.p.id - b.p.id)
+    .slice(-limit);
+  const anchors = [];
+  for (const { k, p } of keys) {
+    let body;
+    try {
+      body = JSON.parse((await s3.getObjectBuffer(k)).toString("utf8"));
+    } catch {
+      return { ok: false, checked: anchors.length, latest: anchors.at(-1)?.id ?? null, broken: { id: p.id, reason: `Bản neo ${k} không đọc được hoặc không hợp lệ` } };
+    }
+    if (Number(body.id) !== p.id || typeof body.hash !== "string" || !body.hash.startsWith(p.hashPrefix)) {
+      return { ok: false, checked: anchors.length, latest: anchors.at(-1)?.id ?? null, broken: { id: p.id, reason: `Nội dung bản neo ${k} không khớp tên khóa` } };
+    }
+    anchors.push({ id: p.id, hash: body.hash });
+  }
+  if (!anchors.length) return { ok: true, checked: 0, latest: null, broken: null };
+  const { rows } = await pool.query("SELECT id, hash FROM audit_log WHERE id = ANY($1::bigint[])", [anchors.map((a) => a.id)]);
+  return checkAnchors(anchors, new Map(rows.map((r) => [Number(r.id), r.hash])));
+}
+
+module.exports = { GENESIS, ANCHOR_PREFIX, normalize, shouldKeep, entryHash, appendEntries, checkRows, verifyChain, query, anchorKey, parseAnchorKey, writeAnchor, checkAnchors, verifyAnchors };

@@ -8,6 +8,7 @@ cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 IOT_BUCKET="${IOT_BUCKET:-dxos-iot}"
 DOCS_BUCKET="${DOCS_BUCKET:-dxos-docs}"
+ANCHOR_BUCKET="${ANCHOR_BUCKET:-dxos-audit}"
 IOT_LOCK_MODE="${IOT_LOCK_MODE:-GOVERNANCE}"
 IOT_RETENTION_DAYS="${IOT_RETENTION_DAYS:-1825}"
 case "$IOT_LOCK_MODE" in GOVERNANCE|COMPLIANCE) ;; *) echo "IOT_LOCK_MODE phải là GOVERNANCE hoặc COMPLIANCE"; exit 1 ;; esac
@@ -135,6 +136,28 @@ POLICY
   && (mc admin policy attach local trace-docs-rw --user '$TRACE_DOCS_USER' >/dev/null 2>&1 || true)"
 echo "OK: bucket tệp '$DOCS_BUCKET' và tài khoản '$TRACE_DOCS_USER' cho trace-api (ghi/đọc applications/, không xóa)."
 
+# ---- Bucket bản neo nhật ký kiểm toán (Object Lock) + tài khoản riêng cho trace-api ----
+# trace-api định kỳ ghi băm đầu chuỗi nhật ký vào anchors/ của bucket này; bucket có Object Lock nên bản neo đã ghi không sửa/xóa được
+# trong thời hạn giữ, nhờ vậy việc cắt dòng cuối hay tính lại chuỗi nhật ký trong CSDL đều bị phát hiện. Tài khoản '$ANCHOR_S3_USER' chỉ
+# ghi/đọc/liệt kê anchors/ (KHÔNG xóa). Người dùng cuối không chạm được: policy vai trò Deny và route S3 ở cổng gác chặn /$ANCHOR_BUCKET.
+docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
+  && mc mb --ignore-existing --with-lock local/$ANCHOR_BUCKET \
+  && mc anonymous set none local/$ANCHOR_BUCKET \
+  && mc retention set --default $IOT_LOCK_MODE ${IOT_RETENTION_DAYS}d local/$ANCHOR_BUCKET >/dev/null \
+  && cat > /tmp/trace-anchor-rw.json <<'POLICY'
+{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:PutObject\"], \"Resource\": [\"arn:aws:s3:::$ANCHOR_BUCKET/anchors/*\"] },
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:ListBucket\"], \"Resource\": [\"arn:aws:s3:::$ANCHOR_BUCKET\"], \"Condition\": { \"StringLike\": { \"s3:prefix\": [\"anchors/*\", \"anchors/\"] } } }
+  ]
+}
+POLICY
+  mc admin policy create local trace-anchor-rw /tmp/trace-anchor-rw.json >/dev/null \
+  && (mc admin user add local '$ANCHOR_S3_USER' '$ANCHOR_S3_PASSWORD' >/dev/null) \
+  && (mc admin policy attach local trace-anchor-rw --user '$ANCHOR_S3_USER' >/dev/null 2>&1 || true)"
+echo "OK: bucket bản neo '$ANCHOR_BUCKET' (Object Lock $IOT_LOCK_MODE, giữ $IOT_RETENTION_DAYS ngày) và tài khoản '$ANCHOR_S3_USER' cho trace-api (ghi/đọc anchors/, không xóa)."
+
 # Policy MinIO cho các vai trò Keycloak (claim "policy" = tên role = tên policy), tách quyền ghi dữ liệu IoT:
 #   admin, editor (bí danh tạm), producer, coop-officer, ocop-officer: SINH từ config/access.json (xem bên dưới)
 #   iot-writer  chỉ PutObject vào THƯ MỤC RIÊNG của gateway: iot/${jwt:preferred_username}/* (= service-account-<client>),
@@ -153,7 +176,7 @@ POLICY
 # Policy của admin/editor và các vai trò nghiệp vụ (producer, coop-officer, ocop-officer): SINH từ config/access.json.
 # Tên policy = tên role Keycloak. Mọi policy đều Deny ghi/xóa/đổi khóa/bypass trên bucket IoT; vai trò nghiệp vụ chỉ được ĐỌC bucket IoT.
 GEN_DIR="scripts/.generated/minio-policies"
-GEN_ROLES=$(node scripts/gen-access.js minio "$GEN_DIR" "$IOT_BUCKET" "$MINIO_BUCKET" "$DOCS_BUCKET")
+GEN_ROLES=$(node scripts/gen-access.js minio "$GEN_DIR" "$IOT_BUCKET" "$MINIO_BUCKET" "$DOCS_BUCKET" "$ANCHOR_BUCKET")
 docker exec dxos-minio sh -c "rm -rf /tmp/policies && mkdir -p /tmp/policies"
 docker cp "$GEN_DIR/." dxos-minio:/tmp/policies/
 docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null; for f in /tmp/policies/*.json; do n=\${f##*/}; n=\${n%.json}; mc admin policy create local \"\$n\" \"\$f\" >/dev/null || exit 1; done"
@@ -176,7 +199,7 @@ curl -fsS -X PUT "$ADMIN/routes/s3" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d @- <<JS
   "hosts": ["s3.localhost", "apisix"],
   "plugins": {
     ${AUDIT_LOGGER},
-    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local a = ngx.req.get_uri_args(); if a['retention'] ~= nil or a['legal-hold'] ~= nil or a['object-lock'] ~= nil or ngx.req.get_headers()['x-amz-bypass-governance-retention'] ~= nil then return 403, {error = 'Khong duoc phep thay doi khoa/giu du lieu (Object Lock) qua cong nay'} end; local p = ngx.var.uri or ''; if p == '/${DOCS_BUCKET}' or p:find('/${DOCS_BUCKET}/', 1, true) == 1 then return 403, {error = 'Kho tep dinh kem chi truy cap qua API nghiep vu'} end end"] }
+    "serverless-pre-function": { "phase": "rewrite", "functions": ["return function(conf, ctx) local a = ngx.req.get_uri_args(); if a['retention'] ~= nil or a['legal-hold'] ~= nil or a['object-lock'] ~= nil or ngx.req.get_headers()['x-amz-bypass-governance-retention'] ~= nil then return 403, {error = 'Khong duoc phep thay doi khoa/giu du lieu (Object Lock) qua cong nay'} end; local p = ngx.var.uri or ''; if p == '/${DOCS_BUCKET}' or p:find('/${DOCS_BUCKET}/', 1, true) == 1 then return 403, {error = 'Kho tep dinh kem chi truy cap qua API nghiep vu'} end; if p == '/${ANCHOR_BUCKET}' or p:find('/${ANCHOR_BUCKET}/', 1, true) == 1 then return 403, {error = 'Kho ban neo chi truy cap qua API nghiep vu'} end end"] }
   },
   "upstream": { "type": "roundrobin", "pass_host": "pass", "nodes": { "minio:9000": 1 } }
 }

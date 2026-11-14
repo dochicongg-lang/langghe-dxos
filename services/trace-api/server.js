@@ -83,6 +83,17 @@ const docsS3 =
       })
     : null;
 
+// Tài khoản MinIO ghi/đọc BẢN NEO của nhật ký kiểm toán (bucket riêng có Object Lock). Không cấu hình thì tắt tính năng neo.
+const anchorS3 =
+  process.env.S3_ENDPOINT && process.env.ANCHOR_S3_ACCESS_KEY && process.env.ANCHOR_S3_SECRET_KEY
+    ? createS3Client({
+        endpoint: process.env.S3_ENDPOINT,
+        accessKey: process.env.ANCHOR_S3_ACCESS_KEY,
+        secretKey: process.env.ANCHOR_S3_SECRET_KEY,
+        bucket: process.env.ANCHOR_BUCKET ?? "dxos-audit",
+      })
+    : null;
+
 // Thứ tự các công đoạn của chuỗi sản xuất gốm/thủ công.
 const STAGES = ["nguyen-lieu", "so-che", "tao-hinh", "nung-hoan-thien", "kiem-dinh", "dong-goi", "phan-phoi"];
 const CODE_RE = /^[A-Za-z0-9][A-Za-z0-9-]{2,39}$/;
@@ -806,6 +817,42 @@ function startArchiveScheduler() {
   setInterval(tick, ARCHIVE_INTERVAL_HOURS * 3600_000).unref();
 }
 
+// ---------- Neo băm nhật ký kiểm toán ----------
+const ANCHOR_INTERVAL_MINUTES = Number(process.env.ANCHOR_INTERVAL_MINUTES ?? 60);
+
+async function runAnchor() {
+  if (!anchorS3) throw new HttpError(503, "Chưa cấu hình kho neo nhật ký (ANCHOR_S3_ACCESS_KEY, ANCHOR_S3_SECRET_KEY)");
+  try {
+    return await audit.writeAnchor(pool, anchorS3);
+  } catch (e) {
+    console.error("[trace-api] lỗi neo nhật ký:", e.message);
+    throw new HttpError(502, "Không ghi được bản neo vào kho khóa chống sửa");
+  }
+}
+
+function startAnchorScheduler() {
+  if (!anchorS3 || !(ANCHOR_INTERVAL_MINUTES > 0)) return;
+  const tick = () =>
+    runAnchor()
+      .then((r) => r && !r.skipped && console.log(`[trace-api] neo nhật ký: dòng #${r.id}`))
+      .catch((e) => console.error("[trace-api] neo nhật ký lỗi:", e.message));
+  setTimeout(tick, 90_000).unref();
+  setInterval(tick, ANCHOR_INTERVAL_MINUTES * 60_000).unref();
+}
+
+async function verifyAudit() {
+  const chain = await audit.verifyChain(pool);
+  if (!anchorS3) return { ...chain, anchors: { enabled: false } };
+  let anchors;
+  try {
+    anchors = { enabled: true, ...(await audit.verifyAnchors(pool, anchorS3)) };
+  } catch (e) {
+    console.error("[trace-api] không đọc được bản neo:", e.message);
+    anchors = { enabled: true, ok: false, checked: 0, latest: null, broken: { id: 0, reason: "Không đọc được kho bản neo, chưa thể đối chiếu" } };
+  }
+  return { ...chain, ok: chain.ok && anchors.ok, broken: chain.broken ?? (anchors.ok ? null : anchors.broken), anchors };
+}
+
 // ---------- Nhật ký kiểm toán ----------
 /** Nhận lô nhật ký từ http-logger của APISIX (mạng nội bộ). Chỉ chấp nhận khi có đúng khóa AUDIT_INGEST_KEY. */
 async function ingestAudit(req) {
@@ -862,7 +909,8 @@ async function route(req, res) {
         rows: await audit.query(pool, { actor: q.get("actor"), method: q.get("method"), statusClass: q.get("status_class"), q: q.get("q"), before: Number.isInteger(before) ? before : undefined, limit: q.get("limit") }),
       });
     }
-    if (parts.length === 2 && parts[1] === "verify" && m === "GET") return send(res, 200, await audit.verifyChain(pool));
+    if (parts.length === 2 && parts[1] === "verify" && m === "GET") return send(res, 200, await verifyAudit());
+    if (parts.length === 2 && parts[1] === "anchor" && m === "POST") return send(res, 200, (await runAnchor()) ?? { skipped: "empty" });
   }
 
   if (parts[0] === "archive") {
@@ -942,6 +990,7 @@ async function main() {
     await seedDomain();
   }
   startArchiveScheduler();
+  startAnchorScheduler();
   server.listen(PORT, () => console.log(`[trace-api] lắng nghe cổng ${PORT}, database "${DB_NAME}"`));
 }
 
