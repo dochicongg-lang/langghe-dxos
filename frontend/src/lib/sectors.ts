@@ -14,6 +14,7 @@ export interface Sector {
   key: string;
   label: string;
   intelligence: string | null; // "kiln" = có phân tích mẻ nung; null = chưa có phân tích riêng
+  ocopGroup?: string | null; // nhóm sản phẩm OCOP của ngành
   stages: SectorStage[];
 }
 

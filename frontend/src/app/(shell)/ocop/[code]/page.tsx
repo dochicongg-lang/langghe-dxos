@@ -170,7 +170,7 @@ function Application() {
                     code={app.code}
                     docKey={c.key}
                     items={app.attachments.filter((a) => a.doc_key === c.key)}
-                    canEdit={app.can_update}
+                    canEdit={app.can_update && (app.state !== "draft" || !app.attachments.some((a) => a.doc_key === c.key))}
                     rules={app.attachment_rules}
                     onChange={() => void load()}
                   />
