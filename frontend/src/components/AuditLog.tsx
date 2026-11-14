@@ -24,6 +24,7 @@ interface Verify {
   ok: boolean;
   rows: number;
   broken: { id: number; reason: string } | null;
+  anchors?: { enabled: boolean; checked?: number; latest?: number | null };
 }
 
 const field =
@@ -141,7 +142,11 @@ export default function AuditLog() {
           role="status"
           className={`mt-3 rounded-lg border px-3 py-2 text-sm ${verify.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}
         >
-          {verify.ok ? `✓ Toàn vẹn: ${verify.rows} dòng liền mạch, không có dòng nào bị sửa, xóa hay chèn.` : `⛔ Phát hiện can thiệp tại dòng #${verify.broken?.id}: ${verify.broken?.reason}.`}
+          {verify.ok
+            ? `✓ Toàn vẹn: ${verify.rows} dòng liền mạch, không có dòng nào bị sửa, xóa hay chèn.${
+                verify.anchors?.enabled ? ` Đã đối chiếu ${verify.anchors.checked ?? 0} bản neo lưu ở kho khóa chống sửa${verify.anchors.latest ? ` (mới nhất tới dòng #${verify.anchors.latest})` : ""}.` : ""
+              }`
+            : `⛔ Phát hiện can thiệp${verify.broken?.id ? ` tại dòng #${verify.broken.id}` : ""}: ${verify.broken?.reason}.`}
         </p>
       )}
       {error && (

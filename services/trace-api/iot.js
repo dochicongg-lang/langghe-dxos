@@ -284,6 +284,20 @@ function createS3Client({ endpoint, accessKey, secretKey, bucket, region = "us-e
       if (!res.ok) throw new Error(`MinIO trả về ${res.status} cho ${key}`);
       return Buffer.from(await res.arrayBuffer());
     },
+    /** Liệt kê khóa đối tượng dưới một tiền tố (ListObjectsV2, tự lật trang). Cần quyền s3:ListBucket cho tiền tố đó. */
+    async listKeys(prefix, max = 10000) {
+      const out = [];
+      let token;
+      const tag = (s, t) => new RegExp(`<${t}>([^<]*)</${t}>`).exec(s)?.[1];
+      do {
+        const query = { "list-type": "2", prefix };
+        if (token) query["continuation-token"] = token;
+        const xml = await get(`/${bucket}`, query);
+        for (const m of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) out.push(unxml(tag(m[1], "Key") ?? ""));
+        token = /<IsTruncated>true<\/IsTruncated>/.test(xml) ? tag(xml, "NextContinuationToken") : undefined;
+      } while (token && out.length < max);
+      return out;
+    },
   };
 }
 

@@ -34,6 +34,7 @@ const attachments = require("./attachments");
 const lifecycle = require("./lifecycle");
 const kiln = require("./kiln");
 const audit = require("./audit");
+const scan = require("./scan");
 const { createFlowableClient } = require("./flowable");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -80,6 +81,22 @@ const docsS3 =
         accessKey: process.env.DOCS_S3_ACCESS_KEY,
         secretKey: process.env.DOCS_S3_SECRET_KEY,
         bucket: process.env.DOCS_BUCKET ?? "dxos-docs",
+      })
+    : null;
+
+// Quét mã độc tệp tải lên bằng ClamAV (clamd). Không đặt CLAMAV_HOST thì tắt bước quét. Mặc định BẮT BUỘC: clamd không sẵn sàng thì từ chối
+// tải lên (CLAMAV_REQUIRED=false để cho qua khi không quét được, chỉ nên dùng khi thử nghiệm).
+const scanner = process.env.CLAMAV_HOST ? scan.createScanner({ host: process.env.CLAMAV_HOST, port: Number(process.env.CLAMAV_PORT ?? 3310) }) : null;
+const SCAN_REQUIRED = String(process.env.CLAMAV_REQUIRED ?? "true").toLowerCase() !== "false";
+
+// Tài khoản MinIO ghi/đọc BẢN NEO của nhật ký kiểm toán (bucket riêng có Object Lock). Không cấu hình thì tắt tính năng neo.
+const anchorS3 =
+  process.env.S3_ENDPOINT && process.env.ANCHOR_S3_ACCESS_KEY && process.env.ANCHOR_S3_SECRET_KEY
+    ? createS3Client({
+        endpoint: process.env.S3_ENDPOINT,
+        accessKey: process.env.ANCHOR_S3_ACCESS_KEY,
+        secretKey: process.env.ANCHOR_S3_SECRET_KEY,
+        bucket: process.env.ANCHOR_BUCKET ?? "dxos-audit",
       })
     : null;
 
@@ -699,6 +716,19 @@ async function uploadAttachment(code, query, req, user) {
   }
   const dup = await pool.query("SELECT 1 FROM application_attachments WHERE application_id = $1 AND doc_key = $2 AND sha256 = $3 AND removed_at IS NULL", [a.id, docKey, info.sha256]);
   if (dup.rowCount) throw new HttpError(409, "Tệp này đã được đính kèm cho giấy tờ này");
+  // quét mã độc TRƯỚC khi ghi bất cứ thứ gì vào kho tệp
+  let scanEngine = null;
+  if (scanner) {
+    try {
+      const r = await scanner.scan(buf);
+      if (!r.clean) throw new HttpError(422, `Tệp bị chặn vì nghi chứa mã độc (${r.signature})`);
+      scanEngine = "clamav";
+    } catch (e) {
+      if (e instanceof HttpError) throw e;
+      console.error("[trace-api] không quét được tệp bằng ClamAV:", e.message);
+      if (SCAN_REQUIRED) throw new HttpError(503, "Dịch vụ quét mã độc chưa sẵn sàng, vui lòng thử lại sau ít phút");
+    }
+  }
   const key = attachments.objectKey(a.code, docKey, info.sha256, info.name);
   try {
     await docsS3.putObject(key, buf, info.type);
@@ -710,9 +740,9 @@ async function uploadAttachment(code, query, req, user) {
   try {
     await client.query("BEGIN");
     const { rows } = await client.query(
-      `INSERT INTO application_attachments (application_id, doc_key, filename, content_type, size, sha256, object_key, uploaded_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, doc_key, filename, content_type, size, sha256, uploaded_by, created_at`,
-      [a.id, docKey, info.name, info.type, info.size, info.sha256, key, user.name],
+      `INSERT INTO application_attachments (application_id, doc_key, filename, content_type, size, sha256, object_key, uploaded_by, scan_engine, scanned_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, CASE WHEN $9::text IS NULL THEN NULL ELSE now() END) RETURNING id, doc_key, filename, content_type, size, sha256, uploaded_by, created_at`,
+      [a.id, docKey, info.name, info.type, info.size, info.sha256, key, user.name, scanEngine],
     );
     // có tệp minh chứng thì giấy tờ được coi là đã có
     await client.query(
@@ -806,6 +836,42 @@ function startArchiveScheduler() {
   setInterval(tick, ARCHIVE_INTERVAL_HOURS * 3600_000).unref();
 }
 
+// ---------- Neo băm nhật ký kiểm toán ----------
+const ANCHOR_INTERVAL_MINUTES = Number(process.env.ANCHOR_INTERVAL_MINUTES ?? 60);
+
+async function runAnchor() {
+  if (!anchorS3) throw new HttpError(503, "Chưa cấu hình kho neo nhật ký (ANCHOR_S3_ACCESS_KEY, ANCHOR_S3_SECRET_KEY)");
+  try {
+    return await audit.writeAnchor(pool, anchorS3);
+  } catch (e) {
+    console.error("[trace-api] lỗi neo nhật ký:", e.message);
+    throw new HttpError(502, "Không ghi được bản neo vào kho khóa chống sửa");
+  }
+}
+
+function startAnchorScheduler() {
+  if (!anchorS3 || !(ANCHOR_INTERVAL_MINUTES > 0)) return;
+  const tick = () =>
+    runAnchor()
+      .then((r) => r && !r.skipped && console.log(`[trace-api] neo nhật ký: dòng #${r.id}`))
+      .catch((e) => console.error("[trace-api] neo nhật ký lỗi:", e.message));
+  setTimeout(tick, 90_000).unref();
+  setInterval(tick, ANCHOR_INTERVAL_MINUTES * 60_000).unref();
+}
+
+async function verifyAudit() {
+  const chain = await audit.verifyChain(pool);
+  if (!anchorS3) return { ...chain, anchors: { enabled: false } };
+  let anchors;
+  try {
+    anchors = { enabled: true, ...(await audit.verifyAnchors(pool, anchorS3)) };
+  } catch (e) {
+    console.error("[trace-api] không đọc được bản neo:", e.message);
+    anchors = { enabled: true, ok: false, checked: 0, latest: null, broken: { id: 0, reason: "Không đọc được kho bản neo, chưa thể đối chiếu" } };
+  }
+  return { ...chain, ok: chain.ok && anchors.ok, broken: chain.broken ?? (anchors.ok ? null : anchors.broken), anchors };
+}
+
 // ---------- Nhật ký kiểm toán ----------
 /** Nhận lô nhật ký từ http-logger của APISIX (mạng nội bộ). Chỉ chấp nhận khi có đúng khóa AUDIT_INGEST_KEY. */
 async function ingestAudit(req) {
@@ -862,7 +928,8 @@ async function route(req, res) {
         rows: await audit.query(pool, { actor: q.get("actor"), method: q.get("method"), statusClass: q.get("status_class"), q: q.get("q"), before: Number.isInteger(before) ? before : undefined, limit: q.get("limit") }),
       });
     }
-    if (parts.length === 2 && parts[1] === "verify" && m === "GET") return send(res, 200, await audit.verifyChain(pool));
+    if (parts.length === 2 && parts[1] === "verify" && m === "GET") return send(res, 200, await verifyAudit());
+    if (parts.length === 2 && parts[1] === "anchor" && m === "POST") return send(res, 200, (await runAnchor()) ?? { skipped: "empty" });
   }
 
   if (parts[0] === "archive") {
@@ -942,6 +1009,7 @@ async function main() {
     await seedDomain();
   }
   startArchiveScheduler();
+  startAnchorScheduler();
   server.listen(PORT, () => console.log(`[trace-api] lắng nghe cổng ${PORT}, database "${DB_NAME}"`));
 }
 

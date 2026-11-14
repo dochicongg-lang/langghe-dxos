@@ -166,3 +166,97 @@ test("truy vấn: bộ lọc đi vào tham số (không nối chuỗi), giới h
   await audit.query(pool, { statusClass: "9", before: "abc" });
   assert.doesNotMatch(calls[2].sql, /WHERE/); // nhóm trạng thái và 'before' sai bị bỏ qua
 });
+
+// ---------- Neo băm đầu chuỗi ----------
+const H = (n) => String(n).padStart(2, "0").repeat(32); // băm giả 64 ký tự hex
+const anchorStore = () => {
+  const objects = new Map();
+  return {
+    objects,
+    listKeys: async (prefix) => [...objects.keys()].filter((k) => k.startsWith(prefix)),
+    putObject: async (k, body) => void objects.set(k, Buffer.from(body)),
+    getObjectBuffer: async (k) => objects.get(k),
+  };
+};
+const anchorPool = (rows) => ({
+  query: async (sql, params) => {
+    if (/ORDER BY id DESC LIMIT 1/.test(sql)) return { rows: rows.length ? [rows[rows.length - 1]] : [] };
+    if (/count\(\*\)/.test(sql)) return { rows: [{ n: rows.length }] };
+    if (/ANY\(\$1/.test(sql)) return { rows: rows.filter((r) => params[0].includes(r.id)) };
+    throw new Error(`truy vấn không dự kiến: ${sql}`);
+  },
+});
+
+test("khóa bản neo: sắp theo id, đọc ngược lại được, khóa lạ bị từ chối", () => {
+  const k = audit.anchorKey(145, "ab".repeat(32));
+  assert.equal(k, "anchors/000000000145-abababababab.json");
+  assert.deepEqual(audit.parseAnchorKey(k), { id: 145, hashPrefix: "abababababab" });
+  assert.equal(audit.parseAnchorKey("anchors/../x.json"), null);
+  assert.equal(audit.parseAnchorKey("khac/000000000145-abababababab.json"), null);
+  assert.ok(audit.anchorKey(9, H(1)) < audit.anchorKey(10, H(1))); // sắp theo thứ tự chữ cũng là theo id
+});
+
+test("đối chiếu bản neo: nguyên vẹn, bị cắt dòng cuối, bị tính lại chuỗi", () => {
+  const anchors = [{ id: 3, hash: H(3) }, { id: 5, hash: H(5) }];
+  const rows = (ids, over = {}) => new Map(ids.map((i) => [i, over[i] ?? H(i)]));
+  const ok = audit.checkAnchors(anchors, rows([1, 2, 3, 4, 5, 6]));
+  assert.deepEqual([ok.ok, ok.checked, ok.latest, ok.broken], [true, 2, 5, null]);
+  const cut = audit.checkAnchors(anchors, rows([1, 2, 3, 4])); // dòng 5 (đã neo) bị cắt
+  assert.equal(cut.ok, false);
+  assert.equal(cut.broken.id, 5);
+  assert.match(cut.broken.reason, /cắt bớt|bị xóa/);
+  const redo = audit.checkAnchors(anchors, rows([1, 2, 3, 4, 5], { 3: H(99) })); // băm dòng 3 bị tính lại
+  assert.equal(redo.ok, false);
+  assert.equal(redo.broken.id, 3);
+  assert.match(redo.broken.reason, /tính lại/);
+  assert.equal(audit.checkAnchors([], rows([1])).ok, true); // chưa có bản neo nào thì không có gì để đối chiếu
+});
+
+test("ghi bản neo: chỉ ghi khi có dòng mới hơn bản neo gần nhất", async () => {
+  const s3 = anchorStore();
+  const rows = [{ id: 1, hash: H(1) }, { id: 2, hash: H(2) }];
+  assert.equal(await audit.writeAnchor(anchorPool([]), s3), null); // chưa có nhật ký
+  const a1 = await audit.writeAnchor(anchorPool(rows), s3, new Date("2026-11-14T10:00:00Z"));
+  assert.equal(a1.id, 2);
+  assert.equal(a1.count, 2);
+  const stored = JSON.parse(s3.objects.get(a1.key).toString());
+  assert.deepEqual([stored.v, stored.id, stored.hash, stored.at], [1, 2, H(2), "2026-11-14T10:00:00.000Z"]);
+  assert.equal((await audit.writeAnchor(anchorPool(rows), s3)).skipped, "unchanged"); // không đổi: không ghi thêm
+  assert.equal(s3.objects.size, 1);
+  const a2 = await audit.writeAnchor(anchorPool([...rows, { id: 3, hash: H(3) }]), s3);
+  assert.equal(a2.id, 3);
+  assert.equal(s3.objects.size, 2);
+});
+
+test("kiểm tra bản neo end-to-end với kho giả: nguyên vẹn, cắt cuối, sửa bản neo", async () => {
+  const s3 = anchorStore();
+  const rows = [1, 2, 3, 4].map((i) => ({ id: i, hash: H(i) }));
+  await audit.writeAnchor(anchorPool(rows.slice(0, 2)), s3);
+  await audit.writeAnchor(anchorPool(rows), s3);
+  assert.equal((await audit.verifyAnchors(anchorPool(rows), s3)).ok, true);
+  const cut = await audit.verifyAnchors(anchorPool(rows.slice(0, 3)), s3); // cắt dòng 4 đã neo
+  assert.equal(cut.ok, false);
+  assert.equal(cut.broken.id, 4);
+  const [k] = [...s3.objects.keys()].slice(-1);
+  s3.objects.set(k, Buffer.from(JSON.stringify({ v: 1, id: 4, hash: H(77) }))); // sửa nội dung bản neo
+  const tampered = await audit.verifyAnchors(anchorPool(rows), s3);
+  assert.equal(tampered.ok, false);
+  assert.match(tampered.broken.reason, /không khớp tên khóa/);
+});
+
+test("S3 client: listKeys lật trang ListObjectsV2 và giải mã XML", async () => {
+  const { createS3Client } = require("../iot");
+  const calls = [];
+  const pages = [
+    "<ListBucketResult><Contents><Key>anchors/a&amp;1.json</Key></Contents><IsTruncated>true</IsTruncated><NextContinuationToken>tok1</NextContinuationToken></ListBucketResult>",
+    "<ListBucketResult><Contents><Key>anchors/b2.json</Key></Contents><IsTruncated>false</IsTruncated></ListBucketResult>",
+  ];
+  const fakeFetch = async (url) => {
+    calls.push(url);
+    return { ok: true, status: 200, text: async () => pages[calls.length - 1] };
+  };
+  const s3 = createS3Client({ endpoint: "http://minio:9000", accessKey: "k", secretKey: "s", bucket: "dxos-audit", fetchImpl: fakeFetch });
+  assert.deepEqual(await s3.listKeys("anchors/"), ["anchors/a&1.json", "anchors/b2.json"]);
+  assert.match(calls[0], /\/dxos-audit\?list-type=2&prefix=anchors%2F$/);
+  assert.match(calls[1], /continuation-token=tok1/);
+});
