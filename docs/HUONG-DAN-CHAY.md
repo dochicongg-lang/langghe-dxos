@@ -390,3 +390,9 @@ Lưu ý: ClamAV cần khoảng 1–2 GB RAM và vài phút để nạp cơ sở 
 ## 15. Neo nhật ký kiểm toán
 
 Chuỗi băm của nhật ký một mình không phát hiện được việc cắt bớt các dòng cuối hay tính lại cả chuỗi. Vì vậy `trace-api` ghi định kỳ (mặc định mỗi 60 phút, `ANCHOR_INTERVAL_MINUTES`; 0 để tắt) một bản neo gồm số thứ tự và băm của dòng cuối vào bucket `dxos-audit` (có Object Lock, tài khoản `trace-anchor` không xóa được). Nút "Kiểm tra toàn vẹn nhật ký" ở trang Data đối chiếu cả các bản neo. Quản trị có thể neo ngay bằng `POST /api/trace/audit/anchor`. Kiểm chứng thật, gồm cả hai kiểu tấn công và việc khôi phục sau đó: `node scripts/check-audit-anchor.js`.
+
+## 16. Quyền của trace-api đối với Flowable
+
+Flowable REST không có phân quyền mịn: một tài khoản chỉ có quyền `access-rest-api` vẫn quản lý được engine, tạo/xóa người dùng và triển khai/xóa quy trình. Vì vậy hệ thống không dựa vào "người dùng Flowable ít quyền" mà giới hạn ở cổng gác. `trace-api` gọi Flowable qua một **route nội bộ** của APISIX trên cổng 9081 (chỉ trong mạng Docker, không publish ra máy chủ), kèm khóa riêng `FLOWABLE_PROXY_KEY` trong `.env`. Route này gắn mật khẩu admin của Flowable ở phía cổng gác và chỉ cho đúng ba thao tác: bắt đầu quy trình hồ sơ OCOP, xem việc của MỘT tiến trình, hoàn thành việc. Mọi thao tác khác trả 403, nên nếu `trace-api` bị chiếm thì kẻ tấn công cũng không xóa được quy trình hay tạo người dùng Flowable.
+
+Khi đổi `apisix/config.yaml` hoặc nạp lại route: `docker compose restart apisix` rồi `bash scripts/setup-apisix-routes.sh` (hoặc `bash scripts/upgrade.sh`). Kiểm chứng thật: `node scripts/check-flowable-internal.js` (thử từ bên trong container `trace-api` mọi thao tác nguy hiểm, cộng luồng OCOP đầy đủ).

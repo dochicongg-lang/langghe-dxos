@@ -43,6 +43,9 @@ set -a; . ./.env; set +a
 
 step 2 "Khởi động các dịch vụ Docker"
 if [ "$BUILD" = 1 ]; then docker compose up -d --build 2>&1 | tail -3; else docker compose up -d 2>&1 | tail -3; fi
+# compose không khởi động lại container khi chỉ NỘI DUNG tệp cấu hình gắn vào (apisix/config.yaml) đổi: khởi động lại cổng gác để nhận cấu hình mới
+# (ví dụ cổng nội bộ 9081 của route Flowable); không làm vậy thì sau khi nâng cấp trace-api không gọi được Flowable cho tới khi tự restart.
+docker compose restart apisix >/dev/null 2>&1 || true
 wait_healthy() { # tên container
   local i s
   for i in $(seq 1 60); do

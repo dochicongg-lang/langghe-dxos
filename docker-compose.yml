@@ -231,9 +231,10 @@ services:
       ANCHOR_INTERVAL_MINUTES: ${ANCHOR_INTERVAL_MINUTES:-60}
       ANCHOR_S3_ACCESS_KEY: ${ANCHOR_S3_USER}
       ANCHOR_S3_SECRET_KEY: ${ANCHOR_S3_PASSWORD}
-      FLOWABLE_URL: http://flowable:8080/flowable-rest/service
-      FLOWABLE_USER: ${FLOWABLE_ADMIN_USER}
-      FLOWABLE_PASSWORD: ${FLOWABLE_ADMIN_PASSWORD}
+      # Gọi Flowable qua route NỘI BỘ của cổng gác (cổng 9081 không publish ra máy chủ), chỉ với khóa riêng; trace-api không giữ mật khẩu
+      # admin của Flowable và chỉ làm được ba thao tác của quy trình OCOP (xem apisix/flowable-internal.lua).
+      FLOWABLE_URL: http://apisix:9081/flowable-internal
+      FLOWABLE_PROXY_KEY: ${FLOWABLE_PROXY_KEY}
     volumes:
       - ./config/iot-devices.json:/app/config/iot-devices.json:ro
       - ./config/access.json:/app/config/access.json:ro

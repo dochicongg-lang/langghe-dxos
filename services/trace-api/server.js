@@ -67,7 +67,11 @@ const s3 =
 // Cấu hình OCOP theo địa phương (nguồn: config/ocop-profiles.json) và Flowable (điều khiển quy trình hồ sơ).
 const OCOP = ocop.loadProfiles(process.env.OCOP_PROFILES_FILE ?? "/app/config/ocop-profiles.json");
 const flowable = process.env.FLOWABLE_URL
-  ? createFlowableClient({ baseUrl: process.env.FLOWABLE_URL, user: process.env.FLOWABLE_USER ?? "rest-admin", password: process.env.FLOWABLE_PASSWORD ?? "" })
+  ? createFlowableClient(
+      process.env.FLOWABLE_PROXY_KEY
+        ? { baseUrl: process.env.FLOWABLE_URL, apiKey: process.env.FLOWABLE_PROXY_KEY }
+        : { baseUrl: process.env.FLOWABLE_URL, user: process.env.FLOWABLE_USER ?? "rest-admin", password: process.env.FLOWABLE_PASSWORD ?? "" },
+    )
   : null;
 
 // Hồ sơ nung cho phân tích thông minh đường cong lò (nguồn: config/kiln-profiles.json).
