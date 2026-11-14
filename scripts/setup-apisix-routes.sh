@@ -125,7 +125,7 @@ echo "OK: tài khoản chỉ đọc '$TRACE_S3_USER' cho trace-api (chỉ đọc
 
 # ---- Bucket tệp đính kèm hồ sơ OCOP + tài khoản riêng cho trace-api ----
 # trace-api nhận tệp từ người dùng (đã kiểm quyền, loại, cỡ, băm) rồi ghi vào bucket này bằng tài khoản '$TRACE_DOCS_USER' chỉ có
-# quyền ghi/đọc/liệt kê trên applications/ (tệp đính kèm) và archive/ (kho lạnh vòng đời dữ liệu) của bucket tệp (KHÔNG xóa: gỡ tệp chỉ đánh dấu trong CSDL, đối tượng giữ làm bằng chứng).
+# quyền ghi/đọc/liệt kê trên applications/ (tệp đính kèm), archive/ (kho lạnh vòng đời dữ liệu) và lake/ (hồ dữ liệu phân tích, Parquet) của bucket tệp (KHÔNG xóa: gỡ tệp chỉ đánh dấu trong CSDL, đối tượng giữ làm bằng chứng).
 # Người dùng cuối không chạm được bucket này: policy vai trò Deny, và route S3 ở cổng gác chặn đường dẫn /$DOCS_BUCKET.
 docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
   && mc mb --ignore-existing local/$DOCS_BUCKET \
@@ -134,8 +134,8 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_R
 {
   \"Version\": \"2012-10-17\",
   \"Statement\": [
-    { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:PutObject\"], \"Resource\": [\"arn:aws:s3:::$DOCS_BUCKET/applications/*\", \"arn:aws:s3:::$DOCS_BUCKET/archive/*\"] },
-    { \"Effect\": \"Allow\", \"Action\": [\"s3:ListBucket\"], \"Resource\": [\"arn:aws:s3:::$DOCS_BUCKET\"], \"Condition\": { \"StringLike\": { \"s3:prefix\": [\"applications/*\", \"archive/*\"] } } }
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:PutObject\"], \"Resource\": [\"arn:aws:s3:::$DOCS_BUCKET/applications/*\", \"arn:aws:s3:::$DOCS_BUCKET/archive/*\", \"arn:aws:s3:::$DOCS_BUCKET/lake/*\"] },
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:ListBucket\"], \"Resource\": [\"arn:aws:s3:::$DOCS_BUCKET\"], \"Condition\": { \"StringLike\": { \"s3:prefix\": [\"applications/*\", \"archive/*\", \"lake/*\"] } } }
   ]
 }
 POLICY

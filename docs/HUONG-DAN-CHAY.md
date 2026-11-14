@@ -418,3 +418,13 @@ Hệ thống tự quét hồ sơ OCOP mỗi giờ (`NOTIFY_INTERVAL_MINUTES` tro
 | Còn 120 ngày (nhắc gấp) hoặc đã hết hiệu lực | Chủ hồ sơ và cán bộ HTX | Khẩn |
 
 Mỗi sự việc chỉ thông báo một lần; trạng thái "đã đọc" riêng cho từng người; thông báo gắn với một hợp tác xã không hiện cho người của hợp tác xã khác. Các ngưỡng nằm trong `config/ocop-profiles.json` (`communeReviewWorkingDays`, `renewalWindowDays`, khối `reminders`). Quản trị có thể quét ngay bằng `POST /api/trace/notifications/scan`. **Giới hạn:** ngày làm việc chỉ trừ thứ Bảy và Chủ nhật (chưa trừ ngày lễ); chưa gửi email (cần máy chủ SMTP). Kiểm chứng thật: `node scripts/check-notifications.js`.
+
+## 18. Hồ dữ liệu phân tích và truy vết nguồn gốc dữ liệu
+
+Dữ liệu chính của hệ thống nằm ở PostgreSQL (đang dùng) và kho lưu trữ lạnh. Để phân tích nhanh mà không làm chậm hệ thống, quản trị có thể xuất bản sao dạng bảng cột (**Parquet**) sang MinIO (tiền tố `lake/` của bucket tệp) và chạy phân tích trên đó bằng **DuckDB**. Ở trang **Data**, thẻ "Hồ dữ liệu phân tích":
+
+- Nút **Xuất dữ liệu sang hồ ngay** (hoặc tự động mỗi `LAKE_INTERVAL_HOURS` giờ, mặc định 24, 0 để tắt) tạo bốn bộ dữ liệu: hồ sơ OCOP, lịch sử xử lý (gộp cả tầng nóng và các tệp đã lưu trữ lạnh), mẻ nung có bằng chứng cảm biến, nhật ký kiểm toán (đã bỏ đường dẫn và địa chỉ IP).
+- Mỗi lần xuất tạo tệp **mới** (không ghi đè) và ghi **truy vết nguồn gốc**: dữ liệu lấy từ bảng nào, từ tệp lưu trữ nào (kèm mã kiểm tra), số dòng, mã kiểm tra của chính tệp Parquet. Tệp được đọc lại và đối chiếu mã trước khi ghi sổ; khi phân tích, mã trong sổ phải khớp tệp thật, nếu không truy vấn bị từ chối.
+- Năm phân tích mẫu: hồ sơ theo trạng thái, hồ sơ theo tháng và số sao trung bình, lịch sử theo tầng lưu trữ, mẻ nung theo kết luận, yêu cầu API theo nhóm mã trạng thái. Hệ thống không nhận câu lệnh SQL tùy ý từ người dùng.
+
+**Giới hạn:** phân tích chỉ đọc lần xuất mới nhất của mỗi bộ dữ liệu (chưa gộp nhiều lần xuất); truy vết ở mức bộ dữ liệu (chưa tới từng cột). Chỉ quản trị dùng được; người dùng khác bị từ chối (403) và không đọc được bucket tệp. Kiểm chứng thật: `node scripts/check-lakehouse.js`.

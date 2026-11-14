@@ -36,6 +36,7 @@ const kiln = require("./kiln");
 const audit = require("./audit");
 const scan = require("./scan");
 const reminders = require("./reminders");
+const lake = require("./lake");
 const { createFlowableClient } = require("./flowable");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -841,6 +842,36 @@ function startArchiveScheduler() {
   setInterval(tick, ARCHIVE_INTERVAL_HOURS * 3600_000).unref();
 }
 
+// ---------- Hồ dữ liệu phân tích (Parquet + DuckDB) và truy vết nguồn gốc dữ liệu ----------
+const LAKE_INTERVAL_HOURS = Number(process.env.LAKE_INTERVAL_HOURS ?? 24);
+
+const lakeDeps = () => ({
+  pool,
+  s3: docsS3,
+  kiln: { analyze: kiln.analyze, pickProfile: kiln.pickProfile, config: KILN },
+  readArchive: (id) => lifecycle.readRun(pool, docsS3, id),
+});
+
+async function runLakeExport(triggeredBy) {
+  if (!docsS3) throw new HttpError(503, "Chưa cấu hình kho lưu trữ (DOCS_S3_ACCESS_KEY, DOCS_S3_SECRET_KEY)");
+  try {
+    return await lake.exportAll(lakeDeps(), triggeredBy);
+  } catch (e) {
+    console.error("[trace-api] lỗi xuất hồ dữ liệu:", e.message);
+    throw new HttpError(502, "Xuất hồ dữ liệu thất bại, dữ liệu nguồn không bị ảnh hưởng");
+  }
+}
+
+function startLakeScheduler() {
+  if (!docsS3 || !(LAKE_INTERVAL_HOURS > 0)) return;
+  const tick = () =>
+    runLakeExport("scheduler")
+      .then((r) => r.exported && console.log(`[trace-api] xuất hồ dữ liệu: ${r.exported.map((d) => `${d.dataset}=${d.rows}`).join(", ")}`))
+      .catch((e) => console.error("[trace-api] xuất hồ dữ liệu tự động lỗi:", e.message));
+  setTimeout(tick, 120_000).unref();
+  setInterval(tick, LAKE_INTERVAL_HOURS * 3600_000).unref();
+}
+
 // ---------- Thông báo, nhắc hạn, leo thang ----------
 const NOTIFY_INTERVAL_MINUTES = Number(process.env.NOTIFY_INTERVAL_MINUTES ?? 60);
 
@@ -975,6 +1006,26 @@ async function route(req, res) {
     return send(res, 200, { username: user.name, roles: user.roles, coop: user.coop, permissions: access.permissionsOf(ACCESS, user.roles), pages: access.pagesOf(ACCESS, user.roles) });
   }
 
+  if (parts[0] === "lake") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    requirePermission(user, "archive.manage"); // hồ dữ liệu: chỉ quản trị
+    if (parts.length === 1 && m === "GET") return send(res, 200, await lake.overview(pool));
+    if (parts.length === 2 && parts[1] === "export" && m === "POST") return send(res, 200, await runLakeExport(user.name));
+    if (parts.length === 3 && parts[1] === "analytics" && m === "GET") {
+      if (!docsS3) throw new HttpError(503, "Chưa cấu hình kho lưu trữ");
+      let r;
+      try {
+        r = await lake.runAnalytics(pool, docsS3, parts[2]);
+      } catch (e) {
+        console.error("[trace-api] lỗi truy vấn hồ dữ liệu:", e.message);
+        throw new HttpError(502, "Không truy vấn được hồ dữ liệu");
+      }
+      if (!r) throw new HttpError(404, "Không có truy vấn phân tích này");
+      return send(res, 200, r);
+    }
+  }
+
   if (parts[0] === "notifications") {
     const user = getUser(req);
     if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
@@ -1097,6 +1148,7 @@ async function main() {
   startArchiveScheduler();
   startAnchorScheduler();
   startNotifyScheduler();
+  startLakeScheduler();
   server.listen(PORT, () => console.log(`[trace-api] lắng nghe cổng ${PORT}, database "${DB_NAME}"`));
 }
 
