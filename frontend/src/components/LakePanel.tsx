@@ -93,7 +93,7 @@ export default function LakePanel() {
   return (
     <Card title="Hồ dữ liệu phân tích">
       <p className="text-sm text-stone-600">
-        Bản sao dạng bảng cột (Parquet) của các dữ liệu chính, gồm cả dữ liệu đã chuyển sang kho lưu trữ, để phân tích nhanh mà không làm chậm hệ thống đang dùng. Mỗi lần xuất ghi lại dữ liệu lấy từ đâu và mã kiểm tra nguyên vẹn của tệp.
+        Bản sao dạng bảng của các dữ liệu chính, gồm cả dữ liệu đã chuyển sang kho lưu trữ, để phân tích nhanh mà không làm chậm hệ thống đang dùng. Mỗi lần xuất ghi lại dữ liệu lấy từ đâu và mã kiểm tra nguyên vẹn của tệp.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button onClick={() => void exportNow()} disabled={busy} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">

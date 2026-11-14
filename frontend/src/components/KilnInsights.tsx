@@ -83,7 +83,7 @@ export default function KilnInsights() {
             ))}
           </dl>
           {runs.length === 0 ? (
-            <p className="mt-4 text-sm text-stone-500">Chưa có công đoạn nung nào gắn bằng chứng IoT trong phạm vi bạn được xem.</p>
+            <p className="mt-4 text-sm text-stone-500">Chưa có công đoạn nung nào gắn dữ liệu cảm biến trong phạm vi bạn được xem.</p>
           ) : (
             <ul className="mt-4 divide-y divide-stone-100">
               {runs.slice(0, 12).map((r) => {

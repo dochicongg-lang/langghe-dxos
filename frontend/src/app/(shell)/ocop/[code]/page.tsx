@@ -106,7 +106,7 @@ function Application() {
           <Card title="Quy trình">
             <p className="mb-3">
               <span className={`rounded-full px-3 py-1 text-sm font-medium ${stateTone[app.state] ?? ""}`}>{stateLabels[app.state] ?? app.state}</span>
-              {app.open_task && <span className="ml-3 text-xs text-stone-500">Flowable đang ở bước: {app.open_task.name}</span>}
+              {app.open_task && <span className="ml-3 text-xs text-stone-500">Bước hiện tại: {app.open_task.name}</span>}
             </p>
             <ol className="flex flex-col gap-2 sm:flex-row">
               {steps.map((s, i) => {

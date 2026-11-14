@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="Quét mã QR trên sản phẩm">
+  <rect width="320" height="180" rx="14" fill="#F8E6D6"/>
+  <circle cx="64" cy="40" r="44" fill="#F3CFB2" opacity=".7"/>
+  <rect x="0" y="146" width="320" height="34" fill="#C98456"/>
+  <g stroke="#7A4A25" stroke-width="3" stroke-linejoin="round">
+    <path d="M62 148 C32 142 26 96 46 72 C54 62 54 52 52 40 H92 C90 52 90 62 98 72 C118 96 112 142 82 148Z" fill="#F7E8CF"/>
+    <rect x="46" y="30" width="52" height="12" rx="5" fill="#E2C79B"/>
+  </g>
+  <rect x="56" y="88" width="32" height="32" rx="3" fill="#FFFFFF" stroke="#2B211C" stroke-width="2"/>
+  <g fill="#2B211C"><rect x="60" y="92" width="10" height="10"/><rect x="74" y="92" width="10" height="10"/><rect x="60" y="106" width="10" height="10"/><rect x="74" y="106" width="5" height="5"/><rect x="80" y="112" width="4" height="4"/></g>
+  <rect x="62" y="94" width="6" height="6" fill="#FFFFFF"/><rect x="76" y="94" width="6" height="6" fill="#FFFFFF"/><rect x="62" y="108" width="6" height="6" fill="#FFFFFF"/>
+  <g transform="rotate(10 220 84)">
+    <rect x="178" y="22" width="84" height="148" rx="14" fill="#2B211C"/>
+    <rect x="184" y="32" width="72" height="128" rx="8" fill="#FFF8EE"/>
+    <rect x="206" y="26" width="28" height="4" rx="2" fill="#5A4A40"/>
+    <rect x="192" y="42" width="56" height="30" rx="5" fill="#B5502B"/>
+    <path d="M200 52h28M200 62h40" stroke="#F8D3BC" stroke-width="4" stroke-linecap="round"/>
+    <path d="M194 86h52M194 98h40M194 110h46" stroke="#E2C7B0" stroke-width="5" stroke-linecap="round"/>
+    <path d="M192 132l6 6 12-14" fill="none" stroke="#2F7D4F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M218 132h28" stroke="#E2C7B0" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <path d="M106 90 C140 70 150 76 168 82" fill="none" stroke="#B5502B" stroke-width="3" stroke-dasharray="6 6" stroke-linecap="round"/>
+  <path d="M164 74l10 8-12 4z" fill="#B5502B"/>
+</svg>

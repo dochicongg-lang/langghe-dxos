@@ -100,20 +100,20 @@ export default function DataPage() {
 
   return (
     <>
-      <PageTitle title="Data" desc="Dữ liệu được lưu ở đâu, giữ bao lâu và được bảo vệ thế nào." />
+      <PageTitle title="Dữ liệu và lưu trữ" desc="Dữ liệu được lưu ở đâu, giữ bao lâu và được bảo vệ thế nào." />
 
       <section aria-labelledby="tiers">
         <h2 id="tiers" className="mb-3 text-base font-semibold text-stone-800">
           Vòng đời dữ liệu
         </h2>
         <ol className="grid gap-3 md:grid-cols-3">
-          <Tier label="Đang dùng" tone="bg-orange-50 text-orange-700" title="Kho đang dùng · PostgreSQL">
+          <Tier label="Đang dùng" tone="bg-orange-50 text-orange-700" title="Kho đang dùng">
             Dữ liệu xử lý hằng ngày: sản phẩm, hồ sơ và lịch sử gần đây. Mở ra rất nhanh.
           </Tier>
-          <Tier label="Lưu trữ" tone="bg-sky-50 text-sky-700" title="Kho lưu trữ lâu dài · MinIO">
+          <Tier label="Lưu trữ" tone="bg-sky-50 text-sky-700" title="Kho lưu trữ lâu dài">
             Lịch sử của hồ sơ đã kết thúc và quá hạn được nén gọn, gắn mã kiểm tra nguyên vẹn rồi chuyển khỏi kho đang dùng, để hệ thống luôn nhanh mà vẫn tra cứu lại được.
           </Tier>
-          <Tier label="Khóa" tone="bg-emerald-50 text-emerald-700" title="Kho khóa chống sửa · MinIO">
+          <Tier label="Khóa" tone="bg-emerald-50 text-emerald-700" title="Kho khóa chống sửa">
             Số liệu cảm biến chỉ ghi được một lần và bị khóa trong thời hạn giữ. Nếu có ai ghi đè hay xóa, hệ thống phát hiện và báo ngay.
           </Tier>
         </ol>

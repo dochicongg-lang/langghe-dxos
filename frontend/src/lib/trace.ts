@@ -10,9 +10,11 @@ export const stageLabels: Record<string, string> = {
   "kiem-dinh": "Kiểm định",
   "dong-goi": "Đóng gói",
   "phan-phoi": "Phân phối",
+  "nhuom-hoan-thien": "Nhuộm, hoàn thiện",
 };
 
-export const stageOrder = Object.keys(stageLabels);
+// Thứ tự chuẩn của ngành mặc định (gốm); mỗi ngành có chuỗi riêng do máy chủ trả về trong ProductDetail.stages
+export const stageOrder = ["nguyen-lieu", "so-che", "tao-hinh", "nung-hoan-thien", "kiem-dinh", "dong-goi", "phan-phoi"];
 
 /** Chất lượng số liệu cảm biến trong khoảng nung (máy chủ tự đánh giá). */
 export interface IotQuality {
@@ -73,6 +75,7 @@ export interface ProductSummary {
   created_at: string;
   event_count: number;
   last_stage: string | null;
+  sector?: string; // gom | lua ...
   owner?: string | null;
   coop?: string | null;
 }
@@ -87,6 +90,9 @@ export interface ProductDetail {
   code: string;
   name: string;
   category: string;
+  sector?: string;
+  sector_label?: string;
+  stages?: { key: string; label: string }[]; // chuỗi công đoạn của ngành sản phẩm này
   village: string;
   artisan: string;
   created_at: string;

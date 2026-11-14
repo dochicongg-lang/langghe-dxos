@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="Hồ sơ OCOP và chứng nhận">
+  <rect width="320" height="180" rx="14" fill="#F8E6D6"/>
+  <circle cx="270" cy="150" r="60" fill="#F3CFB2" opacity=".7"/>
+  <g transform="rotate(-4 120 90)">
+    <rect x="60" y="22" width="150" height="132" rx="10" fill="#FFFFFF" stroke="#C97B50" stroke-width="2.5"/>
+    <path d="M80 50h74M80 66h110M80 82h110M80 98h70" stroke="#E2C7B0" stroke-width="6" stroke-linecap="round"/>
+    <path d="M80 128h50" stroke="#B5502B" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <g transform="rotate(5 228 70)">
+    <rect x="170" y="44" width="116" height="84" rx="10" fill="#FFF8EE" stroke="#B5502B" stroke-width="2.5"/>
+    <rect x="178" y="52" width="100" height="68" rx="6" fill="none" stroke="#E2B890" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <path d="M228 62l6 12 13 2-9.5 9 2.5 13-12-6.5-12 6.5 2.5-13-9.5-9 13-2z" fill="#E8A21C" stroke="#B87A10" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M200 112h56" stroke="#B5502B" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(236 118)">
+    <circle r="17" fill="#9F3A1A"/>
+    <path d="M-7 1l5 5 10-11" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M-9 14l-6 18 10-5 5 7 4-19M9 14l6 18-10-5-5 7-4-19" fill="#B5502B" opacity=".9"/>
+  </g>
+</svg>

@@ -5,3 +5,6 @@ scripts/.generated/
 
 # Bản sao lưu (chứa .env và dữ liệu): không bao giờ đưa lên git
 backups/
+
+# Ảnh minh họa (giấy phép Pexels, không đưa lên kho mã; xem frontend/public/photos/CREDITS.md)
+frontend/public/photos/*.jpg

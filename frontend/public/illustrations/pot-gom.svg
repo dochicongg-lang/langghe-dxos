@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Hình minh họa đồ gốm men rạn">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBEFE2"/><stop offset="1" stop-color="#F3D9C2"/></linearGradient>
+    <linearGradient id="vase" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#EFD9B8"/><stop offset=".55" stop-color="#F7E8CF"/><stop offset="1" stop-color="#D9B98C"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2A6468"/><stop offset=".5" stop-color="#3E8A8E"/><stop offset="1" stop-color="#235558"/></linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <circle cx="320" cy="70" r="55" fill="#F6C79C" opacity=".55"/>
+  <rect x="0" y="232" width="400" height="68" fill="#C98456"/>
+  <rect x="0" y="232" width="400" height="8" fill="#A9693D"/>
+  <ellipse cx="200" cy="244" rx="170" ry="9" fill="#5E2F14" opacity=".18"/>
+  <g stroke="#7A4A25" stroke-width="3" stroke-linejoin="round">
+    <!-- bình men rạn -->
+    <path d="M150 238 C112 230 104 170 128 138 C136 126 138 112 134 92 L134 70 H178 L178 92 C174 112 176 126 184 138 C208 170 200 230 162 238Z" fill="url(#vase)" transform="translate(-4 0)"/>
+    <rect x="128" y="58" width="56" height="14" rx="5" fill="#E2C79B"/>
+    <!-- bát xanh ngọc -->
+    <path d="M232 238 C204 236 200 214 206 202 C226 194 270 194 290 202 C296 214 292 236 262 238Z" fill="url(#teal)"/>
+    <ellipse cx="248" cy="202" rx="43" ry="8" fill="#5FA5A8"/>
+    <!-- lọ tròn cam đất -->
+    <path d="M308 238 C284 236 280 206 292 190 C298 182 298 176 296 170 H330 C328 176 328 182 334 190 C346 206 342 236 318 238Z" fill="#C0623A"/>
+    <rect x="294" y="162" width="38" height="10" rx="4" fill="#9F3A1A"/>
+  </g>
+  <!-- vân men rạn -->
+  <g stroke="#9C7448" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".8">
+    <path d="M130 128 l10 14 l-6 14 l12 10 M152 118 l6 18 l-8 12 M164 150 l12 8 l-2 16 M140 184 l14 6 l-4 18 M168 190 l8 18"/>
+  </g>
+  <path d="M236 214 q14 6 28 0 M240 224 q10 4 20 0" stroke="#A8D5D6" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"/>
+  <path d="M300 200 q10 -6 20 0 M298 214 q12 6 24 0" stroke="#E8A27F" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8"/>
+</svg>

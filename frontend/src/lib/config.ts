@@ -11,4 +11,10 @@ export const config = {
   iotBucket: process.env.NEXT_PUBLIC_IOT_BUCKET ?? "dxos-iot",
   // Địa chỉ công khai của giao diện, dùng làm nội dung mã QR (vd. https://truyxuat.lang-nghe.vn). Bỏ trống = dùng địa chỉ đang mở.
   publicBaseUrl: (process.env.NEXT_PUBLIC_PUBLIC_BASE_URL ?? "").replace(/\/+$/, ""),
+  // Thông tin liên hệ hỗ trợ do đơn vị vận hành đặt (bỏ trống thì trang Trợ giúp chỉ hướng dẫn nhờ quản trị viên của HTX)
+  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "",
+  supportPhone: process.env.NEXT_PUBLIC_SUPPORT_PHONE ?? "",
+  supportZalo: process.env.NEXT_PUBLIC_SUPPORT_ZALO ?? "", // số điện thoại Zalo hoặc đường dẫn https
+  supportFacebook: process.env.NEXT_PUBLIC_SUPPORT_FACEBOOK ?? "", // đường dẫn https tới trang Facebook
+  supportHours: process.env.NEXT_PUBLIC_SUPPORT_HOURS ?? "Giờ hành chính, thứ Hai đến thứ Sáu",
 };

@@ -112,6 +112,41 @@ const SAMPLES = [
     log(`+ ${s.code}: mẻ nung "${s.scenario}" -> ${r.events.find((e) => e.iot)?.insight?.verdict}`);
   }
 
+  // ---- Ngành lụa: cùng nền tảng nhưng chuỗi công đoạn riêng (nuôi tằm, ươm tơ, dệt, nhuộm...) ----
+  const SILK = [
+    {
+      code: "LUA-VP-0008",
+      name: "Khăn lụa tơ tằm nhuộm củ nâu",
+      stages: [
+        ["nguyen-lieu", "Kén tằm vàng nuôi tại Bảo Lộc, thu hoạch sau 26 ngày", "Trại tằm Bảo Lộc"],
+        ["so-che", "Ươm tơ và se sợi thủ công, độ săn đạt yêu cầu", "Xưởng ươm tơ Vạn Phúc"],
+        ["tao-hinh", "Dệt khung gỗ, khổ 50 x 180 cm, mật độ sợi đều", "Xưởng dệt Vạn Phúc"],
+        ["nhuom-hoan-thien", "Nhuộm củ nâu tự nhiên, ngâm bùn, phơi nắng ba ngày", "Xưởng nhuộm Vạn Phúc"],
+        ["kiem-dinh", "Đạt chuẩn: màu bền, không phai khi giặt thử", "Tổ kiểm định HTX"],
+        ["dong-goi", "Gấp và đóng hộp giấy tái chế", "Kho đóng gói"],
+      ],
+    },
+    {
+      code: "LUA-VP-0009",
+      name: "Áo dài lụa Hà Đông họa tiết sen",
+      stages: [
+        ["nguyen-lieu", "Tơ tằm loại một từ Bảo Lộc", "Kho tơ Vạn Phúc"],
+        ["so-che", "Nhuộm sợi trước khi dệt, giữ màu đồng nhất", "Xưởng nhuộm sợi"],
+        ["tao-hinh", "Dệt hoa sen nổi trên khung Jacquard", "Xưởng dệt Vạn Phúc"],
+      ],
+    },
+  ];
+  for (const s of SILK) {
+    const d = await api(tester, "GET", `/api/trace/products/${s.code}`);
+    if (d.status !== 404) {
+      log(`= ${s.code}: đã có, bỏ qua`);
+      continue;
+    }
+    must(await api(tester, "POST", "/api/trace/products", { code: s.code, name: s.name, category: "Lụa và dệt", village: "Làng lụa Vạn Phúc, Hà Đông", artisan: "Hợp tác xã lụa Vạn Phúc", coop: "htx-demo" }), `tạo ${s.code}`);
+    for (const [stage, note, location] of s.stages) must(await api(tester, "POST", `/api/trace/products/${s.code}/events`, { stage, note, location }), `công đoạn ${stage} của ${s.code}`);
+    log(`+ tạo sản phẩm lụa ${s.code} (${s.stages.length} công đoạn)`);
+  }
+
   // ---- Hồ sơ OCOP đã đi hết quy trình cho GOM-BT-0001 ----
   const apps = must(await api(ocop, "GET", "/api/trace/applications"), "đọc hồ sơ").applications;
   if (apps.some((a) => a.product_code === "GOM-BT-0001" || (a.product_name === "Bình gốm men rạn Bát Tràng" && a.state === "recognized"))) {

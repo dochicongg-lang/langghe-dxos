@@ -21,7 +21,7 @@ export default function Header({ onMenu }: { onMenu: () => void }) {
             <path d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <p className="hidden text-sm text-stone-500 sm:block">Cổng dịch vụ dùng chung</p>
+        <p className="hidden text-sm text-stone-500 sm:block">Cổng dịch vụ làng nghề</p>
       </div>
       <div className="flex items-center gap-3">
         <NotificationBell />

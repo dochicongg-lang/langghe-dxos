@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "./AuthProvider";
 import Header from "./Header";
+import HelpWidget from "./HelpWidget";
 import Sidebar from "./Sidebar";
 import { canSee } from "@/lib/pages";
 
@@ -18,10 +19,13 @@ export default function ShellFrame({ children }: { children: React.ReactNode }) 
   const allowed = canSee(user, pathname);
   return (
     <div className="flex min-h-screen bg-canvas">
+      <a href="#noi-dung" className="sr-only z-50 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
+        Bỏ qua menu, đến nội dung chính
+      </a>
       <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onMenu={() => setNavOpen(true)} />
-        <main className="flex-1 p-4 md:p-6">
+        <main id="noi-dung" tabIndex={-1} className="flex-1 p-4 outline-none md:p-6">
           {allowed ? (
             children
           ) : (
@@ -29,12 +33,25 @@ export default function ShellFrame({ children }: { children: React.ReactNode }) 
               <p className="text-lg font-semibold text-stone-900">Trang này không thuộc vai trò của bạn</p>
               <p className="mt-2 text-sm text-stone-600">Tài khoản hiện tại không được cấp quyền xem nội dung này. Nếu cần, hãy liên hệ quản trị viên.</p>
               <Link href="/" className="mt-5 inline-block rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-                Về trang tổng quan
+                Về trang chủ
               </Link>
             </div>
           )}
         </main>
+        <footer className="border-t border-stone-200 px-4 py-4 pr-32 text-xs text-stone-500 md:px-6 md:pr-36">
+          <p>
+            Làng Nghề Số · Hỗ trợ lập hồ sơ OCOP và truy xuất nguồn gốc làng nghề. Kết quả OCOP chính thức do cơ quan có thẩm quyền quyết định.{" "}
+            <Link href="/help" className="font-medium text-brand-700 hover:underline">
+              Trợ giúp và liên hệ
+            </Link>
+            {" · "}
+            <Link href="/gioi-thieu" className="font-medium text-brand-700 hover:underline">
+              Giới thiệu
+            </Link>
+          </p>
+        </footer>
       </div>
+      <HelpWidget />
     </div>
   );
 }

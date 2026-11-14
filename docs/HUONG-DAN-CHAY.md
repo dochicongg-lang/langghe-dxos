@@ -441,6 +441,14 @@ Dữ liệu chính của hệ thống nằm ở PostgreSQL (đang dùng) và kho
 
 Tạo gói phát hành bằng `bash scripts/make-release-archive.sh 0.3.0` (kiểm đủ tệp, không CRLF, không chứa `.env`/`backups`). Đừng tự chạy `git archive` trên Windows. Mã QR quét được bằng điện thoại khi build giao diện với `NEXT_PUBLIC_PUBLIC_BASE_URL=http://<IP-LAN>:3000`, rồi `npm run start -- -H 0.0.0.0` (điện thoại cùng Wi-Fi; Windows có thể hỏi mở cổng tường lửa). Đã kiểm chứng trang `/verify/<mã>` mở được qua địa chỉ LAN; chưa thử bằng điện thoại thật.
 
+## 21. Ngành nghề, giao diện và kênh liên hệ
+
+- **Ngành nghề:** gốm và lụa dùng chung nền tảng, mỗi ngành có chuỗi công đoạn riêng khai báo ở `config/sectors.json` (sau khi đổi, `docker compose up -d --build trace-api`). Ngành của sản phẩm suy ra từ **danh mục**: có chữ "gốm" hoặc "sứ" là gốm; "lụa", "dệt", "tơ", "vải", "thổ cẩm" là lụa; không khớp thì tính là gốm. Công đoạn không thuộc ngành bị từ chối. Trang `/nen-tang` (menu Cấu trúc nền tảng) cho thấy bốn tầng H-P-D-I của từng ngành; ngành lụa **chưa có** phân tích riêng, chỉ gốm có phân tích mẻ nung.
+- **Trang giới thiệu công khai:** http://localhost:3000/gioi-thieu (không cần đăng nhập).
+- **Kênh liên hệ:** đặt `NEXT_PUBLIC_SUPPORT_PHONE`, `NEXT_PUBLIC_SUPPORT_ZALO` (số điện thoại hoặc đường dẫn https), `NEXT_PUBLIC_SUPPORT_FACEBOOK` (đường dẫn https), `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_HOURS` trong môi trường chạy frontend (xem `frontend/.env.example`) rồi khởi động lại giao diện. Kênh nào để trống thì không hiện; chưa đặt kênh nào thì nút "Liên hệ" không xuất hiện.
+- **Ảnh chụp minh họa** (`frontend/public/photos/`, giấy phép Pexels) không đi kèm kho mã. Muốn có ảnh khi trình diễn, đặt các tệp theo bảng trong `frontend/public/photos/CREDITS.md`; thiếu ảnh thì giao diện dùng hình vẽ hoặc ẩn ảnh.
+- **Dựng lại sạch dữ liệu thử:** `bash scripts/backup.sh`, `docker compose down -v`, `bash scripts/upgrade.sh` (Keycloak khởi động lại mất khoảng 3 phút trên máy ít RAM, lần chạy đầu có thể báo unhealthy: chờ khỏe rồi chạy lại), rồi `node scripts/seed-demo.js`.
+
 ## 20. Đưa hệ thống ra Internet
 
 Xem [TRIEN-KHAI-INTERNET.md](TRIEN-KHAI-INTERNET.md). Trước tiên chạy `node scripts/prod-check.js` để biết hệ thống còn thiếu gì (mật khẩu mẫu, khóa dữ liệu chưa ở chế độ COMPLIANCE, HTTPS, chế độ Keycloak, tài khoản thử...). Hệ thống hiện mới chạy thật trên máy phát triển, chưa triển khai thật lên Internet.
