@@ -113,7 +113,7 @@ node scripts/check-audit-log.js                     # nhật ký kiểm toán th
 
 ## Lưu ý cho nhóm phát triển
 
-- Gói phát hành phải tạo bằng `bash scripts/make-release-archive.sh <phiên-bản>` (ép LF, tự kiểm); các gói cũ v0.1.0 đến v0.2.1 có CRLF nên script lỗi trên Linux/macOS; dùng v0.3.0 trở lên.
+- Gói phát hành phải tạo bằng `bash scripts/make-release-archive.sh <phiên-bản>` (ép LF, tự kiểm); các gói cũ v0.1.0 đến v0.2.1 có CRLF nên script lỗi trên Linux/macOS; dùng v0.3.1 trở lên.
 Các điểm sau cố ý **không** hiển thị trên giao diện, nhưng cần nắm trước khi dùng thật hoặc trình diễn:
 
 - **Quy định OCOP** (`config/ocop-profiles.json`, hồ sơ `hanoi-2026`): số liệu (thang điểm, ngưỡng sao, hiệu lực 36 tháng, danh mục giấy tờ, cấp thẩm quyền) tổng hợp từ báo chí và cổng thông tin, đặt `"verified": false`. Phải đối chiếu Quyết định 26/2026/QĐ-TTg và Quyết định 3488/QĐ-UBND trước khi dùng cho hồ sơ thật. Đổi tệp thì API và giao diện đổi theo, không cần sửa mã.
