@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 The Làng Nghề Số contributors
 # Cấu hình APISIX (chế độ etcd). Biến ${{VAR}} được đọc từ môi trường container.
+apisix:
+  node_listen:
+    - 9080 # cổng gác công khai (docker-compose publish ra máy chủ)
+    - 9081 # cổng NỘI BỘ: KHÔNG publish ra máy chủ, chỉ trong mạng Docker; route flowable-internal (trace-api -> Flowable) chỉ khớp ở cổng này
+
 deployment:
   role: traditional
   role_traditional:

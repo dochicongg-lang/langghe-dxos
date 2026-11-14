@@ -4,22 +4,26 @@
 /**
  * Lớp trung gian gọi Flowable REST (G2.2). Trình duyệt KHÔNG gọi Flowable trực tiếp cho nghiệp vụ OCOP:
  * mọi thao tác đi qua trace-api (đã kiểm quyền theo config/access.json), rồi trace-api mới điều khiển Flowable
- * từ trong mạng Docker bằng tài khoản dịch vụ ở biến môi trường (FLOWABLE_USER/FLOWABLE_PASSWORD).
- * Giới hạn đã biết: tài khoản dịch vụ hiện là rest-admin (chưa kiểm chứng được người dùng Flowable ít quyền trên 7.0.1).
+ * từ trong mạng Docker. Hai cách xác thực:
+ *   - apiKey (mặc định khi triển khai): gọi route NỘI BỘ của cổng gác (cổng 9081, không publish ra máy chủ) kèm khóa X-Internal-Key. Cổng gác
+ *     gắn Basic auth của Flowable và chỉ cho đúng ba thao tác của quy trình OCOP (apisix/flowable-internal.lua), nên trace-api KHÔNG giữ mật
+ *     khẩu admin của Flowable và nếu bị chiếm cũng không xóa được quy trình, tạo người dùng hay quản trị engine.
+ *   - user/password (Basic): gọi thẳng Flowable, giữ lại cho thử nghiệm cục bộ.
+ * Lý do làm ở cổng gác: Flowable REST không phân quyền mịn, chỉ cần quyền access-rest-api là làm được mọi thứ (đã kiểm chứng trên 7.0.1).
  */
 const PROCESS_KEY = "dxosOcopSupport";
 
 class FlowableError extends Error {}
 
-function createFlowableClient({ baseUrl, user, password, fetchImpl = fetch }) {
-  const auth = "Basic " + Buffer.from(`${user}:${password}`).toString("base64");
+function createFlowableClient({ baseUrl, apiKey, user, password, fetchImpl = fetch }) {
+  const authHeaders = apiKey ? { "x-internal-key": apiKey } : { authorization: "Basic " + Buffer.from(`${user}:${password}`).toString("base64") };
 
   async function call(method, path, body) {
     let res;
     try {
       res = await fetchImpl(`${baseUrl}${path}`, {
         method,
-        headers: { authorization: auth, accept: "application/json", ...(body ? { "content-type": "application/json" } : {}) },
+        headers: { ...authHeaders, accept: "application/json", ...(body ? { "content-type": "application/json" } : {}) },
         body: body ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(10_000),
       });

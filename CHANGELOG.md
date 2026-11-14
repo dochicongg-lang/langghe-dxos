@@ -11,6 +11,7 @@ Số `#n` là pull request trên GitHub.
 - **Sao lưu, khôi phục và tự phục hồi:** `scripts/backup.sh`, `scripts/restore.sh`, `scripts/heal.sh`; `trace-api` có healthcheck; kiểm chứng thật bằng `scripts/check-backup-restore.js`.
 
 ### Bảo mật
+- `trace-api` không còn giữ mật khẩu admin của Flowable: gọi Flowable qua route nội bộ của cổng gác (cổng 9081 không publish, cần khóa riêng) chỉ cho ba thao tác của quy trình OCOP; mọi thao tác quản trị khác bị từ chối (`scripts/check-flowable-internal.js`).
 - Vai trò chỉ-xem (`readonly`) không còn đọc được bucket tệp hồ sơ và bucket bản neo khi đi thẳng vào MinIO: policy dựng sẵn của MinIO được ghi đè bằng bản có Deny hai bucket nội bộ (`scripts/check-minio-direct.js`).
 
 ### Sửa

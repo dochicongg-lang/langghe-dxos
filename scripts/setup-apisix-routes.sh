@@ -74,6 +74,14 @@ JSON
 echo
 echo "OK: route /api/workflow/* đã được bảo vệ bằng JWT Keycloak (realm ${KEYCLOAK_REALM})."
 
+# Route NỘI BỘ trace-api -> Flowable (chỉ khớp ở cổng 9081, không publish ra máy chủ). Flowable REST không phân quyền mịn nên việc giới hạn
+# làm ở đây bằng danh sách cho phép (apisix/flowable-internal.lua): chỉ bắt đầu quy trình hồ sơ OCOP, xem việc của một tiến trình, hoàn thành việc.
+# Cổng gác gắn Basic auth của Flowable; trace-api chỉ giữ FLOWABLE_PROXY_KEY.
+[ -n "${FLOWABLE_PROXY_KEY:-}" ] || { echo "Thiếu FLOWABLE_PROXY_KEY trong .env (chạy bash scripts/upgrade.sh để bổ sung khóa còn thiếu)"; exit 1; }
+FLOWABLE_ROUTE=$(FLOWABLE_PROXY_KEY="$FLOWABLE_PROXY_KEY" FLOWABLE_BASIC="$FLOWABLE_BASIC" node scripts/gen-flowable-route.js) || { echo "Không sinh được route nội bộ Flowable"; exit 1; }
+curl -fsS -X PUT "$ADMIN/routes/flowable-internal" -H "X-API-KEY: $APISIX_ADMIN_KEY" -d "$FLOWABLE_ROUTE" >/dev/null
+echo "OK: route nội bộ Flowable (cổng 9081, danh sách cho phép: bắt đầu quy trình OCOP, xem/hoàn thành việc)."
+
 # ---- MinIO: bucket riêng tư + S3/STS trên host s3.localhost (xác thực JWT bằng MinIO OIDC) ----
 # Route S3 chặn mọi yêu cầu đổi khóa dữ liệu (?retention, ?legal-hold, ?object-lock, tiêu đề bypass-governance-retention): bản MinIO này
 # cho BẤT KỲ tài khoản STS nào (kể cả chỉ đọc) gỡ hạn khóa Governance khi gửi PutObjectRetention rỗng kèm tiêu đề bypass, bất chấp policy
