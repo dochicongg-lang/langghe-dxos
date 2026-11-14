@@ -53,7 +53,7 @@ function stagesFor(cfg, category) {
 
 /** Cấu hình gửi cho giao diện (không có gì nhạy cảm). */
 function publicView(cfg) {
-  return { defaultSector: cfg.defaultSector, sectors: cfg.sectors.map((s) => ({ key: s.key, label: s.label, intelligence: s.intelligence ?? null, analysis: s.analysis ?? null, sensorStage: s.sensorStage ?? null, stages: s.stages })) };
+  return { defaultSector: cfg.defaultSector, sectors: cfg.sectors.map((s) => ({ key: s.key, label: s.label, intelligence: s.intelligence ?? null, analysis: s.analysis ?? null, sensorStage: s.sensorStage ?? null, ocopGroup: s.ocopGroup ?? null, stages: s.stages })) };
 }
 
 module.exports = { load, validate, sectorOf, stagesFor, publicView };

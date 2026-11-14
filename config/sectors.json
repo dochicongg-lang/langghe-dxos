@@ -1,40 +1,95 @@
 {
-  "_doc": "Ngành nghề và chuỗi công đoạn riêng của từng ngành. sensorStage: công đoạn được gắn dữ liệu cảm biến (gốm: nhiệt độ lò khi nung; lụa: nhiệt độ bể khi chuội nhuộm). analysis: loại phân tích (kiln = mẻ nung, dye = mẻ nhuộm), hồ sơ ngưỡng tương ứng nằm ở config/kiln-profiles.json. Chuỗi lụa theo thực tế làng Vạn Phúc: làng chủ yếu DỆT, tơ nhập từ nơi nuôi tằm (Bảo Lộc, Hà Nam, Nam Định...), nên nuôi tằm và ươm tơ không phải công đoạn tại làng mà là nguồn của công đoạn nguyên liệu. Đổi file rồi chạy: docker compose restart trace-api",
+  "_doc": "Ngành nghề và chuỗi công đoạn riêng của từng ngành. sensorStage: công đoạn được gắn dữ liệu cảm biến (gốm: nhiệt độ lò khi nung; lụa: nhiệt độ bể khi chuội nhuộm). analysis: loại phân tích (kiln = mẻ nung, dye = mẻ nhuộm), hồ sơ ngưỡng tương ứng nằm ở config/kiln-profiles.json. Chuỗi lụa theo thực tế làng Vạn Phúc: làng chủ yếu DỆT, tơ nhập từ nơi nuôi tằm (Bảo Lộc, Hà Nam, Nam Định...), nên nuôi tằm và ươm tơ không phải công đoạn tại làng mà là nguồn của công đoạn nguyên liệu. Đổi file rồi chạy: docker compose restart trace-api ocopGroup: nhóm sản phẩm OCOP của ngành (khóa trong config/ocop-profiles.json); biểu mẫu lập hồ sơ chỉ cho chọn các nhóm này.",
   "defaultSector": "gom",
   "sectors": [
     {
       "key": "gom",
       "label": "Gốm sứ",
-      "match": ["gốm", "gom", "sứ"],
+      "match": [
+        "gốm",
+        "gom",
+        "sứ"
+      ],
       "intelligence": "kiln",
       "analysis": "kiln",
       "sensorStage": "nung-hoan-thien",
       "stages": [
-        { "key": "nguyen-lieu", "label": "Nguyên liệu" },
-        { "key": "so-che", "label": "Sơ chế" },
-        { "key": "tao-hinh", "label": "Tạo hình" },
-        { "key": "nung-hoan-thien", "label": "Nung / hoàn thiện" },
-        { "key": "kiem-dinh", "label": "Kiểm định" },
-        { "key": "dong-goi", "label": "Đóng gói" },
-        { "key": "phan-phoi", "label": "Phân phối" }
-      ]
+        {
+          "key": "nguyen-lieu",
+          "label": "Nguyên liệu"
+        },
+        {
+          "key": "so-che",
+          "label": "Sơ chế"
+        },
+        {
+          "key": "tao-hinh",
+          "label": "Tạo hình"
+        },
+        {
+          "key": "nung-hoan-thien",
+          "label": "Nung / hoàn thiện"
+        },
+        {
+          "key": "kiem-dinh",
+          "label": "Kiểm định"
+        },
+        {
+          "key": "dong-goi",
+          "label": "Đóng gói"
+        },
+        {
+          "key": "phan-phoi",
+          "label": "Phân phối"
+        }
+      ],
+      "ocopGroup": "thu-cong-my-nghe"
     },
     {
       "key": "lua",
       "label": "Lụa và dệt",
-      "match": ["lụa", "lua", "dệt", "tơ", "vải", "thổ cẩm"],
+      "match": [
+        "lụa",
+        "lua",
+        "dệt",
+        "tơ",
+        "vải",
+        "thổ cẩm"
+      ],
       "intelligence": "dye",
       "analysis": "dye",
       "sensorStage": "nhuom-hoan-thien",
       "stages": [
-        { "key": "nguyen-lieu", "label": "Nguyên liệu tơ" },
-        { "key": "so-che", "label": "Chuẩn bị sợi" },
-        { "key": "tao-hinh", "label": "Dệt" },
-        { "key": "nhuom-hoan-thien", "label": "Chuội nhuộm, hoàn thiện" },
-        { "key": "kiem-dinh", "label": "Kiểm định" },
-        { "key": "dong-goi", "label": "Đóng gói" },
-        { "key": "phan-phoi", "label": "Phân phối" }
-      ]
+        {
+          "key": "nguyen-lieu",
+          "label": "Nguyên liệu tơ"
+        },
+        {
+          "key": "so-che",
+          "label": "Chuẩn bị sợi"
+        },
+        {
+          "key": "tao-hinh",
+          "label": "Dệt"
+        },
+        {
+          "key": "nhuom-hoan-thien",
+          "label": "Chuội nhuộm, hoàn thiện"
+        },
+        {
+          "key": "kiem-dinh",
+          "label": "Kiểm định"
+        },
+        {
+          "key": "dong-goi",
+          "label": "Đóng gói"
+        },
+        {
+          "key": "phan-phoi",
+          "label": "Phân phối"
+        }
+      ],
+      "ocopGroup": "thu-cong-my-nghe"
     }
   ]
 }
