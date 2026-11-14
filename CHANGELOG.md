@@ -5,8 +5,12 @@ Số `#n` là pull request trên GitHub.
 
 ## [Chưa phát hành]
 
-### Thêm
-- **Thêm cảm biến ngoài nhiệt độ (mô phỏng):** độ pH của bể nhuộm (`dye-01`, khoảng tham khảo 4–6), độ ẩm xưởng dệt lụa (`weave-01`) và phòng sấy mộc gốm (`dry-01`); trang Phân tích hiện mỗi chỉ số thành một thẻ riêng, menu ghi rõ mẻ nhuộm và môi trường xưởng. Các chỉ số này mới để theo dõi, chưa đưa vào kết luận phân tích mẻ.
+### Sửa
+- Trang tra cứu công khai của ngành lụa không còn ghi "nuôi tằm, ươm tơ" ở chương đầu (làng chủ yếu dệt, tơ nhập từ nơi khác); nay ghi đúng ba công đoạn: tơ, chuẩn bị sợi, dệt.
+- Dữ liệu mẫu (`scripts/seed-demo.js`): ngày các công đoạn nay khớp với ngày đo của cảm biến (trước đó lệch nhau cả tháng), ngày quyết định OCOP đặt sau ngày nung, và có thêm hồ sơ OCOP mẫu đã được công nhận cho sản phẩm lụa LUA-VP-0008 (HTX lụa).
+
+### Xóa
+- Bỏ các cảm biến mô phỏng pH bể nhuộm, độ ẩm xưởng dệt và phòng sấy: truy xuất chỉ dựa trên nhiệt độ lò và bể nhuộm là số liệu thật sự theo dõi được với chi phí thấp, các chỉ số kia không vào bằng chứng của mẻ nên không có giá trị truy xuất.
 
 ## [0.3.0] - 2026-11-15
 
@@ -43,6 +47,11 @@ Số `#n` là pull request trên GitHub.
 ### Sửa
 - Tài liệu `docs/HUONG-DAN-CHAY.md`: sửa mục xác thực hai yếu tố (OTP): sau khi người dùng cài OTP, đăng nhập mật khẩu trực tiếp cũng bị đòi mã, kèm cách xử lý bằng `bash scripts/reset-otp.sh`; cập nhật mô tả trang Human, Process, Data, Intelligence và tên các màn hình tiếng Việt của Keycloak.
 - Làm gọn tài liệu và lời văn trong README, NOTICE, CLAUDE.md và chú thích của `scripts/add-license-headers.js`; `scripts/seed-demo.js` không còn trỏ tới tài liệu đã gỡ.
+
+### Sửa
+- Trang tra cứu công khai của ngành lụa không còn ghi "nuôi tằm, ươm tơ" ở chương đầu (làng chủ yếu dệt, tơ nhập từ nơi khác); nay ghi đúng ba công đoạn: tơ, chuẩn bị sợi, dệt.
+
+- Dữ liệu mẫu (`scripts/seed-demo.js`): ngày các công đoạn nay khớp với ngày đo của cảm biến (trước đó lệch nhau cả tháng), ngày quyết định OCOP đặt sau ngày nung, và có thêm hồ sơ OCOP mẫu đã được công nhận cho sản phẩm lụa LUA-VP-0008 (HTX lụa).
 
 ### Xóa
 - Gỡ khỏi kho mã hai tài liệu nội bộ không thuộc mã nguồn.

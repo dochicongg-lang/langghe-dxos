@@ -54,9 +54,6 @@ const devices = [
   { id: "workshop-01", name: "Xưởng tạo hình", metric: "temperature", unit: "°C", value: 29, min: 22, max: 38, step: 0.4 },
   { id: "workshop-01", name: "Xưởng tạo hình", metric: "humidity", unit: "%", value: 68, min: 45, max: 90, step: 1.2 },
   { id: "dye-01", name: "Bể nhuộm tơ số 1", metric: "temperature", unit: "°C", value: 60, min: 30, max: 90, step: 1.5 },
-  { id: "dye-01", name: "Bể nhuộm tơ số 1", metric: "ph", unit: "pH", value: 5, min: 4, max: 6.5, step: 0.06 },
-  { id: "weave-01", name: "Xưởng dệt lụa", metric: "humidity", unit: "%", value: 70, min: 55, max: 85, step: 0.9 },
-  { id: "dry-01", name: "Phòng sấy mộc gốm", metric: "humidity", unit: "%", value: 48, min: 30, max: 70, step: 1.1 },
   { id: "clay-store-01", name: "Kho đất sét", metric: "humidity", unit: "%", value: 72, min: 55, max: 85, step: 0.8 },
 ];
 

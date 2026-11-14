@@ -32,7 +32,7 @@ const COPY: Record<string, { c1: [string, string, string]; c2: [string, string, 
     photos: ["/photos/chapter-nguoi-lam.jpg", "/photos/chapter-ngon-lua.jpg", "/photos/chapter-hanh-trinh.jpg"],
   },
   lua: {
-    c1: ["Từ con tằm đến sợi tơ", "Nuôi tằm, ươm tơ và dệt bằng tay", "Sợi tơ được se và dệt thủ công"],
+    c1: ["Từ sợi tơ đến tấm lụa", "Chọn tơ, chuẩn bị sợi và dệt trên khung cửi", "Sợi tơ được se, mắc và dệt thủ công"],
     c2: ["Sắc màu", "Nhuộm và hoàn thiện cho màu bền, vải mềm", "Màu nhuộm trên khung dệt"],
     c3: ["Chứng nhận và hành trình", "Kiểm định, kết quả OCOP và đường tới người mua", "Lụa đến tay người mua"],
     photos: ["/photos/craft-1.jpg", "/photos/craft-2.jpg", "/photos/craft-3.jpg"],

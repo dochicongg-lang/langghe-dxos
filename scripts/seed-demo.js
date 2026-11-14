@@ -37,6 +37,26 @@ const must = (r, what) => {
 };
 const log = (m) => console.log(m);
 
+/** Chạy một câu SQL trên CSDL truy xuất (dữ liệu mẫu). */
+function sql(q) {
+  return execFileSync("docker", ["exec", "dxos-postgres", "psql", "-U", env.POSTGRES_USER ?? "postgres", "-d", env.TRACE_DB ?? "traceability", "-tAc", q], { stdio: "pipe" }).toString().trim();
+}
+
+/**
+ * Căn mốc thời gian các công đoạn của sản phẩm mẫu theo cửa sổ đo của cảm biến: công đoạn có cảm biến diễn ra ngay SAU khi mẻ đo kết thúc (1 giờ),
+ * các công đoạn khác cách nhau 12 giờ theo thứ tự cũ. Nhờ vậy ngày trên trang công khai khớp với ngày của số liệu cảm biến. Chạy lặp lại vẫn cho cùng kết quả.
+ */
+function alignEvents(code) {
+  const q = `WITH r AS (SELECT id, iot, row_number() OVER (ORDER BY created_at, id) AS rn FROM trace_events WHERE product_id = (SELECT id FROM products WHERE code = '${code}')),
+    k AS (SELECT (iot->>'to')::timestamptz AS ts, rn AS krn FROM r WHERE iot IS NOT NULL ORDER BY rn LIMIT 1)
+    UPDATE trace_events e SET created_at = k.ts + interval '1 hour' + (r.rn - k.krn) * interval '12 hours' FROM r, k WHERE e.id = r.id`;
+  try {
+    sql(q);
+  } catch (e) {
+    log(`  (không căn được thời gian của ${code}: ${String(e.message).slice(0, 80)})`);
+  }
+}
+
 /** Đặt mốc thời gian của công đoạn nung có cảm biến ngay sau công đoạn nung cũ (dữ liệu mẫu), để dòng thời gian đúng thứ tự trên trang công khai. */
 function orderKilnEvent(code) {
   const sql = `UPDATE trace_events SET created_at = (SELECT created_at FROM trace_events o WHERE o.product_id = trace_events.product_id AND o.stage = 'nung-hoan-thien' AND o.iot IS NULL ORDER BY o.id LIMIT 1) + interval '12 hours' WHERE iot IS NOT NULL AND product_id = (SELECT id FROM products WHERE code = '${code}') AND EXISTS (SELECT 1 FROM trace_events o WHERE o.product_id = trace_events.product_id AND o.stage = 'nung-hoan-thien' AND o.iot IS NULL)`;
@@ -89,7 +109,7 @@ const SAMPLES = [
 ];
 
 (async () => {
-  const [tester, hoa, tuan, ocop] = await Promise.all(["tester", "hoa", "tuan", "ocop"].map(token));
+  const [tester, hoa, tuan, ocop, lua] = await Promise.all(["tester", "hoa", "tuan", "ocop", "lua"].map(token));
 
   // ---- Sản phẩm và mẻ nung có bằng chứng IoT ----
   for (const s of SAMPLES) {
@@ -181,9 +201,28 @@ const SAMPLES = [
     if (img.status !== 201) throw new Error(`tải ảnh mẫu thất bại (HTTP ${img.status})`);
     must(await api(hoa, "POST", `/api/trace/applications/${code}/actions`, { action: "submit" }), "nộp hồ sơ");
     must(await api(tuan, "POST", `/api/trace/applications/${code}/actions`, { action: "approve", note: "Hồ sơ đầy đủ, đạt sơ duyệt." }), "sơ duyệt");
-    must(await api(ocop, "POST", `/api/trace/applications/${code}/actions`, { action: "result", score: 75, decision_no: "Số 4325/QĐ-UBND", decided_at: "2026-08-16" }), "ghi kết quả");
+    must(await api(ocop, "POST", `/api/trace/applications/${code}/actions`, { action: "result", score: 75, decision_no: "Số 4325/QĐ-UBND", decided_at: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10) }), "ghi kết quả");
     log(`+ hồ sơ OCOP ${code}: nộp, sơ duyệt đạt, kết quả 4 sao (minh họa)`);
   }
+
+  // ---- Hồ sơ OCOP cho một sản phẩm lụa (HTX lụa): nghệ nhân lua lập và nộp, quản trị sơ duyệt, cán bộ OCOP ghi kết quả ----
+  const silkApps = must(await api(ocop, "GET", "/api/trace/applications"), "đọc hồ sơ lụa").applications;
+  if (silkApps.some((a) => a.product_code === "LUA-VP-0008")) {
+    log("= hồ sơ OCOP mẫu của LUA-VP-0008 đã có, bỏ qua");
+  } else {
+    const DOCS = ["phieu-dang-ky", "bao-cao-tu-danh-gia", "giay-phep-kinh-doanh", "anh-san-pham", "san-pham-mau"];
+    const app = must(await api(lua, "POST", "/api/trace/applications", { product_name: "Khăn lụa tơ tằm nhuộm axit", product_group: "thu-cong-my-nghe", product_code: "LUA-VP-0008", description: "Khăn lụa dệt tay trên khung cửi, nhuộm tơ bằng thuốc nhuộm axit.", self_score: { A: 28, B: 20, C: 24 }, documents: DOCS }), "lập hồ sơ lụa");
+    const code = app.code;
+    const img = await fetch(`${GW}/api/trace/applications/${code}/attachments?doc=anh-san-pham&name=${encodeURIComponent("anh-khan-lua.png")}`, { method: "POST", headers: { authorization: `Bearer ${lua}`, "content-type": "image/png" }, body: png(480, 360, [150, 60, 90]) });
+    if (img.status !== 201) throw new Error(`tải ảnh mẫu lụa thất bại (HTTP ${img.status})`);
+    must(await api(lua, "POST", `/api/trace/applications/${code}/actions`, { action: "submit" }), "nộp hồ sơ lụa");
+    must(await api(tester, "POST", `/api/trace/applications/${code}/actions`, { action: "approve", note: "Hồ sơ đầy đủ, đạt sơ duyệt." }), "sơ duyệt hồ sơ lụa");
+    must(await api(ocop, "POST", `/api/trace/applications/${code}/actions`, { action: "result", score: 72, decision_no: "Số 4326/QĐ-UBND", decided_at: new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10) }), "ghi kết quả lụa");
+    log(`+ hồ sơ OCOP ${code}: nộp, sơ duyệt đạt, kết quả 4 sao (minh họa, ngành lụa)`);
+  }
+
+  // Căn ngày các công đoạn theo ngày đo của cảm biến (dữ liệu mẫu), chạy lặp lại an toàn
+  for (const c of ["GOM-BT-0001", "GOM-BT-0002", "GOM-BT-0003", "LUA-VP-0008", "LUA-VP-0009", "LUA-VP-0010"]) alignEvents(c);
 
   log("\nXONG. Xem thử:");
   log("  Trang công khai (quét QR): http://localhost:3000/verify/GOM-BT-0001");
