@@ -1,7 +1,7 @@
-# Dự án: DX-OS Open-Core cho Làng Nghề Số (OLP 2026)
+# Dự án: DX-OS Open-Core cho Làng Nghề Số
 
 ## Bối cảnh
-Đây là một dự án tham gia cuộc thi Phần mềm Nguồn mở OLP 2026.
+Đây là một dự án phần mềm nguồn mở.
 Mục tiêu là xây dựng một mô hình thực hành số dựa trên Khung kiến trúc DX-OS 3 tầng:
 - Tầng 1 (Headless Core): Cung cấp dịch vụ lõi qua API, không có UI. Bắt buộc phải có: Identity/SSO, API Gateway, Workflow Engine, và Data (SQL & Object Storage).
 - Tầng 2 (H-P-D-I): Giao diện người dùng và các cổng dịch vụ dùng chung, thể hiện sự tiến hóa từ Human -> Process -> Data -> Intelligence.
