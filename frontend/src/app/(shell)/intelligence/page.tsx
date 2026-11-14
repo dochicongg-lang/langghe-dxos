@@ -11,7 +11,7 @@ import ProposalsPanel from "@/components/ProposalsPanel";
 import { fetchReadings, latestBatch, toSeries, type Reading, type Series } from "@/lib/iot";
 
 const REFRESH_MS = 10_000;
-const metricLabel: Record<string, string> = { temperature: "Nhiệt độ", humidity: "Độ ẩm" };
+const metricLabel: Record<string, string> = { temperature: "Nhiệt độ", humidity: "Độ ẩm", ph: "Độ pH" };
 
 function Sparkline({ points }: { points: { t: number; v: number }[] }) {
   if (points.length < 2) return <div className="h-14 text-xs text-stone-400">Chưa đủ điểm để vẽ</div>;

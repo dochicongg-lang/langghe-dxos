@@ -5,6 +5,9 @@ Số `#n` là pull request trên GitHub.
 
 ## [Chưa phát hành]
 
+### Thêm
+- **Thêm cảm biến ngoài nhiệt độ (mô phỏng):** độ pH của bể nhuộm (`dye-01`, khoảng tham khảo 4–6), độ ẩm xưởng dệt lụa (`weave-01`) và phòng sấy mộc gốm (`dry-01`); trang Phân tích hiện mỗi chỉ số thành một thẻ riêng, menu ghi rõ mẻ nhuộm và môi trường xưởng. Các chỉ số này mới để theo dõi, chưa đưa vào kết luận phân tích mẻ.
+
 ## [0.3.0] - 2026-11-15
 
 ### Thêm
