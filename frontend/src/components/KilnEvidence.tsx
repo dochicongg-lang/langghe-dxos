@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The Làng Nghề Số contributors
 import KilnInsightPanel from "./KilnInsight";
-import type { IotEvidence, KilnInsight } from "@/lib/trace";
+import type { IotEvidence, KilnInsight, ReferenceCurve } from "@/lib/trace";
 import Tip from "@/components/Tip";
+import CurveCompare from "@/components/CurveCompare";
 
 export const flagText = (flag: string, q: NonNullable<IotEvidence["quality"]>) =>
   ({
@@ -25,7 +26,7 @@ export function fmtDuration(fromIso: string, toIso: string) {
 }
 
 /** Đường cong nhiệt độ lò trong khoảng thời gian nung, lấy từ cảm biến IoT. */
-export default function KilnEvidence({ iot, insight }: { iot: IotEvidence; insight?: KilnInsight | null }) {
+export default function KilnEvidence({ iot, insight, reference }: { iot: IotEvidence; insight?: KilnInsight | null; reference?: ReferenceCurve | null }) {
   const w = 300;
   const h = 70;
   const ts = iot.curve.map((p) => p[0]);
@@ -47,9 +48,14 @@ export default function KilnEvidence({ iot, insight }: { iot: IotEvidence; insig
       <p className="text-xs font-medium text-brand-700">
         Dữ liệu cảm biến: {iot.deviceName || iot.deviceId} · nhiệt độ
       </p>
-      <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 h-16 w-full" preserveAspectRatio="none" role="img" aria-label="Đường cong nhiệt độ">
-        <polyline points={path} fill="none" stroke="#c04a1f" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      </svg>
+      {reference?.enough ? (
+        <CurveCompare iot={iot} reference={reference} />
+      ) : (
+        <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 h-16 w-full" preserveAspectRatio="none" role="img" aria-label="Đường cong nhiệt độ">
+          <polyline points={path} fill="none" stroke="#c04a1f" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      )}
+      {reference && !reference.enough && <p className="mt-1 text-xs text-stone-500">Chưa đủ mẻ đạt khác trên thiết bị này (cần ít nhất 3, hiện có {reference.n}) nên chưa vẽ đường chuẩn.</p>}
       <dl className="mt-2 grid grid-cols-4 gap-2 text-center text-xs">
         {[
           ["Thấp nhất", `${iot.min} ${iot.unit}`],

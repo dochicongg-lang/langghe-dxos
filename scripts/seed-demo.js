@@ -105,6 +105,9 @@ function png(w, h, [r, g, b]) {
 const SAMPLES = [
   { code: "GOM-BT-0001", scenario: "firing", daysAgo: 40, note: "Nung 1.150 °C, giữ 2 giờ, làm nguội tự nhiên (số liệu cảm biến lò)" },
   { code: "GOM-BT-0002", scenario: "overheat", daysAgo: 41, name: "Bình gốm men lam Bát Tràng (mẻ quá nhiệt)", stages: [["nguyen-lieu", "Đất sét trắng Yên Bái", "Kho đất sét Bát Tràng"], ["tao-hinh", "Vuốt tay trên bàn xoay", "Xưởng tạo hình"]], note: "Mẻ nung có sự cố quá nhiệt" },
+  { code: "GOM-BT-0004", scenario: "firing", daysAgo: 46, name: "Bình gốm men rạn Bát Tràng (mẻ 2)", stages: [["nguyen-lieu", "Đất sét trắng Yên Bái", "Kho đất sét Bát Tràng"], ["tao-hinh", "Vuốt tay trên bàn xoay", "Xưởng tạo hình"]], note: "Nung 1.150 °C, giữ 2 giờ, làm nguội tự nhiên (số liệu cảm biến lò)" },
+  { code: "GOM-BT-0005", scenario: "firing", daysAgo: 47, name: "Lọ gốm men rạn Bát Tràng", stages: [["nguyen-lieu", "Đất sét trắng Yên Bái", "Kho đất sét Bát Tràng"], ["tao-hinh", "Vuốt tay trên bàn xoay", "Xưởng tạo hình"]], note: "Nung 1.150 °C, giữ 2 giờ, làm nguội tự nhiên (số liệu cảm biến lò)" },
+  { code: "GOM-BT-0006", scenario: "firing", daysAgo: 48, name: "Chum gốm men rạn Bát Tràng", stages: [["nguyen-lieu", "Đất sét trắng Yên Bái", "Kho đất sét Bát Tràng"], ["tao-hinh", "Đắp nặn thủ công", "Xưởng tạo hình"]], note: "Nung 1.150 °C, giữ 2 giờ, làm nguội tự nhiên (số liệu cảm biến lò)" },
   { code: "GOM-BT-0003", scenario: "fast-ramp", daysAgo: 42, name: "Đĩa gốm men ngọc Bát Tràng (gia nhiệt nhanh)", stages: [["nguyen-lieu", "Đất sét trắng Yên Bái", "Kho đất sét Bát Tràng"], ["tao-hinh", "Ép khuôn thủ công", "Xưởng tạo hình"]], note: "Mẻ nung tăng nhiệt quá nhanh" },
 ];
 
@@ -150,6 +153,33 @@ const SAMPLES = [
         ["kiem-dinh", "Đạt chuẩn: thử giặt và ủi không phai màu", "Tổ kiểm định HTX"],
         ["dong-goi", "Gấp, ủi phẳng và đóng hộp giấy", "Kho đóng gói"],
       ],
+    },
+    {
+      code: "LUA-VP-0011",
+      name: "Khăn lụa tơ tằm họa tiết trúc",
+      scenario: "dye-ok",
+      daysAgo: 49,
+      before: [...COMMON, ["tao-hinh", "Dệt họa tiết trúc trên khung cửi", "Xưởng dệt Vạn Phúc"]],
+      dyeNote: "Chuội keo rồi nhuộm bằng thuốc nhuộm axit, nâng nhiệt từ từ, giữ khoảng 88 °C (số liệu cảm biến bể nhuộm)",
+      after: [["kiem-dinh", "Đạt chuẩn: thử giặt và ủi không phai màu", "Tổ kiểm định HTX"]],
+    },
+    {
+      code: "LUA-VP-0012",
+      name: "Khăn lụa tơ tằm họa tiết cúc",
+      scenario: "dye-ok",
+      daysAgo: 50,
+      before: [...COMMON, ["tao-hinh", "Dệt họa tiết cúc trên khung cửi", "Xưởng dệt Vạn Phúc"]],
+      dyeNote: "Chuội keo rồi nhuộm bằng thuốc nhuộm axit, nâng nhiệt từ từ, giữ khoảng 88 °C (số liệu cảm biến bể nhuộm)",
+      after: [["kiem-dinh", "Đạt chuẩn: thử giặt và ủi không phai màu", "Tổ kiểm định HTX"]],
+    },
+    {
+      code: "LUA-VP-0013",
+      name: "Khăn lụa tơ tằm trơn",
+      scenario: "dye-ok",
+      daysAgo: 51,
+      before: [...COMMON, ["tao-hinh", "Dệt trơn trên khung cửi", "Xưởng dệt Vạn Phúc"]],
+      dyeNote: "Chuội keo rồi nhuộm bằng thuốc nhuộm axit, nâng nhiệt từ từ, giữ khoảng 88 °C (số liệu cảm biến bể nhuộm)",
+      after: [["kiem-dinh", "Đạt chuẩn: thử giặt và ủi không phai màu", "Tổ kiểm định HTX"]],
     },
     {
       code: "LUA-VP-0009",
@@ -222,7 +252,16 @@ const SAMPLES = [
   }
 
   // Căn ngày các công đoạn theo ngày đo của cảm biến (dữ liệu mẫu), chạy lặp lại an toàn
-  for (const c of ["GOM-BT-0001", "GOM-BT-0002", "GOM-BT-0003", "LUA-VP-0008", "LUA-VP-0009", "LUA-VP-0010"]) alignEvents(c);
+  for (const c of ["GOM-BT-0001", "GOM-BT-0002", "GOM-BT-0003", "GOM-BT-0004", "GOM-BT-0005", "GOM-BT-0006", "LUA-VP-0008", "LUA-VP-0009", "LUA-VP-0010", "LUA-VP-0011", "LUA-VP-0012", "LUA-VP-0013"]) alignEvents(c);
+
+  // Sản phẩm mẫu thuộc về nghệ nhân của từng làng (do tester tạo nên mặc định thuộc tester): nhờ vậy hoa và lua tự thêm công đoạn,
+  // in mã QR được trên chính sản phẩm của mình khi thử bằng tài khoản nghệ nhân (nghệ nhân chỉ sửa được sản phẩm của chính mình).
+  try {
+    sql("UPDATE products SET owner_username = 'hoa' WHERE code LIKE 'GOM-BT-%' AND owner_username = 'tester'");
+    sql("UPDATE products SET owner_username = 'lua' WHERE code LIKE 'LUA-VP-%' AND owner_username = 'tester'");
+  } catch (e) {
+    log(`  (không gán được chủ sở hữu sản phẩm mẫu: ${String(e.message).slice(0, 80)})`);
+  }
 
   log("\nXONG. Xem thử:");
   log("  Trang công khai (quét QR): http://localhost:3000/verify/GOM-BT-0001");

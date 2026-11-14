@@ -34,6 +34,7 @@ const attachments = require("./attachments");
 const lifecycle = require("./lifecycle");
 const kiln = require("./kiln");
 const sectors = require("./sectors");
+const overview = require("./overview");
 const audit = require("./audit");
 const scan = require("./scan");
 const reminders = require("./reminders");
@@ -345,6 +346,12 @@ async function kilnPeaks(deviceId) {
   return rows;
 }
 
+/** Các bằng chứng IoT (id, iot) của một thiết bị, để dựng đường chuẩn từ những mẻ đạt khác. */
+async function kilnPeerRuns(deviceId) {
+  const { rows } = await pool.query("SELECT id, iot FROM trace_events WHERE iot IS NOT NULL AND iot->>'deviceId' = $1 ORDER BY id DESC LIMIT 200", [deviceId]);
+  return rows;
+}
+
 /** Tổng hợp phân tích các mẻ nung mà người dùng được xem (theo phạm vi product.read), mới nhất trước. */
 async function kilnInsights(user) {
   const scope = access.scopeFor(ACCESS, user.roles, "product.read");
@@ -371,6 +378,48 @@ async function kilnInsights(user) {
   return { profile: { id: d.id, name: d.name, verified: d.verified === true, note: d.note ?? "" }, summary, runs };
 }
 
+/** Tổng quan điều hành trong phạm vi quyền overview.read: hồ sơ, mẻ nung/nhuộm 90 ngày, kết quả sắp hết hiệu lực; bảng so sánh HTX chỉ ở phạm vi "all". */
+async function overviewFor(user) {
+  const scope = access.scopeFor(ACCESS, user.roles, "overview.read");
+  if (!scope) throw new HttpError(403, "Vai trò của bạn không xem được trang tổng quan");
+  const profile = ocop.getProfile(OCOP);
+  if (scope === "coop" && !user.coop) return overview.buildOverview({ scope, profile });
+  const arg = scope === "all" ? [] : [user.coop];
+  const byCoop = scope === "all" ? "" : "WHERE c.code = $1";
+  const apps = (
+    await pool.query(
+      `SELECT a.code, a.product_name, c.code AS coop, a.state,
+         (SELECT max(h.created_at) FROM ocop_application_history h WHERE h.application_id = a.id AND h.to_state = a.state AND h.action <> 'archive') AS state_since
+       FROM ocop_applications a LEFT JOIN cooperatives c ON c.id = a.coop_id ${byCoop}`,
+      arg,
+    )
+  ).rows;
+  const renewals = (
+    await pool.query(
+      `SELECT a.code, a.product_name, c.code AS coop, r.valid_until::text AS valid_until
+       FROM ocop_applications a LEFT JOIN cooperatives c ON c.id = a.coop_id
+       JOIN LATERAL (SELECT valid_until FROM ocop_results WHERE application_id = a.id AND recognized ORDER BY id DESC LIMIT 1) r ON TRUE
+       WHERE a.state = 'recognized' ${scope === "all" ? "" : "AND c.code = $1"}`,
+      arg,
+    )
+  ).rows.filter((r) => r.valid_until);
+  const evs = (
+    await pool.query(
+      `SELECT e.id, e.iot, p.category, c.code AS coop FROM trace_events e JOIN products p ON p.id = e.product_id LEFT JOIN cooperatives c ON c.id = p.coop_id
+       WHERE e.iot IS NOT NULL ${scope === "all" ? "" : "AND c.code = $1"} ORDER BY e.id DESC LIMIT 500`,
+      arg,
+    )
+  ).rows;
+  const peers = new Map();
+  const runs = [];
+  for (const e of evs) {
+    if (!peers.has(e.iot.deviceId)) peers.set(e.iot.deviceId, await kilnPeaks(e.iot.deviceId));
+    const insight = kiln.analyze(e.iot, kiln.pickProfile(KILN, e.category), { baselinePeaks: peers.get(e.iot.deviceId).filter((x) => x.id !== e.id).map((x) => x.peak) });
+    runs.push({ coop: e.coop, sector: sectors.sectorOf(SECTORS, e.category).key, verdict: insight.verdict, at: e.iot.to });
+  }
+  return overview.buildOverview({ now: new Date(), scope, profile, apps, runs, renewals });
+}
+
 /** Chi tiết sản phẩm. Bản công khai không kèm thông tin nội bộ (người tạo, chủ sở hữu, HTX). Bản nội bộ phải qua kiểm tra quyền xem. */
 async function getProduct(code, { publicView = false, user = null } = {}) {
   const p = await findProductRow(code);
@@ -387,11 +436,21 @@ async function getProduct(code, { publicView = false, user = null } = {}) {
     if (!peerCache.has(e.iot.deviceId)) peerCache.set(e.iot.deviceId, await kilnPeaks(e.iot.deviceId));
     return kiln.analyze(e.iot, kilnProfile, { baselinePeaks: peerCache.get(e.iot.deviceId).filter((r) => r.id !== e.id).map((r) => r.peak) });
   };
+  const peerRuns = new Map();
+  // Đường chuẩn (chỉ bản nội bộ): trung vị và dải giữa của các mẻ ĐẠT khác trên cùng thiết bị, kèm một câu nhận xét; ít hơn 3 mẻ đạt thì không dựng.
+  const referenceOf = async (e) => {
+    if (!e.iot || publicView) return null;
+    if (!peerRuns.has(e.iot.deviceId)) peerRuns.set(e.iot.deviceId, await kilnPeerRuns(e.iot.deviceId));
+    const okCurves = peerRuns.get(e.iot.deviceId).filter((r) => r.id !== e.id && kiln.analyze(r.iot, kilnProfile).verdict === "ok").map((r) => r.iot.curve);
+    const ref = kiln.referenceCurve(okCurves);
+    return { n: ref.n, enough: ref.enough, points: ref.points, note: kiln.compareToReference(e.iot.curve, ref, kilnProfile.terms ?? {}) };
+  };
   const events = [];
   for (const e of ev.rows) {
     const insight = await insightOf(e);
+    const reference = await referenceOf(e);
     const { id: _id, ...rest } = e;
-    events.push(publicView ? { stage: e.stage, note: e.note, location: e.location, iot: e.iot, ...(insight && kiln.publicAllows(KILN, insight.verdict) ? { insight } : {}), created_at: e.created_at } : { ...rest, ...(insight ? { insight } : {}) });
+    events.push(publicView ? { stage: e.stage, note: e.note, location: e.location, iot: e.iot, ...(insight && kiln.publicAllows(KILN, insight.verdict) ? { insight } : {}), created_at: e.created_at } : { ...rest, ...(insight ? { insight } : {}), ...(reference ? { reference } : {}) });
   }
   const sector = sectors.sectorOf(SECTORS, p.category);
   const product = { code: p.code, name: p.name, category: p.category, sector: sector.key, sector_label: sector.label, sensor_stage: sector.sensorStage ?? null, stages: sector.stages, village: p.village, artisan: p.artisan, created_at: p.created_at };
@@ -1209,6 +1268,12 @@ async function route(req, res) {
     }
     if (parts.length === 2 && parts[1] === "verify" && m === "GET") return send(res, 200, await verifyAudit());
     if (parts.length === 2 && parts[1] === "anchor" && m === "POST") return send(res, 200, (await runAnchor()) ?? { skipped: "empty" });
+  }
+
+  if (parts[0] === "overview" && parts.length === 1 && m === "GET") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    return send(res, 200, await overviewFor(user));
   }
 
   if (parts[0] === "archive") {

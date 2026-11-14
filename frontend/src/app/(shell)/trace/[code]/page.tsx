@@ -12,7 +12,6 @@ import ProcessProgress from "@/components/ProcessProgress";
 import SuggestInput, { uniqueSuggestions } from "@/components/SuggestInput";
 import QrCode from "@/components/QrCode";
 import ProductImage from "@/components/ProductImage";
-import Photo from "@/components/Photo";
 import StageIcon from "@/components/StageIcon";
 import { config } from "@/lib/config";
 import { fmtDate, stageLabels, stageOrder, type ProductDetail } from "@/lib/trace";
@@ -119,7 +118,19 @@ function Product() {
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           <Card title="Tiến trình công đoạn">
-            <ProcessProgress stages={stages} events={product.events} />
+            <ProcessProgress
+              stages={stages}
+              events={product.events}
+              skip={["kiem-dinh"]}
+              onRecord={
+                canWrite
+                  ? (k) => {
+                      setStage(k);
+                      document.getElementById("them-cong-doan")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }
+                  : undefined
+              }
+            />
           </Card>
 
           <Card title="Dòng thời gian">
@@ -139,7 +150,7 @@ function Product() {
                       {ev.actor ? ` · ghi bởi ${ev.actor}` : ""}
                     </p>
                     {ev.note && <p className="mt-1 text-sm text-stone-600">{ev.note}</p>}
-                    {ev.iot && <KilnEvidence iot={ev.iot} insight={ev.insight} />}
+                    {ev.iot && <KilnEvidence iot={ev.iot} insight={ev.insight} reference={ev.reference} />}
                   </li>
                 ))}
               </ol>
@@ -169,30 +180,24 @@ function Product() {
             </Link>
           </Card>
 
-          <Card title="Mã QR tra cứu nguồn gốc">
-            {origin ? (
-              <>
-                <Photo src="/illustrations/qr.svg" className="mb-4 w-full rounded-lg" />
-                <QrCode url={`${origin}${publicPath}`} filename={`qr-${product.code}`} />
-                <p className="mt-3 text-xs text-stone-500">
-                  In và dán lên sản phẩm: người mua quét để xem hành trình và dữ liệu sản xuất, không cần đăng nhập.
-                </p>
-                {/localhost|127\.0\.0\.1/.test(origin) && (
-                  <p className="mt-2 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
-                    Mã này đang trỏ về máy chủ nội bộ nên điện thoại bên ngoài chưa quét được. Hãy nhờ quản trị viên cài đặt địa chỉ công khai trước khi in tem.
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-stone-500">Đang tạo mã…</p>
-            )}
-          </Card>
+          {canWrite && (
+            <Card title="Mã QR để in dán lên sản phẩm">
+              {origin ? (
+                <>
+                  <QrCode url={`${origin}${publicPath}`} filename={`qr-${product.code}`} />
+                  <p className="mt-3 text-xs text-stone-500">Người mua quét mã này để xem hành trình, không cần đăng nhập.</p>
+                </>
+              ) : (
+                <p className="text-sm text-stone-500">Đang tạo mã…</p>
+              )}
+            </Card>
+          )}
 
           <Card title="Thêm công đoạn">
             {!canWrite ? (
               <p className="text-sm text-stone-500">Bạn không có quyền thêm công đoạn cho sản phẩm này (chỉ chủ sản phẩm, cán bộ cùng HTX hoặc quản trị).</p>
             ) : (
-              <form onSubmit={onAddEvent} className="space-y-3">
+              <form id="them-cong-doan" onSubmit={onAddEvent} className="space-y-3">
                 <label className="block text-sm">
                   <span className="mb-1 block text-stone-600">Công đoạn *</span>
                   <select name="stage" required className={inputCls} value={stage} onChange={(e) => setStage(e.target.value)}>

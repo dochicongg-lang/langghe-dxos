@@ -41,7 +41,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
     <>
       {open && <div className="fixed inset-0 z-30 bg-stone-900/50 md:hidden" onClick={onClose} aria-hidden="true" />}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col bg-stone-900 text-stone-300 transition-transform md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col bg-stone-900 text-stone-300 transition-transform md:sticky md:top-0 md:h-screen md:self-start md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

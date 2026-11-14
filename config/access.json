@@ -14,9 +14,11 @@
     "platform": ["admin"],
     "process": ["admin", "coop-officer", "ocop-officer"],
     "data": ["admin"],
+    "overview": ["admin", "coop-officer", "ocop-officer"],
     "intelligence": ["admin", "coop-officer", "ocop-officer", "readonly"]
   },
   "permissions": {
+    "overview.read": { "admin": "all", "ocop-officer": "all", "coop-officer": "coop" },
     "product.read": { "admin": "all", "readonly": "all", "ocop-officer": "all", "coop-officer": "coop", "producer": "coop" },
     "product.create": { "admin": "all", "coop-officer": "coop", "producer": "self" },
     "product.update": { "admin": "all", "coop-officer": "coop", "producer": "own" },

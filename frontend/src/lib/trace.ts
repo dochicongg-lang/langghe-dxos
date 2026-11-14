@@ -56,6 +56,13 @@ export interface KilnInsight {
   profile: { id: string; name: string; verified: boolean; terms?: Record<string, string> };
 }
 
+export interface ReferenceCurve {
+  n: number; // số mẻ đạt khác dùng để dựng đường chuẩn
+  enough: boolean; // đủ mẻ (>= 3) mới có đường chuẩn
+  points: [number, number, number, number][]; // [tỉ lệ thời gian, trung vị, phân vị 25, phân vị 75]
+  note: { level: "ok" | "warn"; text: string } | null;
+}
+
 export interface TraceEvent {
   stage: string;
   note: string;
@@ -63,6 +70,7 @@ export interface TraceEvent {
   actor?: string; // chỉ có ở API nội bộ, ẩn ở tra cứu công khai
   iot?: IotEvidence | null; // chỉ có ở công đoạn nung khi đã gắn dữ liệu cảm biến
   insight?: KilnInsight | null; // phân tích thông minh đường cong nung (máy chủ tính từ bằng chứng đã đối chiếu)
+  reference?: ReferenceCurve | null; // đường chuẩn so với các mẻ đạt khác (chỉ API nội bộ)
   created_at: string;
 }
 

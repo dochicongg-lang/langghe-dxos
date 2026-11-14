@@ -192,3 +192,49 @@ test("ưu tiên mức nghiêm trọng: alert thắng warn, warn thắng insuffic
   assert.equal(r.verdict, "alert"); // quá nhiệt + gia nhiệt nhanh + dữ liệu kém
   assert.ok(["over-critical", "ramp-fast", "data-quality"].every((c) => codes(r).includes(c)));
 });
+
+// ---------- Đường cong chuẩn ----------
+const ramp = (peak, minutes = 600) => Array.from({ length: 41 }, (_, i) => [i * (minutes / 40) * 60000, Math.round((20 + ((peak - 20) * Math.sin((Math.PI * i) / 40)) ** 1) * 10) / 10]);
+
+test("resampleCurve: nội suy đều theo tỉ lệ thời gian, bỏ đường cong quá ngắn", () => {
+  const r = kiln.resampleCurve([[0, 0], [1000, 100]], 5);
+  assert.deepEqual(r.map((v) => Math.round(v)), [0, 25, 50, 75, 100]);
+  assert.equal(kiln.resampleCurve([[0, 1]]), null);
+  assert.equal(kiln.resampleCurve([[5, 1], [5, 2]]), null);
+});
+
+test("referenceCurve: cần đủ mẻ, ít hơn thì không vẽ đường chuẩn", () => {
+  const two = kiln.referenceCurve([ramp(1150), ramp(1160)]);
+  assert.equal(two.enough, false);
+  assert.equal(two.points.length, 0);
+  const three = kiln.referenceCurve([ramp(1140), ramp(1150), ramp(1160)]);
+  assert.equal(three.enough, true);
+  assert.equal(three.n, 3);
+  assert.equal(three.points.length, 60);
+  const mid = three.points[30];
+  assert.ok(mid[2] <= mid[1] && mid[1] <= mid[3], "phân vị 25 <= trung vị <= phân vị 75");
+});
+
+test("referenceCurve: các mẻ độ dài khác nhau vẫn so được vì chuẩn hóa theo tỉ lệ thời gian", () => {
+  const ref = kiln.referenceCurve([ramp(1150, 500), ramp(1150, 600), ramp(1150, 700)]);
+  assert.equal(ref.enough, true);
+  assert.ok(Math.abs(ref.points[30][1] - ramp(1150)[20][1]) < 15);
+});
+
+test("compareToReference: mẻ nằm trong dải thì báo ok, mẻ nóng hơn thì nói rõ đoạn lệch và chiều lệch", () => {
+  const ref = kiln.referenceCurve([ramp(1140), ramp(1150), ramp(1160)]);
+  assert.equal(kiln.compareToReference(ramp(1150), ref).level, "ok");
+  const hot = kiln.compareToReference(ramp(1300), ref);
+  assert.equal(hot.level, "warn");
+  assert.match(hot.text, /cao hơn/);
+  assert.match(hot.text, /giờ thứ/);
+  const cold = kiln.compareToReference(ramp(900), ref);
+  assert.match(cold.text, /thấp hơn/);
+  assert.equal(kiln.compareToReference(ramp(1150), { enough: false, points: [] }), null);
+});
+
+test("compareToReference: dùng từ ngữ của nghề (mẻ nhuộm)", () => {
+  const ref = kiln.referenceCurve([ramp(90), ramp(92), ramp(94)]);
+  const t = kiln.compareToReference(ramp(120), ref, { curve: "Đường cong nhuộm", batch: "mẻ nhuộm" });
+  assert.match(t.text, /mẻ nhuộm/);
+});

@@ -6,6 +6,17 @@ Số `#n` là pull request trên GitHub.
 ## [Chưa phát hành]
 
 ### Thêm
+- **Đường chuẩn so sánh mẻ nung/nhuộm:** trang chi tiết sản phẩm (nội bộ) vẽ đường cong của mẻ chồng lên trung vị và dải thường gặp của các mẻ ĐẠT khác trên cùng thiết bị, kèm một câu nêu đoạn lệch; cần ít nhất 3 mẻ đạt; trang QR cho người mua không có (`kiln.js` referenceCurve/compareToReference, `CurveCompare.tsx`, `scripts/check-reference-curve.js`).
+- **Trang Tổng quan** cho quản trị, cán bộ OCOP và cán bộ HTX: hồ sơ theo trạng thái, hồ sơ chờ lâu, chất lượng mẻ 90 ngày theo nghề, kết quả OCOP sắp hết hiệu lực, bảng so sánh HTX (chỉ quản trị và cán bộ OCOP; cán bộ HTX chỉ thấy HTX của mình). Quyền `overview.read`, API `GET /api/trace/overview`, `overview.js`, `scripts/check-overview.js`.
+- Nút "Ghi nhận công đoạn này" ở công đoạn chưa làm (trừ kiểm định), chọn sẵn công đoạn trong biểu mẫu.
+- Dữ liệu mẫu thêm 3 mẻ nung đạt và 3 mẻ nhuộm đạt; sản phẩm mẫu thuộc về nghệ nhân (`hoa`, `lua`) để thử được quyền sửa.
+
+### Sửa
+- Thanh bên cố định khi cuộn trang.
+- Tooltip "?" đặt vị trí cố định, không gây thanh cuộn ngang trong bảng.
+- Thẻ mã QR ở trang nội bộ chỉ hiện cho người có quyền in dán; bỏ ô ghi chú vàng về địa chỉ máy chủ nội bộ.
+
+### Thêm
 - Logo Làng Nghề Số (nền trong suốt, màu đất nung): thanh bên, trang giới thiệu, màn hình chờ/lỗi/404, trang đăng nhập Keycloak, biểu tượng tab (`frontend/src/components/Logo.tsx`).
 - Chú giải (title) tự gắn cho nút chỉ có biểu tượng, ở ứng dụng (`AutoTitle.tsx`) và trang đăng nhập (`js/dxos.js`).
 
