@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
+import Pager, { usePaged } from "@/components/Pager";
 import { useAuth } from "@/components/AuthProvider";
 import AuditLog from "@/components/AuditLog";
 import LakePanel from "@/components/LakePanel";
@@ -43,6 +44,7 @@ export default function DataPage() {
   const canManage = Boolean(user.permissions["archive.manage"]);
   const canAudit = Boolean(user.permissions["audit.read"]);
   const [overview, setOverview] = useState<ArchiveOverview | null>(null);
+  const runsPaged = usePaged(overview?.runs ?? [], 5);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -162,7 +164,7 @@ export default function DataPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100">
-                        {overview.runs.map((r) => (
+                        {runsPaged.items.map((r) => (
                           <tr key={r.id}>
                             <td className="py-2 pr-3">#{r.id}</td>
                             <td className="py-2 pr-3 text-stone-600">
@@ -183,6 +185,7 @@ export default function DataPage() {
                       </tbody>
                     </table>
                   )}
+                  <Pager paged={runsPaged} noun="lần lưu trữ" />
                 </div>
                 {rows && (
                   <div className="mt-4 rounded-lg border border-stone-200 bg-stone-50 p-3">

@@ -5,7 +5,7 @@ import type { IotEvidence, KilnInsight } from "@/lib/trace";
 
 export const flagText = (flag: string, q: NonNullable<IotEvidence["quality"]>) =>
   ({
-    "low-coverage": `Dữ liệu có nhiều khoảng trống (độ phủ ${Math.round(q.coverage * 100)}%): cảm biến có thể đã mất kết nối trong lúc nung.`,
+    "low-coverage": `Dữ liệu có nhiều khoảng trống (độ phủ ${Math.round(q.coverage * 100)}%): cảm biến có thể đã mất kết nối trong lúc đo.`,
     "out-of-range": `${q.rejected} mẫu nằm ngoài khoảng giá trị hợp lý nên đã bị loại.`,
     "rapid-change": `${q.jumps} lần giá trị đổi nhanh bất thường.`,
     "few-samples": "Quá ít mẫu đo để đánh giá.",
@@ -46,7 +46,7 @@ export default function KilnEvidence({ iot, insight }: { iot: IotEvidence; insig
       <p className="text-xs font-medium text-brand-700">
         Dữ liệu cảm biến: {iot.deviceName || iot.deviceId} · nhiệt độ
       </p>
-      <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 h-16 w-full" preserveAspectRatio="none" role="img" aria-label="Đường cong nhiệt độ lò">
+      <svg viewBox={`0 0 ${w} ${h}`} className="mt-2 h-16 w-full" preserveAspectRatio="none" role="img" aria-label="Đường cong nhiệt độ">
         <polyline points={path} fill="none" stroke="#c04a1f" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       </svg>
       <dl className="mt-2 grid grid-cols-4 gap-2 text-center text-xs">

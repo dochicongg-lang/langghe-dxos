@@ -20,6 +20,8 @@ function validate(cfg) {
     if (!s.label) throw new Error(`sectors.json[${s.key}]: thiếu label`);
     if (!Array.isArray(s.match) || s.match.length === 0) throw new Error(`sectors.json[${s.key}]: thiếu match`);
     if (!Array.isArray(s.stages) || s.stages.length < 2) throw new Error(`sectors.json[${s.key}]: cần ít nhất 2 công đoạn`);
+    if (s.sensorStage !== undefined && !s.stages.some((st) => st.key === s.sensorStage)) throw new Error(`sectors.json[${s.key}]: sensorStage không nằm trong chuỗi công đoạn`);
+    if (s.analysis !== undefined && !["kiln", "dye"].includes(s.analysis)) throw new Error(`sectors.json[${s.key}]: analysis phải là kiln hoặc dye`);
     const seen = new Set();
     for (const st of s.stages) {
       if (!/^[a-z0-9-]{2,40}$/.test(st.key ?? "") || !st.label) throw new Error(`sectors.json[${s.key}]: công đoạn không hợp lệ`);
@@ -51,7 +53,7 @@ function stagesFor(cfg, category) {
 
 /** Cấu hình gửi cho giao diện (không có gì nhạy cảm). */
 function publicView(cfg) {
-  return { defaultSector: cfg.defaultSector, sectors: cfg.sectors.map((s) => ({ key: s.key, label: s.label, intelligence: s.intelligence ?? null, stages: s.stages })) };
+  return { defaultSector: cfg.defaultSector, sectors: cfg.sectors.map((s) => ({ key: s.key, label: s.label, intelligence: s.intelligence ?? null, analysis: s.analysis ?? null, sensorStage: s.sensorStage ?? null, stages: s.stages })) };
 }
 
 module.exports = { load, validate, sectorOf, stagesFor, publicView };

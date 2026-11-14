@@ -53,6 +53,7 @@ const devices = [
   { id: "kiln-01", name: "Lò nung gốm số 1", metric: "temperature", unit: "°C", value: 850, min: 700, max: 1250, step: 18 },
   { id: "workshop-01", name: "Xưởng tạo hình", metric: "temperature", unit: "°C", value: 29, min: 22, max: 38, step: 0.4 },
   { id: "workshop-01", name: "Xưởng tạo hình", metric: "humidity", unit: "%", value: 68, min: 45, max: 90, step: 1.2 },
+  { id: "dye-01", name: "Bể nhuộm tơ số 1", metric: "temperature", unit: "°C", value: 60, min: 30, max: 90, step: 1.5 },
   { id: "clay-store-01", name: "Kho đất sét", metric: "humidity", unit: "%", value: 72, min: 55, max: 85, step: 0.8 },
 ];
 
@@ -129,6 +130,11 @@ const SCENARIOS = {
   overheat: { peak: 1320, rampH: 8, holdH: 2, coolH: 5 }, // vượt ngưỡng nguy hiểm
   "fast-ramp": { peak: 1150, rampH: 3, holdH: 2, coolH: 5 }, // gia nhiệt ~375 °C/giờ
   "low-peak": { peak: 980, rampH: 8, holdH: 2, coolH: 5 }, // chưa đủ nhiệt
+  // Mẻ nhuộm tơ (bể nhuộm dye-01): nâng nhiệt khoảng 1 °C mỗi phút, giữ ở 85–93 °C khoảng 40 phút, hạ từ từ
+  "dye-ok": { device: "dye-01", start: 28, end: 40, noise: 0.6, peak: 88, rampH: 1.1, holdH: 0.65, coolH: 1.5 },
+  "dye-boil": { device: "dye-01", start: 28, end: 40, noise: 0.6, peak: 101, rampH: 1.1, holdH: 0.65, coolH: 1.5 }, // để sôi
+  "dye-fast": { device: "dye-01", start: 28, end: 40, noise: 0.6, peak: 88, rampH: 0.4, holdH: 0.65, coolH: 1.5 }, // nâng nhiệt quá nhanh
+  "dye-low": { device: "dye-01", start: 28, end: 40, noise: 0.6, peak: 72, rampH: 1.1, holdH: 0.65, coolH: 1.5 }, // chưa đủ nhiệt
 };
 
 async function runScenario(name) {
@@ -139,17 +145,21 @@ async function runScenario(name) {
   const today = new Date();
   const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - daysAgo, 1, 0, 0));
   const total = (sc.rampH + sc.holdH + sc.coolH) * 60; // số phút = số mẫu
-  const kiln = devices[0];
+  const kiln = sc.device ? devices.find((d) => d.id === sc.device) : devices[0];
+  if (!kiln) throw new Error(`không có thiết bị ${sc.device}`);
+  const startV = sc.start ?? 25;
+  const endV = sc.end ?? 200;
+  const noise = sc.noise ?? 3;
   const byHour = new Map();
   for (let i = 0; i <= total; i++) {
     const min = i;
     const h = min / 60;
     let v;
-    if (h <= sc.rampH) v = 25 + ((sc.peak - 25) * h) / sc.rampH;
+    if (h <= sc.rampH) v = startV + ((sc.peak - startV) * h) / sc.rampH;
     else if (h <= sc.rampH + sc.holdH) v = sc.peak;
-    else v = sc.peak - ((sc.peak - 200) * (h - sc.rampH - sc.holdH)) / sc.coolH;
+    else v = sc.peak - ((sc.peak - endV) * (h - sc.rampH - sc.holdH)) / sc.coolH;
     const t = new Date(start.getTime() + min * 60000);
-    const rec = { deviceId: kiln.id, deviceName: kiln.name, metric: kiln.metric, value: Math.round((v + (Math.random() - 0.5) * 3) * 10) / 10, unit: kiln.unit, timestamp: t.toISOString() };
+    const rec = { deviceId: kiln.id, deviceName: kiln.name, metric: kiln.metric, value: Math.round((v + (Math.random() - 0.5) * noise) * 10) / 10, unit: kiln.unit, timestamp: t.toISOString() };
     const hourStart = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate(), t.getUTCHours()));
     const k = hourStart.toISOString();
     if (!byHour.has(k)) byHour.set(k, { at: hourStart, records: [] });

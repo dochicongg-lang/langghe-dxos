@@ -9,6 +9,9 @@ import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
 import { visibleRoles } from "@/lib/roles";
 import EmptyState from "@/components/EmptyState";
+import Pager, { usePaged } from "@/components/Pager";
+import SuggestInput, { uniqueSuggestions } from "@/components/SuggestInput";
+import { MiniProgress } from "@/components/ProcessProgress";
 import ProductImage from "@/components/ProductImage";
 import StageIcon from "@/components/StageIcon";
 import { useSectors, stageLabelOf } from "@/lib/sectors";
@@ -78,12 +81,18 @@ export default function TracePage() {
   }
 
   const shown = (products ?? []).filter((p) => (sectorFilter === "all" || p.sector === sectorFilter) && `${p.name} ${p.code} ${p.village} ${p.artisan}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const paged = usePaged(shown, 10, `${sectorFilter}|${q}`);
+  const known = products ?? [];
+  const nameSug = uniqueSuggestions(known.map((p) => p.name));
+  const categorySug = uniqueSuggestions([...known.map((p) => p.category), ...(sectors ?? []).map((s) => s.label)]);
+  const villageSug = uniqueSuggestions(known.map((p) => p.village));
+  const artisanSug = uniqueSuggestions(known.map((p) => p.artisan));
   const countOf = (k: string) => (products ?? []).filter((p) => k === "all" || p.sector === k).length;
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageTitle title="Sản phẩm và truy xuất nguồn gốc" desc="Mỗi sản phẩm có một hành trình riêng theo ngành, từ nguyên liệu đến tay người mua." />
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-4">
+        <PageTitle flush title="Sản phẩm và truy xuất nguồn gốc" desc="Mỗi sản phẩm có một hành trình riêng theo ngành, từ nguyên liệu đến tay người mua." />
         {canWrite && (
           <button onClick={() => setShowForm((v) => !v)} className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
             {showForm ? "Đóng biểu mẫu" : "+ Thêm sản phẩm"}
@@ -97,7 +106,7 @@ export default function TracePage() {
             <form onSubmit={onCreate} className="space-y-3">
                           <label className="block text-sm">
                             <span className="mb-1 block text-stone-600">Tên sản phẩm *</span>
-                            <input name="name" required maxLength={200} className={inputCls} placeholder="Bình gốm men rạn" />
+                            <SuggestInput name="name" items={nameSug} required maxLength={200} className={inputCls} placeholder="Bình gốm men rạn" />
                           </label>
                           <label className="block text-sm">
                             <span className="mb-1 block text-stone-600">Mã (để trống sẽ tự tạo)</span>
@@ -105,15 +114,15 @@ export default function TracePage() {
                           </label>
                           <label className="block text-sm">
                             <span className="mb-1 block text-stone-600">Danh mục</span>
-                            <input name="category" maxLength={100} className={inputCls} placeholder="Gốm sứ" />
+                            <SuggestInput name="category" items={categorySug} maxLength={100} className={inputCls} placeholder="Gốm sứ" />
                           </label>
                           <label className="block text-sm">
                             <span className="mb-1 block text-stone-600">Làng nghề</span>
-                            <input name="village" maxLength={200} className={inputCls} placeholder="Bát Tràng, Hà Nội" />
+                            <SuggestInput name="village" items={villageSug} maxLength={200} className={inputCls} placeholder="Bát Tràng, Hà Nội" />
                           </label>
                           <label className="block text-sm">
                             <span className="mb-1 block text-stone-600">Nghệ nhân / cơ sở</span>
-                            <input name="artisan" maxLength={200} className={inputCls} />
+                            <SuggestInput name="artisan" items={artisanSug} maxLength={200} className={inputCls} />
                           </label>
                           {formError && <p className="text-sm text-red-600">{formError}</p>}
                           <button
@@ -156,7 +165,7 @@ export default function TracePage() {
             </div>
             {shown.length === 0 && <p className="py-6 text-center text-sm text-stone-500">Không có sản phẩm nào khớp.</p>}
             <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {shown.map((p) => (
+              {paged.items.map((p) => (
                 <li key={p.code}>
                   <Link href={`/trace/${encodeURIComponent(p.code)}`} className="group block overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm transition hover:border-brand-300 hover:shadow">
                     <ProductImage category={p.category} seed={p.code} className="h-36 w-full" />
@@ -175,11 +184,13 @@ export default function TracePage() {
                         )}
                         <span className="text-stone-500">{p.event_count} công đoạn · {fmtDate(p.created_at)}</span>
                       </div>
+                      {sectors?.find((s) => s.key === p.sector) && <MiniProgress stages={sectors.find((s) => s.key === p.sector)!.stages} lastStage={p.last_stage} />}
                     </div>
                   </Link>
                 </li>
               ))}
             </ul>
+            <Pager paged={paged} noun="sản phẩm" />
           </>
         )}
       </div>

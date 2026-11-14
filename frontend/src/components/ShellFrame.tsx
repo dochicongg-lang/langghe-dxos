@@ -38,7 +38,7 @@ export default function ShellFrame({ children }: { children: React.ReactNode }) 
             </div>
           )}
         </main>
-        <footer className="border-t border-stone-200 px-4 py-4 pr-32 text-xs text-stone-500 md:px-6 md:pr-36">
+        <footer className="border-t border-stone-200 px-4 pb-24 pt-4 text-xs sm:pb-4 sm:pr-32 text-stone-500 md:px-6 md:pr-36">
           <p>
             Làng Nghề Số · Hỗ trợ lập hồ sơ OCOP và truy xuất nguồn gốc làng nghề. Kết quả OCOP chính thức do cơ quan có thẩm quyền quyết định.{" "}
             <Link href="/help" className="font-medium text-brand-700 hover:underline">

@@ -37,7 +37,8 @@ test("giấy tờ cần có theo nhóm: đúng nhóm, đúng danh mục theo c�
   assert.equal(r.matched, true);
   assert.match(r.sources[0].title, /Hàng thủ công mỹ nghệ/);
   assert.match(r.answer, /Phiếu đăng ký tham gia/);
-  assert.match(r.sources[0].ref, /ocop-profiles/);
+  assert.equal(r.sources[0].ref, "quy định OCOP");
+  assert.doesNotMatch(JSON.stringify(r.sources), /config\//); // không lộ tên tệp cấu hình cho người dùng
 });
 
 test("số liệu trả lời lấy từ cấu hình: hạng sao, hiệu lực, hạn sơ duyệt, ngưỡng nung", () => {
@@ -51,10 +52,18 @@ test("số liệu trả lời lấy từ cấu hình: hạng sao, hiệu lực, 
 });
 
 test("vai trò và hướng dẫn: câu hỏi về cán bộ HTX, thông báo, mã OTP, khác biệt xác nhận", () => {
-  assert.match(ask("Cán bộ HTX làm được những việc gì").sources.map((s) => s.title).join(" "), /coop-officer/);
+  assert.match(ask("Cán bộ HTX làm được những việc gì").sources.map((s) => s.title).join(" "), /Cán bộ HTX/);
   assert.match(ask("Chuông thông báo nhắc những gì").answer, /chuông/i);
   assert.match(ask("Mã OTP là gì, cài ở đâu").answer, /ứng dụng xác thực/);
   assert.match(ask("Xác nhận của nền tảng khác gì kết quả OCOP chính thức").answer, /chưa phải giấy chứng nhận/);
+});
+
+test("không tìm thấy thì chỉ đường tới người có thẩm quyền (referral), câu hỏi trống thì không", () => {
+  const lost = ask("xyzzy quux foobar");
+  assert.equal(lost.matched, false);
+  assert.equal(lost.referral, true);
+  assert.deepEqual(lost.sources, []);
+  assert.notEqual(ask("").referral, true);
 });
 
 test("không tìm thấy thì nói rõ là chưa có, không đoán và không trích nguồn", () => {

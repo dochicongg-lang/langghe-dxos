@@ -14,12 +14,12 @@ export const metadata: Metadata = {
 const values = [
   { img: "qr", title: "Hành trình sản phẩm rõ ràng", text: "Ghi lại bảy công đoạn từ nguyên liệu đến phân phối. Người mua quét mã QR là thấy toàn bộ, không cần đăng nhập." },
   { img: "ocop", title: "Hồ sơ OCOP gọn gàng", text: "Lập hồ sơ, tải giấy tờ, tự chấm điểm dự kiến. Hợp tác xã sơ duyệt ngay trên hệ thống và nhắc việc khi sắp quá hạn." },
-  { img: "kiln", title: "Số liệu nung đáng tin", text: "Nhiệt độ lò do cảm biến ghi, được khóa không cho sửa. Hệ thống tự đối chiếu và phân tích từng mẻ nung, giải thích bằng lời dễ hiểu." },
+  { img: "kiln", title: "Số liệu nung, nhuộm đáng tin", text: "Nhiệt độ lò nung, bể nhuộm do cảm biến ghi, được khóa không cho sửa. Hệ thống tự đối chiếu và phân tích từng mẻ, giải thích bằng lời dễ hiểu." },
 ];
 
 const steps = [
-  { stage: "nguyen-lieu", title: "Ghi từng công đoạn", text: "Nghệ nhân hoặc hợp tác xã ghi nguyên liệu, tạo hình, nung, kiểm định, đóng gói, phân phối." },
-  { stage: "nung-hoan-thien", title: "Cảm biến ghi mẻ nung", text: "Nhiệt độ lò được ghi tự động và bảo vệ khỏi việc sửa hay xóa về sau." },
+  { stage: "nguyen-lieu", title: "Ghi từng công đoạn", text: "Nghệ nhân hoặc hợp tác xã ghi từng bước của nghề mình: gốm từ nguyên liệu, tạo hình, nung; lụa từ tơ, dệt, nhuộm; rồi kiểm định, đóng gói, phân phối." },
+  { stage: "nung-hoan-thien", title: "Cảm biến ghi mẻ nung, mẻ nhuộm", text: "Nhiệt độ lò hoặc bể nhuộm được ghi tự động và bảo vệ khỏi việc sửa hay xóa về sau." },
   { stage: "kiem-dinh", title: "Duyệt hồ sơ OCOP", text: "Hợp tác xã sơ duyệt, cán bộ đầu mối ghi kết quả chính thức do cơ quan có thẩm quyền quyết định." },
   { stage: "dong-goi", title: "Mã QR cho người mua", text: "In mã QR lên sản phẩm. Người mua quét để xem câu chuyện, đường cong nhiệt độ và chứng nhận." },
 ];
@@ -34,7 +34,7 @@ const audiences = [
 const promises = [
   "Kết quả OCOP chính thức luôn do cơ quan có thẩm quyền quyết định. Hệ thống chỉ hỗ trợ chuẩn bị hồ sơ và theo dõi.",
   "Trang tra cứu hiển thị tách bạch: kết quả chính thức của cơ quan và xác nhận của nền tảng.",
-  "Mọi thao tác đều được ghi vào nhật ký, không thể sửa lén. Dữ liệu cảm biến lò không thể ghi đè hay xóa.",
+  "Mọi thao tác đều được ghi vào nhật ký, không thể sửa lén. Dữ liệu cảm biến không thể ghi đè hay xóa.",
   "Mỗi người chỉ thấy và làm đúng việc của mình, theo vai trò được cấp.",
 ];
 

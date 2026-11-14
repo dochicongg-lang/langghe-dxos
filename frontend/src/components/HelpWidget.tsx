@@ -4,11 +4,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "./AuthProvider";
 import ContactList from "./ContactList";
 import Photo from "./Photo";
 import { contactChannels } from "@/lib/contact";
-import { canSee } from "@/lib/pages";
 
 type Panel = "help" | "contact" | null;
 
@@ -20,10 +18,8 @@ const Icon = ({ d }: { d: string }) => (
 
 /** Hai cửa sổ nhỏ nổi ở góc dưới bên phải: "Trợ giúp" (hướng dẫn) và "Liên hệ" (điện thoại, Zalo, Facebook...). Mở một cái thì cái kia đóng. */
 export default function HelpWidget() {
-  const { user } = useAuth();
   const [panel, setPanel] = useState<Panel>(null);
   const box = useRef<HTMLDivElement>(null);
-  const assistant = canSee(user, "/intelligence");
   const hasContact = contactChannels().length > 0;
 
   useEffect(() => {
@@ -43,7 +39,7 @@ export default function HelpWidget() {
   const toggle = (p: Exclude<Panel, null>) => setPanel((cur) => (cur === p ? null : p));
   const rows = [
     { href: "/help", title: "Hướng dẫn sử dụng", sub: "Từng bước làm hồ sơ, tra cứu, quét mã QR" },
-    ...(assistant ? [{ href: "/intelligence", title: "Hỏi trợ lý", sub: "Hạng sao, giấy tờ, hạn xử lý" }] : []),
+    { href: "/tro-ly", title: "Hỏi trợ lý", sub: "Hạng sao, giấy tờ, hạn xử lý" },
     { href: "/help#lien-he", title: "Cách nhờ giúp đỡ", sub: "Hỏi cán bộ hợp tác xã hoặc quản trị viên" },
   ];
 

@@ -78,8 +78,8 @@ export default function PlatformPage() {
       ),
       b: (
         <>
-          <Tag ok={false}>Chưa có phân tích riêng</Tag>
-          <p>Nền tảng sẵn sàng nhận cảm biến (ví dụ nhiệt độ bể nhuộm) và gắn bộ luật như đã làm với lò nung; phần này chưa được xây.</p>
+          <Tag ok>Đã có</Tag>
+          <p>Phân tích từng mẻ nhuộm từ cảm biến bể nhuộm: nhiệt độ đỉnh, thời gian giữ, tốc độ nâng nhiệt, cảnh báo khi để sôi, kèm lý do bằng lời. Ngưỡng là tham khảo, chưa được nghệ nhân xác nhận.</p>
         </>
       ),
       link: { href: "/intelligence", label: "Xem phân tích và trợ lý" },

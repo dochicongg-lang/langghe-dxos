@@ -54,6 +54,7 @@ export default function Home() {
   const canApps = Boolean(user.permissions["application.read"]);
   const canProducts = Boolean(user.permissions["product.read"]);
   const canCreate = Boolean(user.permissions["application.create"]);
+  const isAdmin = user.pages.includes("platform"); // chỉ quản trị cần xem cấu trúc nền tảng và ngành nghề
 
   // "Việc của bạn": hồ sơ đang chờ chính người dùng này xử lý (máy chủ luôn kiểm tra lại khi thao tác)
   const waiting: { app: OcopSummary; why: string }[] = [];
@@ -113,7 +114,7 @@ export default function Home() {
             <input
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Tra nhanh một sản phẩm theo mã, ví dụ GOM-BT-0001"
+              placeholder="Tra nhanh theo mã sản phẩm"
               aria-label="Mã sản phẩm"
               className="min-w-0 flex-1 rounded-lg border-0 bg-white px-4 py-2.5 text-sm text-stone-900 placeholder:text-stone-400"
             />
@@ -170,6 +171,7 @@ export default function Home() {
             )}
           </section>
 
+          {canCreate && !isAdmin && (
           <section aria-label="Cách làm hồ sơ OCOP">
             <h2 className="mb-3 text-base font-semibold text-stone-800">Hồ sơ OCOP đi qua ba bước</h2>
             <ol className="grid gap-3 md:grid-cols-3">
@@ -184,10 +186,11 @@ export default function Home() {
               ))}
             </ol>
           </section>
+          )}
         </>
       )}
 
-      {canProducts && sectors && (data?.products?.length ?? 0) > 0 && (
+      {isAdmin && canProducts && sectors && (data?.products?.length ?? 0) > 0 && (
         <section aria-labelledby="sector-h">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 id="sector-h" className="text-base font-semibold text-stone-800">Ngành nghề trên cùng một nền tảng</h2>

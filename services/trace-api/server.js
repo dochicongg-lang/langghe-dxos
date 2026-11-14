@@ -158,9 +158,9 @@ async function seed() {
       village: "Làng lụa Vạn Phúc, Hà Đông",
       artisan: "Hợp tác xã lụa Vạn Phúc",
       events: [
-        ["nguyen-lieu", "Kén tằm nuôi tại Bảo Lộc, thu hoạch tháng này", "Trại tằm Bảo Lộc"],
-        ["so-che", "Ươm tơ, se sợi thủ công", "Xưởng ươm tơ"],
-        ["tao-hinh", "Dệt khung gỗ, khổ 50 x 180 cm", "Xưởng dệt"],
+        ["nguyen-lieu", "Tơ tằm nhập từ Bảo Lộc (Lâm Đồng), kiểm tra độ đều và độ bóng của sợi", "Kho tơ Vạn Phúc"],
+        ["so-che", "Đánh ống, se sợi và mắc sợi chuẩn bị lên khung", "Xưởng chuẩn bị sợi"],
+        ["tao-hinh", "Dệt trên khung cửi, hoa văn đối xứng", "Xưởng dệt Vạn Phúc"],
       ],
     },
   ];
@@ -196,6 +196,28 @@ async function seedDomain() {
     ["Chị Hoa (nghệ nhân gốm Bát Tràng)", coopId, "Làng gốm Bát Tràng, Hà Nội"],
   );
   await pool.query("UPDATE products SET coop_id = $1 WHERE coop_id IS NULL AND created_by = 'seed'", [coopId]);
+  // Làng lụa có HTX riêng (htx-lua) và một chủ thể sản xuất riêng (tài khoản lua); sản phẩm thuộc ngành lụa chuyển sang HTX đó
+  const lua = await pool.query(
+    "INSERT INTO cooperatives (code, name) VALUES ('htx-lua', $1) ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id",
+    ["Hợp tác xã lụa Vạn Phúc (demo)"],
+  );
+  const luaId = lua.rows[0].id;
+  await pool.query(
+    "INSERT INTO producers (username, display_name, type, coop_id, village_id) VALUES ('lua', $1, 'nghe-nhan', $2, (SELECT id FROM villages WHERE name = $3)) ON CONFLICT (username) DO NOTHING",
+    ["Chị Lụa (nghệ nhân dệt lụa Vạn Phúc)", luaId, "Làng lụa Vạn Phúc, Hà Đông"],
+  );
+  const fixes = [
+    ["nguyen-lieu", "Kén tằm nuôi tại Bảo Lộc, thu hoạch tháng này", "Tơ tằm nhập từ Bảo Lộc (Lâm Đồng), kiểm tra độ đều và độ bóng của sợi", "Kho tơ Vạn Phúc"],
+    ["so-che", "Ươm tơ, se sợi thủ công", "Đánh ống, se sợi và mắc sợi chuẩn bị lên khung", "Xưởng chuẩn bị sợi"],
+    ["tao-hinh", "Dệt khung gỗ, khổ 50 x 180 cm", "Dệt trên khung cửi, hoa văn đối xứng", "Xưởng dệt Vạn Phúc"],
+  ];
+  for (const [stage, oldNote, note, location] of fixes) {
+    await pool.query("UPDATE trace_events e SET note = $3, location = $4 FROM products p WHERE e.product_id = p.id AND p.code = 'LUA-VP-0007' AND e.stage = $1 AND e.note = $2", [stage, oldNote, note, location]);
+  }
+  const movable = await pool.query("SELECT id, category FROM products WHERE coop_id IS NULL OR coop_id = $1", [coopId]);
+  for (const r of movable.rows) {
+    if (sectors.sectorOf(SECTORS, r.category).key === "lua") await pool.query("UPDATE products SET coop_id = $1 WHERE id = $2", [luaId, r.id]);
+  }
   await pool.query("UPDATE products p SET village_id = v.id FROM villages v WHERE p.village_id IS NULL AND p.village = v.name");
 }
 
@@ -372,7 +394,7 @@ async function getProduct(code, { publicView = false, user = null } = {}) {
     events.push(publicView ? { stage: e.stage, note: e.note, location: e.location, iot: e.iot, ...(insight && kiln.publicAllows(KILN, insight.verdict) ? { insight } : {}), created_at: e.created_at } : { ...rest, ...(insight ? { insight } : {}) });
   }
   const sector = sectors.sectorOf(SECTORS, p.category);
-  const product = { code: p.code, name: p.name, category: p.category, sector: sector.key, sector_label: sector.label, stages: sector.stages, village: p.village, artisan: p.artisan, created_at: p.created_at };
+  const product = { code: p.code, name: p.name, category: p.category, sector: sector.key, sector_label: sector.label, sensor_stage: sector.sensorStage ?? null, stages: sector.stages, village: p.village, artisan: p.artisan, created_at: p.created_at };
   if (publicView) product.ocop = await publicOcop(p.code);
   if (!publicView) {
     product.created_by = p.created_by;
@@ -426,7 +448,8 @@ async function addEvent(code, body, user) {
   const location = str(body.location, 200, "location");
   let iot = null;
   if (body.iot !== undefined && body.iot !== null) {
-    if (stage !== "nung-hoan-thien") throw new HttpError(400, "Chỉ gắn dữ liệu cảm biến vào công đoạn nung-hoan-thien (ngành gốm)");
+    const sensorStage = sectors.sectorOf(SECTORS, product.category).sensorStage;
+    if (!sensorStage || stage !== sensorStage) throw new HttpError(400, sensorStage ? `Chỉ gắn dữ liệu cảm biến vào công đoạn ${sensorStage} của ngành này` : "Ngành này chưa có công đoạn gắn cảm biến");
     if (!s3) throw new HttpError(503, "Chưa cấu hình tài khoản đọc MinIO cho trace-api (S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY)");
     const win = parseWindow(body.iot); // chỉ nhận { deviceId, from, to }; số liệu do máy chủ tự đọc và tính
     const device = devices.get(win.deviceId);

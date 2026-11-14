@@ -8,9 +8,11 @@ import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
 import EmptyState from "@/components/EmptyState";
+import Pager, { usePaged } from "@/components/Pager";
+import SuggestInput, { uniqueSuggestions } from "@/components/SuggestInput";
 import Photo from "@/components/Photo";
 import ProductImage from "@/components/ProductImage";
-import { fmtDate } from "@/lib/trace";
+import { fmtDate, type ProductSummary } from "@/lib/trace";
 import { stateLabels, stateTone, starsForScore, type OcopProfile, type OcopSummary } from "@/lib/ocop";
 
 const inputCls =
@@ -29,6 +31,8 @@ export default function OcopPage() {
   const [score, setScore] = useState<Record<string, string>>({ A: "", B: "", C: "" });
   const [docs, setDocs] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [products, setProducts] = useState<ProductSummary[]>([]);
+  const [pname, setPname] = useState("");
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
 
@@ -42,7 +46,8 @@ export default function OcopPage() {
 
   const load = useCallback(async () => {
     try {
-      const [a, p] = await Promise.all([apiFetch("/api/trace/applications"), apiFetch("/api/trace/applications/profile")]);
+      const [a, p, pr] = await Promise.all([apiFetch("/api/trace/applications"), apiFetch("/api/trace/applications/profile"), apiFetch("/api/trace/products").catch(() => null)]);
+      if (pr && pr.ok) setProducts(((await pr.json()) as { products: ProductSummary[] }).products);
       if (!a.ok) throw new Error(`Hệ thống báo lỗi (mã ${a.status})`);
       setApps(((await a.json()) as { applications: OcopSummary[] }).applications);
       if (p.ok) setProfile((await p.json()) as OcopProfile);
@@ -95,12 +100,15 @@ export default function OcopPage() {
   ];
   const countOf = (k: string) => (apps ?? []).filter((a) => k === "all" || group_of(a.state) === k).length;
   const shown = (apps ?? []).filter((a) => (filter === "all" || group_of(a.state) === filter) && `${a.product_name} ${a.code}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const paged = usePaged(shown, 10, `${filter}|${q}`);
+  const nameSug = uniqueSuggestions([...products.map((p) => p.name), ...(apps ?? []).map((a) => a.product_name)]);
+  const codeSug = products.map((p) => ({ value: p.code, hint: p.name }));
   const groupLabel = (key?: string) => profile?.groups.find((g) => g.key === key)?.label;
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageTitle title="Hồ sơ OCOP" desc="Lập hồ sơ, HTX sơ duyệt, rồi theo dõi kết quả. Kết quả chính thức do cơ quan có thẩm quyền quyết định." />
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-4">
+        <PageTitle flush title="Hồ sơ OCOP" desc="Lập hồ sơ, HTX sơ duyệt, rồi theo dõi kết quả. Kết quả chính thức do cơ quan có thẩm quyền quyết định." />
         <Photo src="/illustrations/ocop.svg" className="order-last hidden h-24 w-44 shrink-0 rounded-xl object-cover md:block" />
         {canCreate && (
           <button onClick={() => setShowForm((v) => !v)} className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
@@ -117,7 +125,7 @@ export default function OcopPage() {
               <form onSubmit={onCreate} className="space-y-3">
                             <label className="block text-sm">
                               <span className="mb-1 block text-stone-600">Tên sản phẩm *</span>
-                              <input name="product_name" required maxLength={200} className={inputCls} placeholder="Bình gốm men rạn" />
+                              <SuggestInput name="product_name" items={nameSug} value={pname} onChange={setPname} required maxLength={200} className={inputCls} placeholder="Bình gốm men rạn" />
                             </label>
                             <label className="block text-sm">
                               <span className="mb-1 block text-stone-600">Nhóm sản phẩm *</span>
@@ -131,7 +139,7 @@ export default function OcopPage() {
                             </label>
                             <label className="block text-sm">
                               <span className="mb-1 block text-stone-600">Mã truy xuất liên quan (nếu có)</span>
-                              <input name="product_code" maxLength={40} className={inputCls} placeholder="GOM-BT-0001" />
+                              <SuggestInput name="product_code" items={codeSug} onPick={(s) => { if (!pname.trim() && s.hint) setPname(s.hint); }} maxLength={40} className={inputCls} placeholder="GOM-BT-0001" />
                             </label>
                             <label className="block text-sm">
                               <span className="mb-1 block text-stone-600">Mô tả</span>
@@ -219,18 +227,18 @@ export default function OcopPage() {
                 <p className="py-6 text-center text-sm text-stone-500">Không có hồ sơ nào khớp. Thử bỏ bớt bộ lọc.</p>
               ) : (
                 <ul className="divide-y divide-stone-100">
-                  {shown.map((a) => (
+                  {paged.items.map((a) => (
                     <li key={a.code}>
-                      <Link href={`/ocop/${encodeURIComponent(a.code)}`} className="flex items-center gap-4 py-3 hover:bg-stone-50">
+                      <Link href={`/ocop/${encodeURIComponent(a.code)}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 hover:bg-stone-50">
                         <ProductImage group={a.product_group} seed={a.code} className="h-14 w-20 shrink-0 rounded-lg border border-stone-200" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-stone-900">{a.product_name}</span>
-                          <span className="block truncate text-xs text-stone-500">
+                        <span className="min-w-[11rem] flex-1">
+                          <span className="block break-words text-sm font-semibold text-stone-900">{a.product_name}</span>
+                          <span className="mt-0.5 block break-words text-xs leading-relaxed text-stone-500">
                             <span className="font-mono">{a.code}</span>
                             {groupLabel(a.product_group) ? ` · ${groupLabel(a.product_group)}` : ""} · {a.owner} · cập nhật {fmtDate(a.updated_at)}
                           </span>
                         </span>
-                        <span className="flex shrink-0 flex-col items-end gap-1">
+                        <span className="ml-auto flex shrink-0 flex-col items-end gap-1 max-sm:w-full max-sm:flex-row max-sm:items-center max-sm:justify-between">
                           <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${stateTone[a.state] ?? ""}`}>{stateLabels[a.state] ?? a.state}</span>
                           {a.stars ? <span className="text-amber-500">{"★".repeat(a.stars)}</span> : null}
                         </span>
@@ -239,6 +247,7 @@ export default function OcopPage() {
                   ))}
                 </ul>
               )}
+              <Pager paged={paged} noun="hồ sơ" />
             </>
           )}
         </Card>

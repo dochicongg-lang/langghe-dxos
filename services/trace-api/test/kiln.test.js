@@ -37,7 +37,33 @@ const codes = (r) => r.findings.map((f) => f.code);
 test("cấu hình hồ sơ nung của repo hợp lệ, đánh dấu là số liệu minh họa", () => {
   assert.equal(P.id, "gom-men-rach");
   assert.equal(P.verified, false);
-  assert.equal(kiln.pickProfile(CFG, "Dệt may").id, CFG.defaultProfile);
+  assert.equal(kiln.pickProfile(CFG, "Mây tre đan").id, CFG.defaultProfile); // danh mục lạ dùng hồ sơ mặc định
+});
+
+test("ngành lụa dùng hồ sơ nhuộm riêng, chọn theo từ khóa danh mục, câu chữ theo nghề nhuộm", () => {
+  for (const cat of ["Dệt may", "Lụa và dệt", "Lụa tơ tằm", "Thổ cẩm"]) assert.equal(kiln.pickProfile(CFG, cat).id, "lua-nhuom", cat);
+  assert.equal(kiln.pickProfile(CFG, "Gốm sứ").id, "gom-men-rach");
+  const dye = kiln.pickProfile(CFG, "Lụa và dệt");
+  assert.equal(dye.verified, false); // ngưỡng tham khảo, chưa được nghệ nhân xác nhận
+  const curve = []; // nâng nhiệt 1 °C/phút lên 88 °C, giữ 40 phút, hạ từ từ: mẻ nhuộm chuẩn
+  const t0 = 0;
+  for (let m = 0; m <= 60; m++) curve.push([t0 + m * 60000, 28 + m]);
+  for (let m = 61; m <= 100; m++) curve.push([t0 + m * 60000, 88]);
+  for (let m = 101; m <= 190; m++) curve.push([t0 + m * 60000, 88 - (m - 100) * 0.5]);
+  const mk = (peakOverride) => ({ curve: peakOverride ? curve.map(([t, v]) => [t, v > 80 ? peakOverride : v]) : curve, max: peakOverride ?? 88, min: 28, avg: 70, count: curve.length, from: "x", to: "y", quality: { flags: [] } });
+  const ok = kiln.analyze(mk(), dye);
+  assert.equal(ok.verdict, "ok");
+  assert.match(ok.summary, /Đường cong nhuộm/);
+  const boil = kiln.analyze(mk(101), dye);
+  assert.equal(boil.verdict, "alert");
+  assert.match(boil.findings.find((f) => f.code === "over-critical").text, /hồ sơ nhuộm.*nước sôi/);
+  assert.equal(kiln.analyze(mk(), kiln.pickProfile(CFG, "Gốm sứ")).profile.terms.batch, "mẻ nung");
+});
+
+test("terms không hợp lệ bị từ chối khi nạp hồ sơ", () => {
+  const bad = JSON.parse(JSON.stringify(CFG));
+  bad.profiles["lua-nhuom"].terms = { khongco: "x" };
+  assert.throws(() => kiln.validateProfiles(bad), /terms/);
 });
 
 test("chính sách hiện kết luận ở trang công khai: all / ok-only / none", () => {

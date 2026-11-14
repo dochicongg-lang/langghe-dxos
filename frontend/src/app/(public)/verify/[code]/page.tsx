@@ -112,7 +112,7 @@ function FireStory({ ev }: { ev: TraceEvent }) {
     ["Nhiệt độ đỉnh", `${iot.max} ${iot.unit}`],
     ["Trung bình", `${iot.avg} ${iot.unit}`],
     ["Thấp nhất", `${iot.min} ${iot.unit}`],
-    ["Thời gian nung", fmtDuration(iot.from, iot.to)],
+    [iot.deviceId.startsWith("dye") ? "Thời gian nhuộm" : "Thời gian nung", fmtDuration(iot.from, iot.to)],
   ];
   return (
     <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
@@ -350,7 +350,7 @@ function Verify() {
           <aside className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 text-sm text-stone-700">
             <h2 className="text-base font-semibold text-stone-900">Vì sao có thể tin trang này</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Số liệu cảm biến lò được ghi vào kho dữ liệu có khóa chống sửa và chống xóa; nếu bị ghi đè, hệ thống chỉ dùng bản ghi đầu tiên và gắn cờ cảnh báo.</li>
+              <li>Số liệu cảm biến (lò nung, bể nhuộm) được ghi vào kho dữ liệu có khóa chống sửa và chống xóa; nếu bị ghi đè, hệ thống chỉ dùng bản ghi đầu tiên và gắn cờ cảnh báo.</li>
               <li>Máy chủ tự đọc lại dữ liệu cảm biến để tính nhiệt độ và đường cong, người nhập hồ sơ không gõ tay các con số này.</li>
               <li>Kết quả OCOP chính thức do cơ quan có thẩm quyền quyết định, được hiển thị tách khỏi xác nhận của nền tảng.</li>
             </ul>

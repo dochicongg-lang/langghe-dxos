@@ -4,11 +4,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
-import AssistantPanel from "@/components/AssistantPanel";
 import KilnInsights from "@/components/KilnInsights";
+import KilnStatusBoard from "@/components/KilnStatusBoard";
 import Photo from "@/components/Photo";
 import ProposalsPanel from "@/components/ProposalsPanel";
-import { fetchReadings, toSeries, type Reading, type Series } from "@/lib/iot";
+import { fetchReadings, latestBatch, toSeries, type Reading, type Series } from "@/lib/iot";
 
 const REFRESH_MS = 10_000;
 const metricLabel: Record<string, string> = { temperature: "Nhiệt độ", humidity: "Độ ẩm" };
@@ -90,15 +90,23 @@ export default function IntelligencePage() {
     };
   }, [load]);
 
-  const series = readings ? toSeries(readings) : [];
+  const series = readings ? toSeries(readings).map((s) => latestBatch(s)) : [];
+  const others = series.filter((s) => !((s.id.startsWith("kiln") || s.id.startsWith("dye")) && s.metric === "temperature"));
   const recent = readings ? [...readings].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)).slice(0, 10) : [];
 
   return (
     <>
-      <div className="flex items-start justify-between gap-6">
-        <PageTitle title="Phân tích và trợ lý" desc="Nhận định về các mẻ nung và số liệu từ cảm biến trong xưởng, cập nhật liên tục." />
-        <Photo src="/illustrations/kiln.svg" className="-mt-1 mb-4 hidden h-24 w-44 shrink-0 rounded-xl object-cover md:block" />
+      <div className="mb-6 flex items-start justify-between gap-6">
+        <PageTitle flush title="Phân tích và trợ lý" desc="Nhận định về các mẻ nung, mẻ nhuộm và số liệu từ cảm biến, cập nhật liên tục." />
+        <Photo src="/illustrations/kiln.svg" className="hidden h-24 w-44 shrink-0 rounded-xl object-cover md:block" />
       </div>
+
+      {series.length > 0 && (
+        <div className="mb-6 space-y-6">
+          <KilnStatusBoard series={series} kind="kiln" />
+          <KilnStatusBoard series={series} kind="dye" />
+        </div>
+      )}
 
       <div className="mb-6">
         <KilnInsights />
@@ -106,7 +114,6 @@ export default function IntelligencePage() {
 
       <div className="mb-6 space-y-6">
         <ProposalsPanel />
-        <AssistantPanel />
       </div>
 
       <div className="mb-4 flex items-center justify-between text-sm text-stone-500">
@@ -133,7 +140,7 @@ export default function IntelligencePage() {
       {series.length > 0 && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {series.map((s) => (
+            {others.map((s) => (
               <SeriesCard key={s.id} s={s} />
             ))}
           </div>

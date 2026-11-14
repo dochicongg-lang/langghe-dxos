@@ -23,7 +23,7 @@ ensure_role() { # tên, mô tả
 
 ensure_user() { # tên, mật khẩu, vai trò (user thử cho môi trường phát triển)
   local u="$1" pw="$2" role="$3"
-  if [ -z "$(kc get users -r "$R" -q "username=$u" --fields id --format csv --noquotes | tr -d '\r')" ]; then
+  if [ -z "$(kc get users -r "$R" -q "username=$u" -q exact=true --fields id --format csv --noquotes | tr -d '\r')" ]; then
     kc create users -r "$R" -s "username=$u" -s enabled=true -s emailVerified=true -s "email=$u@dxos.local" \
       -s "firstName=$u" -s "lastName=User" >/dev/null
     kc set-password -r "$R" --username "$u" --new-password "$pw"
@@ -38,7 +38,7 @@ enable_unmanaged_attributes() {
 
 set_user_attr() { # tên-người-dùng, tên-thuộc-tính, giá-trị
   local id
-  id=$(kc get users -r "$R" -q "username=$1" --fields id --format csv --noquotes | tr -d '\r')
+  id=$(kc get users -r "$R" -q "username=$1" -q exact=true --fields id --format csv --noquotes | tr -d '\r')
   [ -n "$id" ] || { echo "Không có người dùng $1"; return 1; }
   kc update "users/$id" -r "$R" -s "attributes.$2=[\"$3\"]" >/dev/null
 }

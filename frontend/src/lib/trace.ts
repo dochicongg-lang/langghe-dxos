@@ -53,7 +53,7 @@ export interface KilnInsight {
   findings: { code: string; level: "alert" | "warn" | "info" | "ok"; text: string }[];
   metrics: { peak: number | null; samples: number; durationMin?: number; holdMin?: number; maxRampPerHour?: number | null; maxCoolPerHour?: number | null };
   baseline: { runs: number; medianPeak: number; deviationPct: number } | null;
-  profile: { id: string; name: string; verified: boolean };
+  profile: { id: string; name: string; verified: boolean; terms?: Record<string, string> };
 }
 
 export interface TraceEvent {
@@ -92,6 +92,7 @@ export interface ProductDetail {
   category: string;
   sector?: string;
   sector_label?: string;
+  sensor_stage?: string | null; // công đoạn được gắn dữ liệu cảm biến (gốm: nung, lụa: nhuộm)
   stages?: { key: string; label: string }[]; // chuỗi công đoạn của ngành sản phẩm này
   village: string;
   artisan: string;

@@ -17,7 +17,9 @@ export function canSee(user: Pick<UserInfo, "permissions" | "pages">, pathname: 
     case "/data":
     case "/intelligence":
       return user.pages.includes(first.slice(1));
+    case "/nen-tang":
+      return user.pages.includes("platform");
     default:
-      return true; // trang chủ, Human
+      return true; // trang chủ, tài khoản, trợ giúp, trợ lý
   }
 }

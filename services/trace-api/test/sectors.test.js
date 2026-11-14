@@ -42,5 +42,7 @@ test("giao diện nhận cấu hình gọn", () => {
   const v = sectors.publicView(CFG);
   assert.equal(v.sectors.length, 2);
   assert.equal(v.sectors[0].intelligence, "kiln");
-  assert.equal(v.sectors[1].intelligence, null);
+  assert.equal(v.sectors[1].intelligence, "dye");
+  assert.equal(v.sectors[0].sensorStage, "nung-hoan-thien");
+  assert.equal(v.sectors[1].sensorStage, "nhuom-hoan-thien");
 });

@@ -16,7 +16,7 @@ set +a
 
 U="${1:-tuan}"
 kc_login
-id=$(kc get users -r "$R" -q "username=$U" --fields id --format csv --noquotes | tr -d '\r')
+id=$(kc get users -r "$R" -q "username=$U" -q exact=true --fields id --format csv --noquotes | tr -d '\r')
 [ -n "$id" ] || { echo "Không có người dùng $U"; exit 1; }
 
 n=0
