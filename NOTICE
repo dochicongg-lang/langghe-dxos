@@ -11,8 +11,6 @@ và tệp NOTICE này, và ghi rõ các thay đổi đã thực hiện. Phần m
 Mỗi tệp mã nguồn của dự án có dòng "SPDX-License-Identifier: Apache-2.0" ở đầu tệp.
 (Kiểm tra bằng: node scripts/add-license-headers.js --check)
 
-Dự án được xây dựng cho cuộc thi Olympic Tin học Sinh viên Việt Nam, nội dung Phần mềm nguồn mở (OLP PMNM) 2026.
-
 Phần mềm này chạy cùng với các phần mềm mã nguồn mở độc lập (Keycloak, Apache APISIX, Flowable, PostgreSQL, MinIO, etcd)
 dưới dạng các dịch vụ riêng biệt chưa sửa đổi, và dùng các thư viện bên thứ ba qua trình quản lý gói. Chúng giữ nguyên giấy phép
 của chúng; danh mục đầy đủ ở tệp THIRD-PARTY-NOTICES.md.

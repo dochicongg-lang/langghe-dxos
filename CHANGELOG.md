@@ -30,7 +30,7 @@ Số `#n` là pull request trên GitHub.
 
 ## [0.1.0] - 2026-11-13
 
-Bản đầu tiên dùng cho cuộc thi OLP Phần mềm nguồn mở 2026 (đề tài DX-OS Open-Core).
+Bản đầu tiên của dự án (DX-OS Open-Core cho làng nghề).
 
 ### Thêm
 - **Tầng 1 (lõi không giao diện):** Keycloak (đăng nhập một lần, JWT), Apache APISIX (cổng API), Flowable (quy trình BPMN), PostgreSQL, MinIO, đóng gói bằng Docker Compose, cài đặt và nâng cấp một lệnh `scripts/upgrade.sh` (#1, #11).

@@ -3,8 +3,8 @@
 // Copyright 2026 The Làng Nghề Số contributors
 "use strict";
 /**
- * Thêm (hoặc kiểm tra) dòng giấy phép SPDX ở đầu MỌI tệp mã nguồn của dự án, theo yêu cầu của thể lệ OLP PMNM 2026
- * ("giấy phép phải được ghi trong từng tệp mã").
+ * Thêm (hoặc kiểm tra) dòng giấy phép SPDX ở đầu MỌI tệp mã nguồn của dự án, theo nguyên tắc
+ * "giấy phép phải được ghi trong từng tệp mã".
  *
  *   node scripts/add-license-headers.js          thêm dòng còn thiếu (chạy lặp lại an toàn)
  *   node scripts/add-license-headers.js --check  chỉ kiểm tra, thoát mã 1 nếu còn tệp thiếu (dùng trong CI)

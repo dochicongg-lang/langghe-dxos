@@ -1,7 +1,6 @@
 # Làng Nghề Số (DX-OS Open-Core)
 
 Mô hình thực hành số cho **làng nghề**, xây theo khung **DX-OS 3 tầng** và dùng hoàn toàn **phần mềm nguồn mở**.
-Dự án tham gia cuộc thi Phần mềm Nguồn mở OLP 2026.
 
 Hệ thống giúp một sản phẩm làng nghề (ví dụ bình gốm Bát Tràng) có **hành trình truy xuất công khai**: người mua quét mã QR là thấy
 nghệ nhân, các công đoạn sản xuất, **đường cong nhiệt độ lò nung thật** (kèm dấu cho biết máy chủ đã đối chiếu số liệu cảm biến)
