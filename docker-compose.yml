@@ -101,7 +101,7 @@ services:
     command: start-dev --import-realm
     environment:
       # Issuer của token luôn là KC_HOSTNAME dù APISIX gọi qua http://keycloak:8080 (backchannel động)
-      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT}
+      KC_HOSTNAME: ${KC_HOSTNAME_URL:-http://localhost:${KEYCLOAK_PORT}} # triển khai thật: đặt KC_HOSTNAME_URL=https://<tên-miền-đăng-nhập> trong .env
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}

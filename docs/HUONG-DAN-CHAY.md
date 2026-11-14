@@ -436,3 +436,7 @@ Dữ liệu chính của hệ thống nằm ở PostgreSQL (đang dùng) và kho
 **Đề xuất chờ duyệt** (cán bộ HTX và quản trị). Khi phân tích mẻ nung cho kết luận **Cần xem lại** hoặc **Cảnh báo**, hệ thống tạo một đề xuất kèm lý do và căn cứ (tự động ngay khi công đoạn nung có bằng chứng cảm biến được ghi; quản trị cũng quét tay được bằng `POST /api/trace/agent/scan`). Hệ thống **không tự làm gì**: chỉ khi bạn bấm **Duyệt và gửi thông báo** thì thông báo mới tới cán bộ HTX của hợp tác xã sở hữu sản phẩm (hoặc quản trị nếu sản phẩm chưa thuộc hợp tác xã nào); bấm **Từ chối** thì không có gì được gửi. Cán bộ HTX chỉ thấy và duyệt đề xuất của hợp tác xã mình; một đề xuất không duyệt được hai lần.
 
 **Giới hạn:** chưa có mô hình ngôn ngữ (tìm kiếm theo từ khóa, chưa hiểu nghĩa); tác tử mới theo dõi mẻ nung; có thể gắn thêm mô hình mã nguồn mở chạy cục bộ (ví dụ Ollama) nếu có máy đủ mạnh. Kiểm chứng thật: `node scripts/check-assistant-agent.js`.
+
+## 20. Đưa hệ thống ra Internet
+
+Xem [TRIEN-KHAI-INTERNET.md](TRIEN-KHAI-INTERNET.md). Trước tiên chạy `node scripts/prod-check.js` để biết hệ thống còn thiếu gì (mật khẩu mẫu, khóa dữ liệu chưa ở chế độ COMPLIANCE, HTTPS, chế độ Keycloak, tài khoản thử...). Hệ thống hiện mới chạy thật trên máy phát triển, chưa triển khai thật lên Internet.
