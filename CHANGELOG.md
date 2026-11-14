@@ -5,6 +5,8 @@ Số `#n` là pull request trên GitHub.
 
 ## [Chưa phát hành]
 
+## [0.3.0] - 2026-11-15
+
 ### Thêm
 - **Ngành nghề (gốm, lụa) trên cùng một nền tảng:** `config/sectors.json` khai báo từng ngành và chuỗi công đoạn riêng (lụa: nuôi tằm, ươm tơ, dệt, nhuộm, kiểm định, đóng gói, phân phối). Ngành của sản phẩm suy ra từ danh mục nên không đổi cơ sở dữ liệu; máy chủ từ chối công đoạn không thuộc ngành (`services/trace-api/sectors.js`, có test); `GET /api/trace/sectors`; sản phẩm trả thêm `sector`, `sector_label`, `stages`. Dữ liệu mẫu có thêm hai sản phẩm lụa. Chuỗi lụa theo thực tế làng Vạn Phúc (chủ yếu dệt, tơ nhập từ nơi nuôi tằm), kèm cảm biến bể nhuộm và phân tích mẻ nhuộm (hồ sơ `lua-nhuom`, ngưỡng tham khảo từ tài liệu nhuộm tơ tằm, chưa được nghệ nhân xác nhận); công đoạn gắn cảm biến theo ngành (`sensorStage`).
 - **Giao diện làm lại theo hướng ít mà đủ:** trang chủ theo việc cần làm (khối chào kèm tra nhanh theo mã, bốn ô số, việc của bạn, ba bước hồ sơ, ngành nghề, sản phẩm gần đây); menu dùng biểu tượng và tên theo việc làm, không dùng thuật ngữ kỹ thuật; danh sách sản phẩm và hồ sơ OCOP có tìm kiếm, bộ lọc (ngành, trạng thái), biểu mẫu mở khi cần; trang Việc đang xử lý hiện bốn chặng của hồ sơ; trang Cấu trúc nền tảng minh họa bốn tầng H-P-D-I cho từng ngành; trang giới thiệu công khai `/gioi-thieu`; trang Trợ giúp; trang 404 và trang lỗi tiếng Việt; liên kết bỏ qua menu cho bàn phím.
