@@ -102,7 +102,9 @@ node scripts/check-audit-log.js                     # nhật ký kiểm toán th
 - **trace-api không giữ mật khẩu admin của Flowable:** Flowable không phân quyền mịn, nên `trace-api` gọi Flowable qua một route nội bộ của cổng gác (cổng 9081 chỉ trong mạng Docker, cần khóa riêng) chỉ cho ba thao tác của quy trình hồ sơ OCOP; mọi thao tác khác (quản trị engine, tạo/xóa người dùng, triển khai/xóa quy trình) bị từ chối (`node scripts/check-flowable-internal.js`).
 - **Sao lưu, khôi phục, tự phục hồi:** `bash scripts/backup.sh`, `bash scripts/restore.sh <thư-mục> --yes`, `bash scripts/heal.sh` (xem `docs/HUONG-DAN-CHAY.md`, mục 13). Thư mục sao lưu chứa `.env` nên không được đưa lên git.
 - Truy cập đi thẳng vào MinIO (không qua cổng gác, như console) cũng bị policy chặn khỏi bucket tệp hồ sơ và bucket bản neo với mọi vai trò (`node scripts/check-minio-direct.js`).
-- Giới hạn đã biết: console MinIO (chỉ nghe trên máy chủ) chưa tắt; bản MinIO đang dùng cho phép gỡ khóa Governance bằng tiêu đề bypass (đã chặn ở cổng gác, chưa chặn khi vào thẳng MinIO); cấu hình OCOP và ngưỡng nung chưa được xác nhận. Chi tiết ở mục "Lưu ý cho nhóm phát triển" bên dưới.
+- **Console MinIO mặc định không được mở** (bật tạm bằng `docker-compose.console.yml`, chỉ nghe 127.0.0.1).
+- **Khóa dữ liệu:** bản MinIO đang dùng cho phép gỡ khóa **Governance** bằng tiêu đề bypass khi đi thẳng vào MinIO (cổng gác đã chặn ở route S3); chế độ **COMPLIANCE** chặn được lỗi này (đã kiểm chứng bằng `node scripts/check-minio-lock-modes.js --yes`), nên triển khai thật phải dùng COMPLIANCE.
+- Giới hạn đã biết: cấu hình OCOP và ngưỡng nung chưa được xác nhận. Chi tiết ở mục "Lưu ý cho nhóm phát triển" bên dưới.
 - Hệ thống **hỗ trợ và theo dõi** quy trình chứng nhận; không tự cấp giấy chứng nhận của cơ quan có thẩm quyền.
 
 ## Lưu ý cho nhóm phát triển

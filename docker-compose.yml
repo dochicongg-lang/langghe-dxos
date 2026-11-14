@@ -63,8 +63,8 @@ services:
         condition: service_healthy
     volumes:
       - minio-data:/data
-    ports:
-      - "127.0.0.1:${MINIO_CONSOLE_PORT}:9001" # console MinIO chỉ máy chủ này (không qua cổng gác nên không được mở ra mạng)
+    # KHÔNG publish console (cổng 9001) ra máy chủ theo mặc định: console đi thẳng vào MinIO, không qua cổng gác. Cần dùng thì bật tạm bằng
+    # tệp ghi đè: docker compose -f docker-compose.yml -f docker-compose.console.yml up -d minio   (chỉ nghe 127.0.0.1)
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s

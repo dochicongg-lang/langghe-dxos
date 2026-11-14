@@ -76,6 +76,17 @@ const root = (...args) => execFileSync("docker", ["exec", "-e", `MC_HOST_x=http:
     ok(iotRead.ok && iotRead.out.length > 0, `${user} (${role}): vẫn ĐỌC được số liệu cảm biến (đối chứng dương, policy không bị siết quá tay)`);
   }
 
+  // console MinIO không được publish ra máy chủ theo mặc định
+  const consolePort = env.MINIO_CONSOLE_PORT ?? "9001";
+  let reachable = true;
+  try {
+    await fetch(`http://localhost:${consolePort}/`, { signal: AbortSignal.timeout(4000) });
+  } catch {
+    reachable = false;
+  }
+  ok(!reachable, `console MinIO (cổng ${consolePort}) KHÔNG truy cập được từ máy chủ theo mặc định`);
+  ok(!/9001/.test(execFileSync("docker", ["port", "dxos-minio"], { encoding: "utf8" })), "docker không publish cổng 9001 của MinIO");
+
   console.log(fail ? `\n${fail} KIỂM TRA THẤT BẠI` : "\nTẤT CẢ ĐẠT");
   process.exit(fail ? 1 : 0);
 })().catch((e) => {

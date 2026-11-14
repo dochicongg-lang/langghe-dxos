@@ -161,7 +161,7 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 minioadmi
 
 (Dùng `MINIO_ROOT_USER` và `MINIO_ROOT_PASSWORD` trong `.env` của bạn nếu đã đổi.)
 
-Trang quản trị MinIO (xem tệp bằng giao diện): http://localhost:9001 (chỉ mở được từ chính máy chạy Docker; cổng này không được mở ra mạng vì không đi qua cổng gác). Bấm **Keycloak SSO** rồi đăng nhập `tester`/`tester`.
+Trang quản trị MinIO (xem tệp bằng giao diện) **mặc định KHÔNG được mở** vì nó đi thẳng vào MinIO mà không qua cổng gác. Cần dùng thì bật tạm cho quản trị viên (chỉ nghe trên chính máy chạy Docker): `docker compose -f docker-compose.yml -f docker-compose.console.yml up -d minio`, rồi mở http://localhost:9001, bấm **Keycloak SSO** và đăng nhập `tester`/`tester`. Dùng xong tắt lại bằng `docker compose up -d minio`.
 
 ## 9. Dừng và dọn dẹp
 
@@ -327,7 +327,9 @@ Nếu báo *"Chưa cấu hình tài khoản đọc MinIO"*: thêm hai dòng `TRA
 | `GOVERNANCE` (mặc định) | Người thường không phá được; quản trị viên (root) vẫn gỡ được bằng đặc quyền bypass. Dọn dẹp dữ liệu thử được. | Phát triển, thử nghiệm, demo |
 | `COMPLIANCE` | Đến cả root cũng không xóa/sửa được trước khi hết hạn. **Không hoàn tác**: dữ liệu thử cũng nằm lại đến hết hạn. | Triển khai thật |
 
-**Lưu ý quan trọng về độ tin cậy của chế độ Governance.** Qua kiểm thử, bản MinIO đang dùng cho phép **bất kỳ tài khoản đăng nhập nào** (kể cả chỉ-đọc) gỡ hạn khóa Governance nếu gửi yêu cầu `PutObjectRetention` rỗng kèm tiêu đề `x-amz-bypass-governance-retention: true`, bất chấp policy. Vì vậy cổng APISIX chặn mọi yêu cầu đổi khóa đi qua `s3.localhost` (`?retention`, `?legal-hold`, `?object-lock` và tiêu đề bypass); `scripts/check-iot-permissions.sh` kiểm tra điều này. Đường vào **không qua cổng gác** (console MinIO ở cổng 9001, hay truy cập trực tiếp trong mạng Docker) thì chưa được chặn: không mở các đường đó ra ngoài. Chế độ `COMPLIANCE` được thiết kế để chống việc gỡ khóa này ở tầng lưu trữ, nên là lựa chọn nên dùng khi triển khai thật (chưa được kiểm thử ở đây vì không hoàn tác được).
+**Khuyến nghị cho triển khai thật: dùng COMPLIANCE.** Đã kiểm chứng (`node scripts/check-minio-lock-modes.js --yes`) cùng một yêu cầu khai thác, gửi thẳng vào MinIO bằng tài khoản chỉ-xem: với đối tượng **GOVERNANCE** hạn khóa bị gỡ (HTTP 200), với đối tượng **COMPLIANCE** yêu cầu bị từ chối (HTTP 400) và hạn khóa còn nguyên. Vì COMPLIANCE không hoàn tác được (kể cả root không xóa được trước khi hết hạn) nên môi trường phát triển giữ GOVERNANCE để dọn dữ liệu thử; khi triển khai thật hãy đặt `IOT_LOCK_MODE=COMPLIANCE` và `IOT_LOCK_CONFIRM_COMPLIANCE=yes` (script thiết lập không cho chạy COMPLIANCE nếu thiếu xác nhận). Chưa có bản MinIO nào mới hơn để nâng cấp (kiểm tra ngày 2026-11-14).
+
+**Lưu ý về độ tin cậy của chế độ Governance.** Qua kiểm thử, bản MinIO đang dùng cho phép **bất kỳ tài khoản đăng nhập nào** (kể cả chỉ-đọc) gỡ hạn khóa Governance nếu gửi yêu cầu `PutObjectRetention` rỗng kèm tiêu đề `x-amz-bypass-governance-retention: true`, bất chấp policy. Vì vậy cổng APISIX chặn mọi yêu cầu đổi khóa đi qua `s3.localhost` (`?retention`, `?legal-hold`, `?object-lock` và tiêu đề bypass); `scripts/check-iot-permissions.sh` kiểm tra điều này. Đường vào **không qua cổng gác** (console MinIO ở cổng 9001, hay truy cập trực tiếp trong mạng Docker) thì chưa được chặn: không mở các đường đó ra ngoài. Chế độ `COMPLIANCE` được thiết kế để chống việc gỡ khóa này ở tầng lưu trữ, nên là lựa chọn nên dùng khi triển khai thật (chưa được kiểm thử ở đây vì không hoàn tác được).
 
 **Giới hạn:** khóa chỉ bảo vệ khi truy cập qua MinIO. Nếu ai xóa cả ổ đĩa Docker (`docker compose down -v`) hoặc có quyền máy chủ thì dữ liệu vẫn mất, nên cần sao lưu riêng. Khóa cũng **không chứng minh số liệu là thật lúc ghi**: gateway bị lộ khóa vẫn ghi được số liệu mới trông hợp lý.
 

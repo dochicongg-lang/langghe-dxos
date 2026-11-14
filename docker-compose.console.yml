@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 The Làng Nghề Số contributors
+# Tệp ghi đè TÙY CHỌN: bật console MinIO ở http://localhost:${MINIO_CONSOLE_PORT} (chỉ nghe 127.0.0.1) cho quản trị viên.
+# Mặc định console KHÔNG được mở vì nó đi thẳng vào MinIO mà không qua cổng gác. Dùng xong nên tắt:
+#   bật: docker compose -f docker-compose.yml -f docker-compose.console.yml up -d minio
+#   tắt: docker compose up -d minio
+services:
+  minio:
+    ports:
+      - "127.0.0.1:${MINIO_CONSOLE_PORT}:9001"
