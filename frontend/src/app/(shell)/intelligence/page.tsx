@@ -92,7 +92,7 @@ export default function IntelligencePage() {
 
   return (
     <>
-      <PageTitle title="Intelligence" desc="Phân tích thông minh các mẻ nung và số liệu cảm biến IoT từ MinIO, đọc qua API Gateway bằng JWT (STS + SigV4)." />
+      <PageTitle title="Intelligence" desc="Nhận định về các mẻ nung và số liệu từ cảm biến trong xưởng, cập nhật liên tục." />
 
       <div className="mb-6">
         <KilnInsights />
@@ -115,13 +115,7 @@ export default function IntelligencePage() {
 
       {readings && series.length === 0 && !error && (
         <Card title="Chưa có dữ liệu">
-          <p className="text-sm text-stone-600">
-            Bucket chưa có số liệu. Mở một terminal khác và chạy:
-          </p>
-          <pre className="mt-3 overflow-x-auto rounded-lg bg-stone-900 p-4 text-sm text-stone-100">
-            node backend/simulate-iot.js --post --interval 2000 --batch 8
-          </pre>
-          <p className="mt-3 text-sm text-stone-500">Vài chục giây sau trang sẽ tự hiện số liệu.</p>
+          <p className="text-sm text-stone-600">Thiết bị cảm biến chưa gửi số liệu nào. Khi có số liệu, trang này sẽ tự hiện.</p>
         </Card>
       )}
 

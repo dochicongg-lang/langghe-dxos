@@ -7,7 +7,7 @@
   },
   "profiles": {
     "gom-men-rach": {
-      "name": "Gốm men rạn (ngưỡng minh họa)",
+      "name": "Gốm men rạn",
       "verified": false,
       "note": "Ngưỡng minh họa theo hiểu biết chung về nung gốm, cần thợ gốm hoặc chuyên gia xác nhận theo loại men, kích thước sản phẩm và lò thực tế.",
       "minSamples": 20,

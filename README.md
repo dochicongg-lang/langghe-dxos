@@ -99,8 +99,18 @@ node scripts/check-audit-log.js                     # nhật ký kiểm toán th
 ## Bảo mật
 - Chỉ cổng gác (9080) và Keycloak (8080) mở ra mạng; PostgreSQL, console MinIO và Admin API của APISIX chỉ nghe trên máy chủ; Flowable, API kho lưu trữ và `trace-api` không mở cổng nào.
 - Mật khẩu mặc định (PostgreSQL, MinIO, Keycloak admin) và tài khoản thử **phải đổi** trước khi triển khai thật. Chế độ khóa dữ liệu mặc định là Governance; khi triển khai thật nên dùng COMPLIANCE (không hoàn tác, cần xác nhận rõ ràng, xem hướng dẫn).
-- Giới hạn đã biết: chuỗi băm của nhật ký chưa neo ra ngoài nên không phát hiện được việc cắt bớt các dòng cuối; console MinIO chưa bị chặn kho tệp; cấu hình OCOP và ngưỡng nung chưa được xác nhận. Chi tiết trong `CLAUDE.md`.
+- Giới hạn đã biết: chuỗi băm của nhật ký chưa neo ra ngoài nên không phát hiện được việc cắt bớt các dòng cuối; console MinIO chưa bị chặn kho tệp; cấu hình OCOP và ngưỡng nung chưa được xác nhận. Chi tiết ở mục "Lưu ý cho nhóm phát triển" bên dưới.
 - Hệ thống **hỗ trợ và theo dõi** quy trình chứng nhận; không tự cấp giấy chứng nhận của cơ quan có thẩm quyền.
+
+## Lưu ý cho nhóm phát triển
+Các điểm sau cố ý **không** hiển thị trên giao diện, nhưng cần nắm trước khi dùng thật hoặc trình diễn:
+
+- **Quy định OCOP** (`config/ocop-profiles.json`, hồ sơ `hanoi-2026`): số liệu (thang điểm, ngưỡng sao, hiệu lực 36 tháng, danh mục giấy tờ, cấp thẩm quyền) tổng hợp từ báo chí và cổng thông tin, đặt `"verified": false`. Phải đối chiếu Quyết định 26/2026/QĐ-TTg và Quyết định 3488/QĐ-UBND trước khi dùng cho hồ sơ thật. Đổi tệp thì API và giao diện đổi theo, không cần sửa mã.
+- **Ngưỡng nung** (`config/kiln-profiles.json`): khoảng nhiệt độ chuẩn, ngưỡng nguy hiểm, tốc độ gia nhiệt và làm nguội là số liệu minh họa theo hiểu biết chung, `"verified": false`. Cần thợ gốm hoặc chuyên gia xác nhận theo loại men, kích thước sản phẩm và lò thực tế. Kết luận phân tích chỉ hỗ trợ ra quyết định, không thay thế kiểm định chất lượng.
+- **Dữ liệu trình diễn** (`node scripts/seed-demo.js`): số quyết định OCOP, điểm và ba sản phẩm gốm là dữ liệu mẫu, không phải hồ sơ thật. Không dùng số quyết định mẫu ở nơi công bố thật.
+- **Dữ liệu cảm biến** do trình giả lập tạo (`node backend/simulate-iot.js --post --interval 2000 --batch 8`); khi chưa có thiết bị thật, trang Intelligence sẽ trống cho tới khi chạy lệnh này.
+- **Quy trình mẫu của Flowable** bị ẩn ở trang Process; chỉ hiện quy trình thuộc hệ thống (`category = dxos`).
+- **Xác nhận của nền tảng** ở trang công khai `/verify` luôn ghi rõ chưa phải giấy chứng nhận OCOP: đây là ranh giới pháp lý, giữ nguyên.
 
 ## Giấy phép và tài liệu dự án
 Dự án phát hành theo **Giấy phép Apache, Phiên bản 2.0** (giấy phép nguồn mở được OSI chấp thuận): toàn văn ở [LICENSE](LICENSE),

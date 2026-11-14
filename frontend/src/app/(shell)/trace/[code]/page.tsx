@@ -35,7 +35,7 @@ function Product() {
     try {
       const res = await apiFetch(`/api/trace/products/${encodeURIComponent(code)}`);
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
+      if (!res.ok) throw new Error(body.error ?? `Hệ thống báo lỗi (mã ${res.status})`);
       setProduct(body as ProductDetail);
       setError(null);
     } catch (e) {
@@ -71,7 +71,7 @@ function Product() {
         body: JSON.stringify({ ...fields, iot }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
+      if (!res.ok) throw new Error(body.error ?? `Hệ thống báo lỗi (mã ${res.status})`);
       setProduct(body as ProductDetail);
       form.reset();
       setStage("");
@@ -221,7 +221,7 @@ function Product() {
                       <input name="iotTo" type="datetime-local" className={inputCls} />
                     </label>
                     <p className="text-xs text-stone-500">
-                      Máy chủ tự đọc nhiệt độ lò trong khoảng này từ MinIO và đính kèm đường cong nhiệt đã đối chiếu. Bỏ trống nếu không cần.
+                      Hệ thống tự lấy nhiệt độ lò trong khoảng này từ số liệu cảm biến và gắn đường cong nhiệt đã đối chiếu vào công đoạn. Bỏ trống nếu không cần.
                     </p>
                   </fieldset>
                 )}

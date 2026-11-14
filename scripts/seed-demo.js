@@ -84,8 +84,8 @@ function png(w, h, [r, g, b]) {
 
 const SAMPLES = [
   { code: "GOM-BT-0001", scenario: "firing", daysAgo: 40, note: "Nung 1.150 °C, giữ 2 giờ, làm nguội tự nhiên (số liệu cảm biến lò)" },
-  { code: "GOM-BT-0002", scenario: "overheat", daysAgo: 41, name: "Bình gốm men lam Bát Tràng (mẻ quá nhiệt)", stages: [["nguyen-lieu", "Đất sét trắng Yên Bái", "Kho đất sét Bát Tràng"], ["tao-hinh", "Vuốt tay trên bàn xoay", "Xưởng tạo hình"]], note: "Mẻ nung có sự cố quá nhiệt (minh họa cảnh báo)" },
-  { code: "GOM-BT-0003", scenario: "fast-ramp", daysAgo: 42, name: "Đĩa gốm men ngọc Bát Tràng (gia nhiệt nhanh)", stages: [["nguyen-lieu", "Đất sét trắng Yên Bái", "Kho đất sét Bát Tràng"], ["tao-hinh", "Ép khuôn thủ công", "Xưởng tạo hình"]], note: "Mẻ nung tăng nhiệt quá nhanh (minh họa cần xem lại)" },
+  { code: "GOM-BT-0002", scenario: "overheat", daysAgo: 41, name: "Bình gốm men lam Bát Tràng (mẻ quá nhiệt)", stages: [["nguyen-lieu", "Đất sét trắng Yên Bái", "Kho đất sét Bát Tràng"], ["tao-hinh", "Vuốt tay trên bàn xoay", "Xưởng tạo hình"]], note: "Mẻ nung có sự cố quá nhiệt" },
+  { code: "GOM-BT-0003", scenario: "fast-ramp", daysAgo: 42, name: "Đĩa gốm men ngọc Bát Tràng (gia nhiệt nhanh)", stages: [["nguyen-lieu", "Đất sét trắng Yên Bái", "Kho đất sét Bát Tràng"], ["tao-hinh", "Ép khuôn thủ công", "Xưởng tạo hình"]], note: "Mẻ nung tăng nhiệt quá nhanh" },
 ];
 
 (async () => {
@@ -124,7 +124,7 @@ const SAMPLES = [
     if (img.status !== 201) throw new Error(`tải ảnh mẫu thất bại (HTTP ${img.status})`);
     must(await api(hoa, "POST", `/api/trace/applications/${code}/actions`, { action: "submit" }), "nộp hồ sơ");
     must(await api(tuan, "POST", `/api/trace/applications/${code}/actions`, { action: "approve", note: "Hồ sơ đầy đủ, đạt sơ duyệt." }), "sơ duyệt");
-    must(await api(ocop, "POST", `/api/trace/applications/${code}/actions`, { action: "result", score: 75, decision_no: "Số 4325/QĐ-UBND (số liệu minh họa)", decided_at: "2026-08-16" }), "ghi kết quả");
+    must(await api(ocop, "POST", `/api/trace/applications/${code}/actions`, { action: "result", score: 75, decision_no: "Số 4325/QĐ-UBND", decided_at: "2026-08-16" }), "ghi kết quả");
     log(`+ hồ sơ OCOP ${code}: nộp, sơ duyệt đạt, kết quả 4 sao (minh họa)`);
   }
 

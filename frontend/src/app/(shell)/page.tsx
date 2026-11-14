@@ -62,8 +62,8 @@ export default function Home() {
 
   // Bốn chặng tiến hóa của Tầng 2, kèm con số thật để thấy mỗi chặng đang "sống" thế nào
   const journey = [
-    { href: "/human", letter: "H", title: "Human", line: "Danh tính, vai trò, HTX", metric: `${Object.keys(user.permissions).length} quyền`, hint: roles.join(", ") || "chưa có vai trò" },
-    { href: "/process", letter: "P", title: "Process", line: "Quy trình hồ sơ OCOP trên Flowable", metric: `${num(data?.openTasks)} việc mở`, hint: "nhiệm vụ đang chờ xử lý" },
+    { href: "/human", letter: "H", title: "Human", line: "Danh tính, vai trò, HTX", metric: `${Object.keys(user.permissions).length} việc được phép`, hint: roles.join(", ") || "chưa có vai trò" },
+    { href: "/process", letter: "P", title: "Process", line: "Các bước xử lý hồ sơ OCOP", metric: `${num(data?.openTasks)} việc mở`, hint: "nhiệm vụ đang chờ xử lý" },
     { href: "/data", letter: "D", title: "Data", line: "Sản phẩm, công đoạn, tệp", metric: `${num(data?.products?.length)} sản phẩm`, hint: `${num(events)} công đoạn đã ghi` },
     { href: "/intelligence", letter: "I", title: "Intelligence", line: "Số liệu cảm biến lò nung", metric: "Đường cong", hint: "bằng chứng nhiệt độ" },
   ];
@@ -128,7 +128,7 @@ export default function Home() {
           <div className="grid gap-4 sm:grid-cols-3">
             {canProducts && <Stat href="/trace" label="Sản phẩm truy xuất" value={num(data?.products?.length)} note="được phép xem" />}
             {canApps && <Stat href="/ocop" label="Hồ sơ OCOP" value={num(data?.applications ? inProgress : null)} note={`đang xử lý / ${num(data?.applications?.length)} hồ sơ`} />}
-            {canProcess && <Stat href="/process" label="Nhiệm vụ quy trình" value={num(data?.openTasks)} note="đang mở trong Flowable" />}
+            {canProcess && <Stat href="/process" label="Nhiệm vụ quy trình" value={num(data?.openTasks)} note="đang chờ xử lý" />}
           </div>
         </div>
 

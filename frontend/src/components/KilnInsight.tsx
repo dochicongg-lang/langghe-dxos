@@ -19,8 +19,16 @@ export const verdictTone: Record<KilnVerdict, string> = {
 const levelIcon: Record<string, string> = { ok: "✓", info: "ℹ", warn: "⚠", alert: "⛔" };
 const levelTone: Record<string, string> = { ok: "text-emerald-700", info: "text-stone-500", warn: "text-amber-700", alert: "text-red-700" };
 
+const verdictIcon: Record<KilnVerdict, string> = { ok: "✓", warn: "⚠", alert: "⛔", insufficient: "…" };
+
+/** Nhãn kết luận: màu đi kèm biểu tượng và chữ, để không phụ thuộc vào màu sắc. */
 export function VerdictBadge({ verdict }: { verdict: KilnVerdict }) {
-  return <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${verdictTone[verdict]}`}>{verdictLabel[verdict]}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${verdictTone[verdict]}`}>
+      <span aria-hidden="true">{verdictIcon[verdict]}</span>
+      {verdictLabel[verdict]}
+    </span>
+  );
 }
 
 /** Kết luận phân tích tự động đường cong nung (luật trên bằng chứng đã được máy chủ đối chiếu). */
@@ -40,8 +48,7 @@ export default function KilnInsightPanel({ insight }: { insight: KilnInsight }) 
         ))}
       </ul>
       <p className="mt-2 text-[11px] leading-snug text-stone-500">
-        Phân tích tự động theo quy tắc của hồ sơ nung &ldquo;{insight.profile.name}&rdquo;
-        {insight.profile.verified ? "" : " (ngưỡng minh họa, chưa được chuyên gia xác nhận)"}. Chỉ hỗ trợ ra quyết định, không thay thế kiểm định chất lượng sản phẩm.
+        Phân tích tự động theo hồ sơ nung &ldquo;{insight.profile.name}&rdquo;.
       </p>
     </div>
   );

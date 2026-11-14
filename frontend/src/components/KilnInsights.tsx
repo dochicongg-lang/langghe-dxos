@@ -38,7 +38,7 @@ export default function KilnInsights() {
     try {
       const res = await apiFetch("/api/trace/insights/kilns");
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
+      if (!res.ok) throw new Error(body.error ?? `Hệ thống báo lỗi (mã ${res.status})`);
       setData(body as Overview);
       setError(null);
     } catch (e) {
@@ -66,7 +66,6 @@ export default function KilnInsights() {
         <>
           <p className="text-sm text-stone-600">
             Hệ thống tự đối chiếu đường cong nhiệt độ của từng mẻ với hồ sơ nung{data.profile ? ` "${data.profile.name}"` : ""}: đỉnh nhiệt, thời gian giữ, tốc độ gia nhiệt và làm nguội, so với các mẻ khác của cùng lò, và độ tin cậy của số liệu.
-            {data.profile && !data.profile.verified && <span className="text-amber-700"> Ngưỡng hiện là số liệu minh họa, cần chuyên gia xác nhận.</span>}
           </p>
           <dl className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
             {(

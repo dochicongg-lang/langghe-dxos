@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
+import { visibleRoles } from "@/lib/roles";
+import EmptyState from "@/components/EmptyState";
 import { fmtDate, stageLabels, type ProductSummary } from "@/lib/trace";
 
 const inputCls =
@@ -24,7 +26,7 @@ export default function TracePage() {
   const load = useCallback(async () => {
     try {
       const res = await apiFetch("/api/trace/products");
-      if (!res.ok) throw new Error(`API trả về ${res.status}`);
+      if (!res.ok) throw new Error(`Hệ thống báo lỗi (mã ${res.status})`);
       setProducts((await res.json()).products as ProductSummary[]);
       setError(null);
     } catch (e) {
@@ -50,7 +52,7 @@ export default function TracePage() {
         body: JSON.stringify(data),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
+      if (!res.ok) throw new Error(body.error ?? `Hệ thống báo lỗi (mã ${res.status})`);
       router.push(`/trace/${encodeURIComponent(body.code)}`);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Lỗi không xác định");
@@ -67,7 +69,12 @@ export default function TracePage() {
           <Card title="Sản phẩm">
             {error && <p className="text-sm text-red-600">Không tải được dữ liệu: {error}</p>}
             {!error && !products && <p className="text-sm text-stone-500">Đang tải…</p>}
-            {products && products.length === 0 && <p className="text-sm text-stone-500">Chưa có sản phẩm nào.</p>}
+            {products && products.length === 0 && (
+              <EmptyState
+                title="Chưa có sản phẩm nào"
+                hint={canWrite ? "Thêm sản phẩm đầu tiên ở khung bên cạnh, rồi ghi từng công đoạn từ nguyên liệu đến phân phối." : "Khi có sản phẩm trong phạm vi bạn được xem, chúng sẽ hiện ở đây."}
+              />
+            )}
             {products && products.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -111,7 +118,7 @@ export default function TracePage() {
 
         <Card title="Thêm sản phẩm">
           {!canWrite ? (
-            <p className="text-sm text-stone-500">Vai trò của bạn không có quyền tạo sản phẩm (vai trò hiện tại: {user.roles.filter((r) => !r.startsWith("default-") && r !== "offline_access" && r !== "uma_authorization").join(", ") || "chưa có"}).</p>
+            <p className="text-sm text-stone-500">Tài khoản của bạn ({visibleRoles(user.roles).join(", ") || "chưa có vai trò"}) chưa được phép thêm sản phẩm. Cần thêm quyền, hãy nhờ người quản trị.</p>
           ) : (
             <form onSubmit={onCreate} className="space-y-3">
               <label className="block text-sm">

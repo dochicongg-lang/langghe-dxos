@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
+import EmptyState from "@/components/EmptyState";
 import { fmtDate } from "@/lib/trace";
 import { stateLabels, stateTone, starsForScore, type OcopProfile, type OcopSummary } from "@/lib/ocop";
 
@@ -29,7 +30,7 @@ export default function OcopPage() {
   const load = useCallback(async () => {
     try {
       const [a, p] = await Promise.all([apiFetch("/api/trace/applications"), apiFetch("/api/trace/applications/profile")]);
-      if (!a.ok) throw new Error(`API trả về ${a.status}`);
+      if (!a.ok) throw new Error(`Hệ thống báo lỗi (mã ${a.status})`);
       setApps(((await a.json()) as { applications: OcopSummary[] }).applications);
       if (p.ok) setProfile((await p.json()) as OcopProfile);
       setError(null);
@@ -62,7 +63,7 @@ export default function OcopPage() {
         body: JSON.stringify({ product_name: data.product_name, product_group: group, description: data.description, product_code: data.product_code, self_score, documents: docs }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
+      if (!res.ok) throw new Error(body.error ?? `Hệ thống báo lỗi (mã ${res.status})`);
       router.push(`/ocop/${encodeURIComponent(body.code)}`);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Lỗi không xác định");
@@ -74,18 +75,18 @@ export default function OcopPage() {
   return (
     <>
       <PageTitle title="Hồ sơ OCOP" desc="Hỗ trợ lập hồ sơ, sơ duyệt tại HTX và theo dõi kết quả. Kết quả chính thức do cơ quan có thẩm quyền quyết định." />
-      {profile && (
-        <div className={`mb-4 rounded-lg border px-4 py-3 text-sm ${profile.verified ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
-          <p className="font-medium">Cấu hình áp dụng: {profile.name}</p>
-          {!profile.verified && <p className="mt-1">Chưa đối chiếu văn bản gốc. {profile.sourceNote}</p>}
-        </div>
-      )}
+      {profile && <p className="mb-4 text-sm text-stone-600">Quy định áp dụng: {profile.name}</p>}
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <Card title="Hồ sơ">
             {error && <p className="text-sm text-red-600">Không tải được dữ liệu: {error}</p>}
             {!error && !apps && <p className="text-sm text-stone-500">Đang tải…</p>}
-            {apps && apps.length === 0 && <p className="text-sm text-stone-500">Chưa có hồ sơ nào.</p>}
+            {apps && apps.length === 0 && (
+              <EmptyState
+                title="Chưa có hồ sơ nào"
+                hint={canCreate ? "Lập hồ sơ đầu tiên ở khung bên cạnh: chọn nhóm sản phẩm, tự chấm điểm dự kiến và đánh dấu giấy tờ đã có." : "Hồ sơ của hợp tác xã hoặc đang chờ bạn xử lý sẽ hiện ở đây."}
+              />
+            )}
             {apps && apps.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -171,7 +172,7 @@ export default function OcopPage() {
                 </div>
                 {total !== null && (
                   <p className="mt-2 text-sm text-stone-700">
-                    Tổng {total} điểm → hạng dự kiến {expectedStars ? "★".repeat(expectedStars) : "ngoài khoảng"} <span className="text-xs text-stone-500">(chỉ để tham khảo)</span>
+                    Tổng {total} điểm → hạng dự kiến {expectedStars ? "★".repeat(expectedStars) : "ngoài khoảng"}
                   </p>
                 )}
               </fieldset>

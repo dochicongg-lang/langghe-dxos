@@ -41,7 +41,30 @@ body {
   outline-offset: 2px;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+/* Đường cong nung tự vẽ khi hiện ra; người chọn giảm chuyển động thì hiện sẵn */
+.curve-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: curve-draw 1.8s ease-out 0.2s forwards;
+}
+@keyframes curve-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .curve-draw {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;

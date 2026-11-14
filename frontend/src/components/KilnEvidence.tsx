@@ -3,7 +3,7 @@
 import KilnInsightPanel from "./KilnInsight";
 import type { IotEvidence, KilnInsight } from "@/lib/trace";
 
-const flagText = (flag: string, q: NonNullable<IotEvidence["quality"]>) =>
+export const flagText = (flag: string, q: NonNullable<IotEvidence["quality"]>) =>
   ({
     "low-coverage": `Dữ liệu có nhiều khoảng trống (độ phủ ${Math.round(q.coverage * 100)}%): cảm biến có thể đã mất kết nối trong lúc nung.`,
     "out-of-range": `${q.rejected} mẫu nằm ngoài khoảng giá trị hợp lý nên đã bị loại.`,
@@ -13,10 +13,10 @@ const flagText = (flag: string, q: NonNullable<IotEvidence["quality"]>) =>
     "object-deleted": `${q.deleted} tệp dữ liệu bị yêu cầu xóa; bản gốc vẫn được giữ nguyên (đã khóa chống xóa).`,
   })[flag] ?? flag;
 
-const fmtTime = (iso: string) =>
+export const fmtTime = (iso: string) =>
   new Date(iso).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" });
 
-function fmtDuration(fromIso: string, toIso: string) {
+export function fmtDuration(fromIso: string, toIso: string) {
   const mins = Math.round((Date.parse(toIso) - Date.parse(fromIso)) / 60000);
   const h = Math.floor(mins / 60);
   const m = mins % 60;
