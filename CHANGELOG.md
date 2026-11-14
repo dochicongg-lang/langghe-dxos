@@ -12,6 +12,7 @@ Số `#n` là pull request trên GitHub.
 - Dấu "?" giải thích ngắn các thuật ngữ khó (tự chấm điểm, mã truy xuất, độ phủ dữ liệu, kết quả chính thức, xác nhận của nền tảng); `frontend/src/components/Tip.tsx`.
 
 ### Sửa
+- Biểu mẫu lập hồ sơ OCOP: bỏ hẳn mục nhóm sản phẩm khi chỉ có một nhóm (nhóm lấy từ `ocopGroup` trong `config/sectors.json`); đính tệp ngay lúc lập hồ sơ, tệp gắn vào mọi hồ sơ tạo trong lần đó; nút "Tạo và lập tiếp hồ sơ cho mẫu khác" giữ mô tả, điểm tự chấm, giấy tờ, tệp; gợi ý dùng lại mô tả đã nhập trên máy; trang hồ sơ nháp không hiện nút tải ở giấy tờ đã có tệp.
 - Trang tra cứu công khai của ngành lụa không còn ghi "nuôi tằm, ươm tơ" ở chương đầu (làng chủ yếu dệt, tơ nhập từ nơi khác); nay ghi đúng ba công đoạn: tơ, chuẩn bị sợi, dệt.
 - Dữ liệu mẫu (`scripts/seed-demo.js`): ngày các công đoạn nay khớp với ngày đo của cảm biến (trước đó lệch nhau cả tháng), ngày quyết định OCOP đặt sau ngày nung, và có thêm hồ sơ OCOP mẫu đã được công nhận cho sản phẩm lụa LUA-VP-0008 (HTX lụa).
 
