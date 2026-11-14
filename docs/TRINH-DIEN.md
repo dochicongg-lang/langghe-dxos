@@ -17,17 +17,19 @@ Nguyên tắc: **3 câu chuyện, không phải 30 tính năng.** Kể **kiến 
    ```bash
    bash scripts/upgrade.sh
    ```
+   Từ máy sạch mất khoảng 5–6 phút (đã đo khi chạy thử máy sạch), nên **không làm sát giờ diễn**.
 3. Nạp dữ liệu mẫu (chạy lặp lại an toàn, cái gì có rồi thì bỏ qua):
    ```bash
    node scripts/seed-demo.js
    ```
-   Sau bước này có sẵn: sản phẩm `GOM-BT-0001` (mẻ nung chuẩn + hồ sơ OCOP đã đủ quy trình, 4 sao minh họa), `GOM-BT-0002` (mẻ nung quá nhiệt), `GOM-BT-0003` (gia nhiệt quá nhanh). **Không** có sẵn hồ sơ để làm trực tiếp trên sân khấu.
+   Sau bước này có sẵn: sản phẩm `GOM-BT-0001` (mẻ nung chuẩn + hồ sơ OCOP đã đủ quy trình, 4 sao, dữ liệu mẫu), `GOM-BT-0002` (mẻ nung quá nhiệt), `GOM-BT-0003` (gia nhiệt quá nhanh). **Không** có sẵn hồ sơ để làm trực tiếp trên sân khấu.
 4. Chạy giao diện:
    ```bash
    cd frontend && npm run dev
    ```
 5. **Mở sẵn 3 cửa sổ trình duyệt riêng** (cửa sổ ẩn danh, mỗi người một cửa sổ để khỏi phải đăng xuất): `hoa` (nghệ nhân), `tuan` (cán bộ HTX) hoặc `tester` (xem ghi chú OTP), `ocop` (cán bộ đầu mối). Mật khẩu trùng tên đăng nhập. Đăng nhập sẵn cả ba.
-6. **OTP của `tuan`** (cán bộ HTX bắt buộc OTP khi đăng nhập trình duyệt): lần đầu đăng nhập sẽ bị bắt cài. Bấm "Không quét được mã vạch?" lấy khóa chữ rồi tính mã 6 số bằng `node scripts/totp.js "<khóa>"` (mã đổi mỗi 30 giây). **Làm trước giờ diễn.** Nếu chưa kịp, dùng `tester` (quản trị) thay `tuan` ở bước sơ duyệt và nói rõ đó là thay thế.
+6. **OTP của `tuan`** (cán bộ HTX bắt buộc OTP khi đăng nhập trình duyệt): lần đầu đăng nhập sẽ bị bắt cài. Bấm "Không quét được?" lấy khóa chữ rồi tính mã 6 số bằng `node scripts/totp.js "<khóa>"` (mã đổi mỗi 30 giây). **Làm trước giờ diễn.** Nếu chưa kịp, dùng `tester` (quản trị) thay `tuan` ở bước sơ duyệt và nói rõ đó là thay thế.
+   - **Lưu ý:** sau khi `tuan` đã cài OTP, các script kiểm tra đăng nhập bằng `tuan/tuan` (`check-iot-permissions.sh`, `check-ocop-flow.js`...) bị Keycloak từ chối. Chạy `bash scripts/reset-otp.sh` để xóa OTP của `tuan` (rồi cài lại ở lần đăng nhập trình duyệt kế tiếp). Chạy các script kiểm tra **trước**, cài OTP **sau** cùng.
 7. Chuẩn bị 1–2 **ảnh sản phẩm** (JPG/PNG/WEBP, tối đa 5 MB) trên máy để tải lên lúc chị Hoa lập hồ sơ.
 8. **Quét QR bằng điện thoại thật** (chưa được thử trên điện thoại thật, cần làm thử trước):
    - Máy chạy giao diện và điện thoại cùng mạng WiFi; mở tường lửa cho cổng 3000.
@@ -35,6 +37,7 @@ Nguyên tắc: **3 câu chuyện, không phải 30 tính năng.** Kể **kiến 
    - Chạy bản đóng gói thay cho `npm run dev` (bản dev có thể chặn tài nguyên từ địa chỉ lạ): `npm run build` rồi `npm run start -- -H 0.0.0.0`.
    - Trang công khai gọi API cùng nguồn (Next chuyển tiếp tới cổng gác), nên điện thoại chỉ cần vào được cổng 3000.
    - **Phương án dự phòng:** mở `http://localhost:3000/verify/GOM-BT-0001` ở một cửa sổ khác (thu nhỏ như khung điện thoại) và nói đó là màn hình người mua thấy.
+9. **Màn hình sạch:** chế độ `npm run dev` hiện nhãn vàng "Insight" của công cụ phát triển ở góc dưới. Không ảnh hưởng chức năng, nhưng muốn sạch thì chạy bản đóng gói (`npm run build` rồi `npm run start`) khi trình diễn.
 
 **Kiểm tra nhanh trước khi lên sân khấu:**
 ```bash
@@ -77,9 +80,10 @@ node scripts/demo-zero-trust.js         # kỳ vọng: "Tất cả như mong đ�
 1. **Cửa sổ `hoa`:** mục **Hồ sơ OCOP**, lập hồ sơ mới: nhập tên sản phẩm, chọn nhóm "Hàng thủ công mỹ nghệ", tự chấm A/B/C (ví dụ 30/20/25), giao diện hiện **hạng sao dự kiến**; tick giấy tờ; tạo hồ sơ nháp. Mở hồ sơ, **tải ảnh sản phẩm** lên mục "Ảnh sản phẩm và bao bì" (hình thu nhỏ hiện ngay). Để trống ô "mã truy xuất liên quan" ở bước này (xem ghi chú cuối mục). Bấm **Nộp hồ sơ**. Trạng thái thành "Chờ HTX sơ duyệt", và trang hồ sơ cho thấy **Flowable đang ở bước "HTX sơ duyệt"**.
 2. **Cửa sổ `tuan` (hoặc `tester`):** trang tổng quan có mục **"Việc của bạn"** hiện hồ sơ chờ duyệt; mở hồ sơ, xem ảnh, bấm **"Sơ duyệt: Đạt"**. (Muốn nhấn mạnh quy trình: thử "Yêu cầu bổ sung" kèm lý do, chị Hoa nhận lại và nộp lại.)
 3. **Cửa sổ `ocop`:** hồ sơ đã sơ duyệt đạt hiện ở "Việc của bạn". Nhập **điểm chính thức, số quyết định, ngày quyết định** (đóng vai cán bộ ghi lại quyết định của Hội đồng). Hệ thống tự suy ra **hạng sao** và **ngày hết hiệu lực (36 tháng)** theo cấu hình của địa phương. Hồ sơ chuyển "Đã được công nhận".
-4. **Quét QR:** mở sản phẩm `GOM-BT-0001` ở mục Truy xuất nguồn gốc (có mã QR), quét bằng điện thoại. Người mua thấy:
-   - **Kết quả OCOP chính thức** (hạng sao, cơ quan, số quyết định, còn hiệu lực đến ngày nào) và, **tách riêng**, **Xác nhận của nền tảng** (ghi rõ "chưa phải giấy chứng nhận OCOP");
-   - **Hành trình sản phẩm** với **đường cong nhiệt độ lò thật**, dấu "máy chủ đã đối chiếu với dữ liệu cảm biến" và **kết luận phân tích tự động** ("Đạt chuẩn nung").
+4. **Quét QR:** mở sản phẩm `GOM-BT-0001` ở mục Truy xuất nguồn gốc (có mã QR), quét bằng điện thoại. Trang người mua kể theo **ba chương** (thanh chương dính ở bên trái, hoặc hàng nút phía trên trên điện thoại):
+   - **Chương 1, Người làm ra:** nguyên liệu, sơ chế, tạo hình. Công đoạn chưa có bản ghi hiện thành **khoảng trống nét đứt**, không bị giấu (nói điều này như một điểm trung thực của hệ thống).
+   - **Chương 2, Ngọn lửa:** **đường cong nhiệt độ lò thật** (có trục, điểm đỉnh, tự vẽ khi tải), bốn ô số liệu, dấu "máy chủ đã đối chiếu với dữ liệu cảm biến" và **kết luận phân tích tự động** ("Đạt chuẩn nung").
+   - **Chương 3, Chứng nhận và hành trình:** **Kết quả OCOP chính thức** (hạng sao, cơ quan, số quyết định, còn hiệu lực đến ngày nào) và, **tách riêng**, **Xác nhận của nền tảng** (ghi rõ "chưa phải giấy chứng nhận OCOP"). Cuối trang có khối "Vì sao có thể tin trang này".
 5. **Điểm nhấn trí tuệ [I] (30 giây):** mở trang **Intelligence** (tài khoản `tester`): ba mẻ nung ở ba mức (đạt, cần xem lại, cảnh báo quá nhiệt), mỗi mẻ kèm lý do bằng tiếng Việt.
 
 **Câu chốt:** "Người mua biết nghệ nhân, biết quy trình, thấy nhiệt độ lò **thật**, và biết rõ đâu là xác nhận của nền tảng, đâu là kết quả chính thức của cơ quan có thẩm quyền."
@@ -94,6 +98,7 @@ node scripts/demo-zero-trust.js         # kỳ vọng: "Tất cả như mong đ�
 |---|---|
 | Đăng nhập báo lỗi hoặc treo | `docker compose ps`; Keycloak cần ~1 phút sau khi bật. Chạy lại `bash scripts/upgrade.sh --skip-check` |
 | `tuan` đòi OTP nhưng chưa cài | Dùng `tester` thay `tuan` và nói rõ |
+| Script kiểm tra báo "Không lấy được token persona" | `tuan` đã cài OTP nên đăng nhập mật khẩu trực tiếp bị từ chối: chạy `bash scripts/reset-otp.sh` rồi chạy lại script |
 | Thiếu dữ liệu mẫu | `node scripts/seed-demo.js` (an toàn chạy lại) |
 | Điện thoại không mở được QR | Dùng phương án dự phòng: mở `/verify/GOM-BT-0001` ở cửa sổ khác |
 | Cảnh báo "Phiên đăng nhập đã hết hạn" | Bấm "Đăng nhập lại" |
@@ -104,7 +109,7 @@ node scripts/demo-zero-trust.js         # kỳ vọng: "Tất cả như mong đ�
 ## F. Dọn dẹp sau buổi diễn
 
 - **Hồ sơ OCOP làm trên sân khấu:** không cần dọn nếu muốn giữ; nếu cần xóa, dùng SQL trong PostgreSQL (bảng `ocop_applications`, `ocop_application_history`, `application_attachments`, `ocop_results`).
-- **OTP của `tuan`:** nếu muốn trả về trạng thái ban đầu thì xóa thông tin xác thực OTP của người dùng này trong Keycloak.
+- **OTP của `tuan`:** muốn trả về trạng thái ban đầu thì chạy `bash scripts/reset-otp.sh`.
 - **Số liệu cảm biến mẫu** nằm trong bucket có Object Lock (chế độ Governance, giữ lâu); chỉ quản trị MinIO xóa được bằng đặc quyền bypass, ví dụ (ngày tính theo hôm nạp dữ liệu, mốc lùi 40/41/42 ngày):
   ```bash
   set -a; . ./.env; set +a
@@ -122,13 +127,13 @@ node scripts/demo-zero-trust.js         # kỳ vọng: "Tất cả như mong đ�
 1. **"Workflow của em đâu? 6 quy trình mẫu của Flowable không phải của em."**
    Quy trình `dxos-ocop-support` do nhóm viết (BPMN trong `workflows/`), nạp vào Flowable tự động; trình duyệt không gọi Flowable trực tiếp mà đi qua lớp API trung gian có kiểm quyền. Có kiểm tra thật cả các nhánh: đạt, cần bổ sung rồi nộp lại, không đạt.
 2. **"Em dẫn quy định OCOP của Hà Nội, có đọc văn bản gốc chưa?"**
-   Chưa. Số liệu lấy từ báo chí và cổng thông tin, nên cấu hình `ocop-profiles.json` đánh dấu `verified: false` và giao diện hiển thị cảnh báo. Điểm thiết kế là mọi ngưỡng nằm trong cấu hình theo địa phương, đối chiếu văn bản gốc xong chỉ việc sửa tệp.
+   Chưa. Số liệu lấy từ báo chí và cổng thông tin, nên cấu hình `ocop-profiles.json` đánh dấu `verified: false`; điều này ghi trong README (mục "Lưu ý cho nhóm phát triển") và issue công khai về đối chiếu quy định OCOP. Giao diện cố ý không đưa cảnh báo kỹ thuật này vào màn hình người dùng. Điểm thiết kế là mọi ngưỡng nằm trong cấu hình theo địa phương, đối chiếu văn bản gốc xong chỉ việc sửa tệp.
 3. **"[I] (trí tuệ) của em là gì? Có AI không?"**
    Là bộ **luật có thể giải thích** trên số liệu đã đối chiếu (đỉnh nhiệt, thời gian giữ, tốc độ gia nhiệt/làm nguội, so với mẻ khác, độ tin cậy dữ liệu), không phải học máy. Lý do: dữ liệu còn ít, cần giải thích được từng kết luận cho thợ gốm, và an toàn hơn. Ngưỡng hiện là số liệu minh họa, cần chuyên gia xác nhận. Hướng sau: phát hiện bất thường thống kê khi có đủ dữ liệu.
 4. **"Vòng đời dữ liệu?"**
    Lịch sử hồ sơ đã kết thúc và quá hạn giữ được tự động chuyển từ PostgreSQL sang MinIO (nén, có băm, đọc lại được để phân tích), có kiểm tra đọc lại trước khi xóa ở tầng nóng. Mới áp dụng cho một nguồn dữ liệu.
 5. **"GitOps và hạ tầng như mã?"**
-   Hạ tầng khai báo bằng `docker-compose.yml`, cấu hình quyền sinh từ `config/access.json`, cài đặt một lệnh, nhưng **chưa có quy trình GitOps/CI** đầy đủ. Đây là hướng phát triển.
+   Hạ tầng khai báo bằng `docker-compose.yml` (ảnh MinIO ghim theo mã băm), cấu hình quyền sinh từ `config/access.json`, cài đặt một lệnh, và có **CI trên GitHub Actions** (kiểm giấy phép, kiểu, lint, test, cấu hình Compose). Nhưng **chưa có GitOps đầy đủ** (đồng bộ trạng thái từ Git vào hạ tầng tự động). Đây là hướng phát triển, đã ghi thành issue.
 6. **"Cảm biến là giả lập?"**
    Có, đang dùng trình giả lập đi qua đúng đường của thiết bị thật (tài khoản dịch vụ riêng, ghi vào thư mục riêng của từng gateway). Hạn chế đã biết: ai giữ khóa của chính gateway đó vẫn ghi được số liệu trông hợp lý; hướng khắc phục là ký số từng lô.
 7. **"Hệ thống có tự cấp giấy OCOP không?"**
@@ -140,6 +145,6 @@ node scripts/demo-zero-trust.js         # kỳ vọng: "Tất cả như mong đ�
 10. **"Chuỗi băm của nhật ký chống được gì? Có bị qua mặt không?"**
     Phát hiện được sửa nội dung, xóa giữa chuỗi, chèn dòng. **Chưa** phát hiện được việc cắt bớt các dòng cuối chuỗi, hoặc kẻ có quyền siêu người dùng cơ sở dữ liệu tính lại cả chuỗi, vì băm đầu chuỗi chưa được neo ra ngoài (hướng sau: ghi băm định kỳ vào kho có Object Lock hoặc ký số).
 11. **"Kiểm thử thế nào?"**
-    122 test đơn vị và 4 bộ kiểm tra chạy thật qua cổng gác, Keycloak, Flowable, MinIO (phân quyền, quy trình OCOP, phân tích mẻ nung, nhật ký kiểm toán), đều có đối chứng dương để chứng minh phép thử bắt được lỗi.
+    122 test đơn vị và 4 bộ kiểm tra chạy thật qua cổng gác, Keycloak, Flowable, MinIO (phân quyền, quy trình OCOP, phân tích mẻ nung, nhật ký kiểm toán), đều có đối chứng dương để chứng minh phép thử bắt được lỗi. Đã chạy lại từ máy sạch và CI trên GitHub chạy xanh.
 12. **"Giấy phép nguồn mở?"**
-    Toàn bộ thành phần nền là mã nguồn mở. Kho mã của dự án **chưa có tệp giấy phép**: cần chọn một giấy phép nguồn mở trước khi công bố chính thức.
+    Toàn bộ thành phần nền là mã nguồn mở. Mã của dự án phát hành theo **Apache-2.0** (tệp `LICENSE`, `NOTICE`, dòng `SPDX-License-Identifier` ở từng tệp mã, danh mục thư viện bên thứ ba ở `THIRD-PARTY-NOTICES.md`). MinIO (AGPL-3.0) chỉ chạy như một dịch vụ riêng, chưa sửa đổi. Bản phát hành nộp chấm: v0.2.0.

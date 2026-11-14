@@ -13,18 +13,18 @@ Nguyên tắc: **3 câu chuyện**, không liệt kê 30 tính năng. Mỗi slid
 | 7 | **Bài học bảo mật** | "Tưởng Object Lock là đủ" → phát hiện MinIO cho mọi tài khoản gỡ khóa bằng một tiêu đề → chặn ở cổng gác | Kể như một câu chuyện. **[DEMO]** mục 5 và 8 của `demo-zero-trust.js`, nhật ký kiểm toán, nút kiểm tra toàn vẹn |
 | 8 | **Vòng đời dữ liệu** | Nóng (PostgreSQL) → lạnh (MinIO, nén, có băm) + bất biến (Object Lock cho cảm biến) | Lõi không nghẽn nhưng dữ liệu lịch sử vẫn đọc lại và phân tích được. Nói rõ mới áp dụng cho một nguồn |
 | 9 | **Câu chuyện 3: Chị Hoa nộp hồ sơ OCOP** | Sơ đồ quy trình: nộp → HTX sơ duyệt → (bổ sung) → cơ quan có thẩm quyền ghi kết quả | **[DEMO]** hoa nộp → tuan duyệt → ocop ghi kết quả (Flowable chạy thật) |
-| 10 | **Người mua quét QR** | Ảnh chụp trang công khai: đường cong nhiệt độ thật, kết luận tự động, hai khối OCOP tách bạch | **[DEMO]** quét QR `GOM-BT-0001`. Nhấn mạnh: "đã đối chiếu", "chưa phải giấy chứng nhận" |
+| 10 | **Người mua quét QR** | Ảnh chụp trang công khai ba chương (Người làm ra, Ngọn lửa, Chứng nhận): đường cong nhiệt độ thật, kết luận tự động, hai khối OCOP tách bạch, công đoạn thiếu hiện nét đứt | **[DEMO]** quét QR `GOM-BT-0001`. Nhấn mạnh: "đã đối chiếu", "chưa phải giấy chứng nhận", "chỗ thiếu thì hiện chỗ thiếu" |
 | 11 | **[I] Trí tuệ có giải thích được** | Bộ luật phân tích đường cong nung: đạt / cần xem lại / cảnh báo, kèm lý do | **[DEMO]** trang Intelligence. Trung thực: là luật, không phải học máy; ngưỡng minh họa, chờ chuyên gia xác nhận |
 | 12 | **Giới hạn và hướng phát triển** | Đã làm / chưa làm (3 cột ngắn) + kiểm thử: 122 test + 4 bộ kiểm tra chạy thật | Nói thẳng giới hạn (xem dưới). Hướng sau: đối chiếu văn bản OCOP gốc, ký số lô cảm biến, GitOps/CI, thông báo, GS1 |
 
 ## Nội dung slide 12 (gợi ý)
 
-**Đã làm:** lõi 5 thành phần mã nguồn mở; quy trình OCOP trên Flowable + tệp đính kèm; truy xuất có QR và bằng chứng nhiệt độ đã đối chiếu; phân quyền theo HTX; vòng đời dữ liệu nóng-lạnh; phân tích đường cong nung; nhật ký kiểm toán; cài đặt một lệnh.
+**Đã làm:** lõi 5 thành phần mã nguồn mở; quy trình OCOP trên Flowable + tệp đính kèm; truy xuất có QR và bằng chứng nhiệt độ đã đối chiếu; phân quyền theo HTX; vòng đời dữ liệu nóng-lạnh; phân tích đường cong nung; nhật ký kiểm toán; cài đặt một lệnh (khoảng 5,5 phút từ máy sạch); giấy phép Apache-2.0, CI trên GitHub, 3 bản phát hành, issue công khai.
 
 **Chưa làm / cần làm tiếp (nói thẳng):**
 - Đối chiếu quy định OCOP với **văn bản gốc** (hiện là số liệu minh họa, đánh dấu `verified: false`).
 - Ngưỡng nung do **chuyên gia xác nhận**; cảm biến thật thay trình giả lập.
-- GitOps/CI, thông báo email, liên kết tem/mã GS1, giấy phép nguồn mở cho kho mã.
+- GitOps đầy đủ (hiện đã có CI kiểm tra), quét mã độc tệp tải lên, hồ dữ liệu phân tích, trợ lý AI có người duyệt, thông báo email, liên kết tem/mã GS1.
 - Neo băm đầu chuỗi nhật ký ra ngoài để chống cắt bớt dòng cuối.
 
 ## Gợi ý trình bày
@@ -33,3 +33,5 @@ Nguyên tắc: **3 câu chuyện**, không liệt kê 30 tính năng. Mỗi slid
 - Mỗi demo **có phương án dự phòng** (xem mục E của TRINH-DIEN.md). Nếu hỏng, kể bằng ảnh chụp màn hình đã chuẩn bị sẵn.
 - **Chuẩn bị ảnh chụp màn hình dự phòng** cho slide 5, 7, 9, 10, 11 ngay sau khi chạy thử thành công.
 - Chuẩn bị trả lời 12 câu phản biện ở mục G của [TRINH-DIEN.md](TRINH-DIEN.md).
+- Mọi giới hạn nói ở slide 12 đã được ghi thành issue công khai trên GitHub (nhãn `known-limitation` và `enhancement`): có thể đưa liên kết kho mã và trang issue vào slide cuối.
+- Slide dùng trong buổi trình diễn thật nên lấy ảnh chụp từ giao diện hiện tại (trang `/verify` ba chương, trang Human mới), không dùng ảnh cũ.
