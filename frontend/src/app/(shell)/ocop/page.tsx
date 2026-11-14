@@ -15,6 +15,7 @@ import ProductImage from "@/components/ProductImage";
 import { useSectors } from "@/lib/sectors";
 import { fmtDate, type ProductSummary } from "@/lib/trace";
 import { stateLabels, stateTone, starsForScore, type OcopProfile, type OcopSummary } from "@/lib/ocop";
+import Tip from "@/components/Tip";
 
 const inputCls =
   "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
@@ -205,7 +206,7 @@ export default function OcopPage() {
                             </label>
                             )}
                             <label className="block text-sm">
-                              <span className="mb-1 block text-stone-600">Mã truy xuất liên quan (nếu có)</span>
+                              <span className="mb-1 block text-stone-600">Mã truy xuất liên quan (nếu có)<Tip text="Mã trên tem QR của sản phẩm. Chưa có thì để trống." /></span>
                               <SuggestInput name="product_code" items={codeSug} value={pcode} onChange={setPcode} onPick={(s) => { if (!pname.trim() && s.hint) setPname(s.hint); }} maxLength={40} className={inputCls} placeholder="GOM-BT-0001" />
                             </label>
                             <label className="block text-sm">
@@ -225,7 +226,7 @@ export default function OcopPage() {
                               )}
                             </label>
                             <fieldset className="rounded-lg border border-stone-200 p-3">
-                              <legend className="px-1 text-sm text-stone-600">Tự chấm điểm (dự kiến)</legend>
+                              <legend className="px-1 text-sm text-stone-600">Tự chấm điểm (dự kiến)<Tip text="Điểm dự kiến để ước hạng sao. Điểm chính thức do Hội đồng quyết định." /></legend>
                               <div className="grid grid-cols-3 gap-2">
                                 {parts.map((p) => (
                                   <label key={p.key} className="block text-xs text-stone-500" title={p.label}>

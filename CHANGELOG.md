@@ -5,6 +5,9 @@ Số `#n` là pull request trên GitHub.
 
 ## [Chưa phát hành]
 
+### Thêm
+- Dấu "?" giải thích ngắn các thuật ngữ khó (tự chấm điểm, mã truy xuất, độ phủ dữ liệu, kết quả chính thức, xác nhận của nền tảng); `frontend/src/components/Tip.tsx`.
+
 ### Sửa
 - Trang tra cứu công khai của ngành lụa không còn ghi "nuôi tằm, ươm tơ" ở chương đầu (làng chủ yếu dệt, tơ nhập từ nơi khác); nay ghi đúng ba công đoạn: tơ, chuẩn bị sợi, dệt.
 - Dữ liệu mẫu (`scripts/seed-demo.js`): ngày các công đoạn nay khớp với ngày đo của cảm biến (trước đó lệch nhau cả tháng), ngày quyết định OCOP đặt sau ngày nung, và có thêm hồ sơ OCOP mẫu đã được công nhận cho sản phẩm lụa LUA-VP-0008 (HTX lụa).
