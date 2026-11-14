@@ -5,11 +5,10 @@ Số `#n` là pull request trên GitHub.
 
 ## [Chưa phát hành]
 
-### Thêm
-- Giấy phép Apache-2.0 (`LICENSE`, `NOTICE`), dòng `SPDX-License-Identifier` ở đầu mọi tệp mã (`scripts/add-license-headers.js`, có chế độ `--check`), danh mục bên thứ ba (`THIRD-PARTY-NOTICES.md`), `CONTRIBUTING.md`, mẫu issue, quy trình CI (kiểm giấy phép, kiểu, lint, test).
+## [0.1.1] - 2026-11-14
 
-### Thay đổi
-- Ghim ảnh `pgsty/minio` theo mã băm để bản dựng lặp lại được.
+### Sửa
+- CI trên GitHub: lệnh test của `trace-api` chạy được ở Node 22 (`node --test`), và sinh kiểu route của Next.js (`next typegen`) trước khi kiểm tra kiểu giao diện (#23). Nội dung sản phẩm không đổi so với 0.1.0.
 
 ## [0.1.0] - 2026-11-13
 
@@ -30,8 +29,12 @@ Bản đầu tiên dùng cho cuộc thi OLP Phần mềm nguồn mở 2026 (đ�
 - **Gói trình diễn:** kịch bản, dàn ý slide, nạp dữ liệu mẫu (`scripts/seed-demo.js`), minh họa Zero-Trust (`scripts/demo-zero-trust.js`) (#21).
 - **Kiểm thử:** 122 test đơn vị và 4 bộ kiểm tra chạy thật qua cổng gác, Keycloak, Flowable, MinIO (`scripts/check-*.sh|js`).
 
+- Giấy phép Apache-2.0 (`LICENSE`, `NOTICE`), dòng `SPDX-License-Identifier` ở đầu mọi tệp mã (`scripts/add-license-headers.js`, có chế độ `--check`), danh mục bên thứ ba (`THIRD-PARTY-NOTICES.md`), `CONTRIBUTING.md`, mẫu issue, quy trình CI (kiểm giấy phép, kiểu, lint, test).
 ### Bảo mật
 - Chặn ở cổng gác lỗ hổng của bản MinIO đang dùng (mọi tài khoản STS gỡ được khóa Governance bằng tiêu đề bypass); chặn thao tác ghi vào Flowable của người không phải quản trị (#12, #13).
+
+### Thay đổi
+- Ghim ảnh `pgsty/minio` theo mã băm để bản dựng lặp lại được.
 
 ### Giới hạn đã biết
 - Số liệu quy định OCOP và ngưỡng nung là minh họa, chưa đối chiếu văn bản gốc.
