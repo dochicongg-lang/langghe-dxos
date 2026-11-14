@@ -24,6 +24,18 @@
       "min": 0,
       "max": 110,
       "maxRatePerSec": 2
+    },
+    "weave-01": {
+      "gateway": "dxos-iot",
+      "min": 0,
+      "max": 100,
+      "maxRatePerSec": 5
+    },
+    "dry-01": {
+      "gateway": "dxos-iot",
+      "min": 0,
+      "max": 100,
+      "maxRatePerSec": 5
     }
   }
 }

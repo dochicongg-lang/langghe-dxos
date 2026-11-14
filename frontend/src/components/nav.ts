@@ -24,7 +24,7 @@ export const platformNav: NavItem[] = [
   { href: "/nen-tang", icon: "layers", title: "Cấu trúc nền tảng", desc: "Gốm và lụa trên một nền tảng" },
   { href: "/process", icon: "flow", title: "Việc đang xử lý", desc: "Các bước của hồ sơ" },
   { href: "/data", icon: "database", title: "Dữ liệu", desc: "Lưu trữ và nhật ký" },
-  { href: "/intelligence", icon: "chart", title: "Phân tích", desc: "Mẻ nung và trợ lý hỏi đáp" },
+  { href: "/intelligence", icon: "chart", title: "Phân tích", desc: "Mẻ nung, mẻ nhuộm, môi trường xưởng và trợ lý" },
 ];
 
 const PATHS: Record<IconName, string> = {
