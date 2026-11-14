@@ -5,6 +5,24 @@ Số `#n` là pull request trên GitHub.
 
 ## [Chưa phát hành]
 
+## [0.2.0] - 2026-11-14
+
+### Thay đổi
+- **Trang tra cứu công khai `/verify`** trình bày thành ba chương (người làm ra, ngọn lửa, chứng nhận) có thanh chương, tấm biển thông tin, đường cong nhiệt độ lò cỡ lớn có trục và điểm đỉnh; công đoạn chưa có bản ghi hiện thành khoảng trống nhìn thấy được (#25).
+- **Ngôn ngữ giao diện dễ hiểu cho người không chuyên:** vai trò kèm mô tả, danh sách "Bạn có thể làm gì" thay cho mã quyền, kho dữ liệu mô tả bằng lời thường; mã quyền và tên policy chỉ hiện cho quản trị (#25).
+- Trạng thái trống chỉ bước tiếp theo; nhãn kết luận có biểu tượng đi kèm màu; trang Process chỉ hiện quy trình của hệ thống (#25).
+- Lưu ý dành cho nhà phát triển (quy định OCOP chưa đối chiếu, ngưỡng nung minh họa, dữ liệu mẫu) chuyển khỏi giao diện sang mục "Lưu ý cho nhóm phát triển" của README (#25).
+
+### Thêm
+- `scripts/reset-otp.sh`: xóa OTP của người dùng thử (mặc định `tuan`) để cài lại hoặc để các script kiểm tra đăng nhập mật khẩu trực tiếp chạy được (#26).
+- Bản dịch tiếng Việt cho câu hướng dẫn cài OTP của Keycloak (#26).
+
+### Sửa
+- Ghi nhận và hướng dẫn xử lý lỗi: sau khi người dùng bắt buộc MFA cài OTP, Keycloak cũng đòi OTP ở đăng nhập mật khẩu trực tiếp (#26).
+
+### Kiểm thử
+- Chạy thử từ máy sạch (`docker compose down -v`, rồi `bash scripts/upgrade.sh` khoảng 5,5 phút, `seed-demo.js`): 122 test đơn vị và các bộ kiểm chứng thật qua cổng gác, Keycloak, Flowable, MinIO đều đạt.
+
 ## [0.1.1] - 2026-11-14
 
 ### Sửa
