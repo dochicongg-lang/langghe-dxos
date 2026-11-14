@@ -41,6 +41,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
+          npx next typegen
           npx tsc --noEmit
           npx eslint src
 
