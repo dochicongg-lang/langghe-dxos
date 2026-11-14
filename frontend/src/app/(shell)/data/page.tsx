@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
 import { useAuth } from "@/components/AuthProvider";
 import AuditLog from "@/components/AuditLog";
+import LakePanel from "@/components/LakePanel";
 import { fmtDate } from "@/lib/trace";
 
 interface ArchiveRun {
@@ -194,6 +195,11 @@ export default function DataPage() {
               </>
             )}
           </Card>
+        </div>
+      )}
+      {canManage && (
+        <div className="mt-6">
+          <LakePanel />
         </div>
       )}
       {canAudit && (

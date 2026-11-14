@@ -31,6 +31,9 @@ jobs:
       - name: Cú pháp script shell
         run: for f in scripts/*.sh scripts/tests/*.sh; do bash -n "$f" && echo "ok $f"; done
 
+      - name: Gói phát hành hợp lệ (đủ tệp, không CRLF, không chứa mục cấm)
+        run: bash scripts/make-release-archive.sh --check
+
       - name: Test đơn vị trace-api
         working-directory: services/trace-api
         run: |

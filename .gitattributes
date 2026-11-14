@@ -1,0 +1,18 @@
+# Dấu xuống dòng: luôn LF trong kho và trong tệp lưu trữ phát hành (git archive), bất kể cấu hình core.autocrlf của máy tạo bản.
+# (Trước đây git archive trên Windows với core.autocrlf=true đổi tệp sang CRLF làm script bash trong gói release lỗi trên Linux/macOS.)
+* text=auto eol=lf
+*.sh text eol=lf
+*.lua text eol=lf
+
+# Tệp nhị phân: không đụng tới
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+*.parquet binary
+*.gz binary

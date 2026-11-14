@@ -63,8 +63,8 @@ services:
         condition: service_healthy
     volumes:
       - minio-data:/data
-    ports:
-      - "127.0.0.1:${MINIO_CONSOLE_PORT}:9001" # console MinIO chỉ máy chủ này (không qua cổng gác nên không được mở ra mạng)
+    # KHÔNG publish console (cổng 9001) ra máy chủ theo mặc định: console đi thẳng vào MinIO, không qua cổng gác. Cần dùng thì bật tạm bằng
+    # tệp ghi đè: docker compose -f docker-compose.yml -f docker-compose.console.yml up -d minio   (chỉ nghe 127.0.0.1)
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
@@ -101,7 +101,7 @@ services:
     command: start-dev --import-realm
     environment:
       # Issuer của token luôn là KC_HOSTNAME dù APISIX gọi qua http://keycloak:8080 (backchannel động)
-      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT}
+      KC_HOSTNAME: ${KC_HOSTNAME_URL:-http://localhost:${KEYCLOAK_PORT}} # triển khai thật: đặt KC_HOSTNAME_URL=https://<tên-miền-đăng-nhập> trong .env
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
@@ -226,6 +226,8 @@ services:
       DOCS_S3_ACCESS_KEY: ${TRACE_DOCS_USER}
       DOCS_S3_SECRET_KEY: ${TRACE_DOCS_PASSWORD}
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
+      NOTIFY_INTERVAL_MINUTES: ${NOTIFY_INTERVAL_MINUTES:-60}
+      LAKE_INTERVAL_HOURS: ${LAKE_INTERVAL_HOURS:-24}
       CLAMAV_REQUIRED: ${CLAMAV_REQUIRED:-true}
       ANCHOR_BUCKET: ${ANCHOR_BUCKET:-dxos-audit}
       ANCHOR_INTERVAL_MINUTES: ${ANCHOR_INTERVAL_MINUTES:-60}
@@ -240,6 +242,7 @@ services:
       - ./config/access.json:/app/config/access.json:ro
       - ./config/ocop-profiles.json:/app/config/ocop-profiles.json:ro
       - ./config/kiln-profiles.json:/app/config/kiln-profiles.json:ro
+      - ./config/assistant-faq.json:/app/config/assistant-faq.json:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -99,13 +99,21 @@ node scripts/check-audit-log.js                     # nhật ký kiểm toán th
 - Mật khẩu mặc định (PostgreSQL, MinIO, Keycloak admin) và tài khoản thử **phải đổi** trước khi triển khai thật. Chế độ khóa dữ liệu mặc định là Governance; khi triển khai thật nên dùng COMPLIANCE (không hoàn tác, cần xác nhận rõ ràng, xem hướng dẫn).
 - **Nhật ký kiểm toán** chỉ ghi thêm, có chuỗi băm; băm đầu chuỗi được **neo định kỳ vào một bucket riêng có Object Lock**, nên cắt bớt dòng cuối hay tính lại cả chuỗi đều bị phát hiện (`node scripts/check-audit-anchor.js`).
 - **Tệp tải lên được quét mã độc bằng ClamAV** trước khi lưu (dịch vụ `clamav`; mặc định đóng khi lỗi: không quét được thì từ chối). Cần khoảng 1–2 GB RAM cho ClamAV.
+- **Sẵn sàng triển khai Internet:** `node scripts/prod-check.js` rà soát mật khẩu mẫu, chế độ khóa dữ liệu, quét mã độc, HTTPS, chế độ Keycloak và tài khoản thử; `scripts/set-public-urls.sh` đổi địa chỉ công khai của client đăng nhập; hướng dẫn từng bước ở `docs/TRIEN-KHAI-INTERNET.md`. Hệ thống **chưa được triển khai thật lên Internet**.
+- **Trợ lý hỏi đáp và tác tử có người duyệt (trang Intelligence):** trợ lý tra cứu trong quy định OCOP, hồ sơ nung, vai trò và hướng dẫn của hệ thống rồi trích lại đoạn phù hợp kèm nguồn (xếp hạng BM25, không dùng mô hình sinh văn bản, không đoán khi không tìm thấy); tác tử đề xuất việc cần làm khi mẻ nung bị cảnh báo, và chỉ khi người có thẩm quyền duyệt thì thông báo mới được gửi (`node scripts/check-assistant-agent.js`).
+- **Hồ dữ liệu phân tích:** các dữ liệu chính (hồ sơ, lịch sử cả nóng lẫn lạnh, mẻ nung, nhật ký) được xuất sang Parquet trong MinIO và phân tích bằng DuckDB; mỗi lần xuất ghi truy vết nguồn gốc (bảng nguồn, tệp lưu trữ kèm băm) và mã kiểm tra tệp (trang Data, `node scripts/check-lakehouse.js`).
+- **Nhắc hạn và thông báo trong ứng dụng:** hồ sơ chờ HTX sơ duyệt gần hết hạn 15 ngày làm việc thì nhắc cán bộ HTX, quá hạn thì leo thang tới quản trị và cán bộ đầu mối OCOP; nhắc người nộp bổ sung hồ sơ, nhắc gia hạn khi kết quả OCOP sắp hết hiệu lực (chuông trên thanh đầu; `node scripts/check-notifications.js`). Chưa có email và chưa trừ ngày lễ.
 - **trace-api không giữ mật khẩu admin của Flowable:** Flowable không phân quyền mịn, nên `trace-api` gọi Flowable qua một route nội bộ của cổng gác (cổng 9081 chỉ trong mạng Docker, cần khóa riêng) chỉ cho ba thao tác của quy trình hồ sơ OCOP; mọi thao tác khác (quản trị engine, tạo/xóa người dùng, triển khai/xóa quy trình) bị từ chối (`node scripts/check-flowable-internal.js`).
 - **Sao lưu, khôi phục, tự phục hồi:** `bash scripts/backup.sh`, `bash scripts/restore.sh <thư-mục> --yes`, `bash scripts/heal.sh` (xem `docs/HUONG-DAN-CHAY.md`, mục 13). Thư mục sao lưu chứa `.env` nên không được đưa lên git.
 - Truy cập đi thẳng vào MinIO (không qua cổng gác, như console) cũng bị policy chặn khỏi bucket tệp hồ sơ và bucket bản neo với mọi vai trò (`node scripts/check-minio-direct.js`).
-- Giới hạn đã biết: console MinIO (chỉ nghe trên máy chủ) chưa tắt; bản MinIO đang dùng cho phép gỡ khóa Governance bằng tiêu đề bypass (đã chặn ở cổng gác, chưa chặn khi vào thẳng MinIO); cấu hình OCOP và ngưỡng nung chưa được xác nhận. Chi tiết ở mục "Lưu ý cho nhóm phát triển" bên dưới.
+- **Console MinIO mặc định không được mở** (bật tạm bằng `docker-compose.console.yml`, chỉ nghe 127.0.0.1).
+- **Khóa dữ liệu:** bản MinIO đang dùng cho phép gỡ khóa **Governance** bằng tiêu đề bypass khi đi thẳng vào MinIO (cổng gác đã chặn ở route S3); chế độ **COMPLIANCE** chặn được lỗi này (đã kiểm chứng bằng `node scripts/check-minio-lock-modes.js --yes`), nên triển khai thật phải dùng COMPLIANCE.
+- Giới hạn đã biết: cấu hình OCOP và ngưỡng nung chưa được xác nhận. Chi tiết ở mục "Lưu ý cho nhóm phát triển" bên dưới.
 - Hệ thống **hỗ trợ và theo dõi** quy trình chứng nhận; không tự cấp giấy chứng nhận của cơ quan có thẩm quyền.
 
 ## Lưu ý cho nhóm phát triển
+
+- Gói phát hành phải tạo bằng `bash scripts/make-release-archive.sh <phiên-bản>` (ép LF, tự kiểm); các gói cũ v0.1.0 đến v0.2.1 có CRLF nên script lỗi trên Linux/macOS.
 Các điểm sau cố ý **không** hiển thị trên giao diện, nhưng cần nắm trước khi dùng thật hoặc trình diễn:
 
 - **Quy định OCOP** (`config/ocop-profiles.json`, hồ sơ `hanoi-2026`): số liệu (thang điểm, ngưỡng sao, hiệu lực 36 tháng, danh mục giấy tờ, cấp thẩm quyền) tổng hợp từ báo chí và cổng thông tin, đặt `"verified": false`. Phải đối chiếu Quyết định 26/2026/QĐ-TTg và Quyết định 3488/QĐ-UBND trước khi dùng cho hồ sơ thật. Đổi tệp thì API và giao diện đổi theo, không cần sửa mã.

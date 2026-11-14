@@ -35,6 +35,10 @@ const lifecycle = require("./lifecycle");
 const kiln = require("./kiln");
 const audit = require("./audit");
 const scan = require("./scan");
+const reminders = require("./reminders");
+const lake = require("./lake");
+const assistant = require("./assistant");
+const agent = require("./agent");
 const { createFlowableClient } = require("./flowable");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -430,9 +434,11 @@ async function addEvent(code, body, user) {
       throw new HttpError(502, "Không đọc được dữ liệu cảm biến từ MinIO");
     }
   }
-  await pool.query("INSERT INTO trace_events (product_id, stage, note, location, actor, iot) VALUES ($1,$2,$3,$4,$5,$6)", [
+  const ins = await pool.query("INSERT INTO trace_events (product_id, stage, note, location, actor, iot) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id", [
     product.id, stage, note, location, user.name, iot,
   ]);
+  // tác tử xem mẻ nung vừa ghi; lỗi ở đây không được làm hỏng việc ghi công đoạn
+  if (iot) await agentScan(ins.rows[0].id).catch((e) => console.error("[trace-api] tác tử không tạo được đề xuất:", e.message));
   return getProduct(code, { user });
 }
 
@@ -840,6 +846,188 @@ function startArchiveScheduler() {
   setInterval(tick, ARCHIVE_INTERVAL_HOURS * 3600_000).unref();
 }
 
+// ---------- Trợ lý hỏi đáp (tra cứu có nguồn) và tác tử đề xuất có người duyệt ----------
+// Kho tri thức dựng từ chính cấu hình (quy định OCOP, hồ sơ nung, vai trò) và config/assistant-faq.json; không sinh văn bản tự do.
+const ASSISTANT = assistant.buildIndex(
+  assistant.buildKnowledge({
+    profile: ocop.getProfile(OCOP),
+    kilnCfg: KILN,
+    accessCfg: ACCESS,
+    faq: assistant.loadFaq(process.env.ASSISTANT_FAQ_FILE ?? "/app/config/assistant-faq.json"),
+  }),
+);
+
+/** Quét các công đoạn nung có bằng chứng IoT, tạo đề xuất (chờ duyệt) cho mẻ cần xem lại hoặc cảnh báo. onlyEventId: chỉ xét một sự kiện. Trả { scanned, created }. */
+async function agentScan(onlyEventId = null) {
+  const { rows } = await pool.query(
+    `SELECT e.id, e.iot, p.code, p.name, p.category, c.code AS coop
+     FROM trace_events e JOIN products p ON p.id = e.product_id LEFT JOIN cooperatives c ON c.id = p.coop_id
+     WHERE e.iot IS NOT NULL ORDER BY e.id`,
+  );
+  const peaksByDevice = new Map();
+  for (const r of rows) peaksByDevice.set(r.iot.deviceId, [...(peaksByDevice.get(r.iot.deviceId) ?? []), { id: r.id, peak: r.iot.max }]);
+  let created = 0;
+  let scanned = 0;
+  for (const r of rows) {
+    if (onlyEventId !== null && r.id !== onlyEventId) continue;
+    scanned++;
+    const insight = kiln.analyze(r.iot, kiln.pickProfile(KILN, r.category), { baselinePeaks: peaksByDevice.get(r.iot.deviceId).filter((x) => x.id !== r.id).map((x) => x.peak) });
+    const p = agent.proposeFromKiln({ product: { code: r.code, name: r.name, coop: r.coop }, eventId: r.id, insight });
+    if (!p) continue;
+    const ins = await pool.query(
+      `INSERT INTO agent_proposals (dedupe_key, kind, severity, title, rationale, subject, coop, action) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (dedupe_key) DO NOTHING`,
+      [p.dedupe_key, p.kind, p.severity, p.title, p.rationale, p.subject, p.coop, JSON.stringify(p.action)],
+    );
+    created += ins.rowCount;
+  }
+  return { scanned, created };
+}
+
+/** Đề xuất mà người dùng được xem: người có quyền duyệt hồ sơ (quản trị: tất cả; cán bộ HTX: của HTX mình). */
+async function visibleProposals(user) {
+  // chỉ cần CÓ quyền duyệt (mọi phạm vi); phạm vi HTX được lọc theo từng đề xuất bên dưới (requirePermission không kèm tài nguyên sẽ từ chối phạm vi coop)
+  if (!access.canApi(ACCESS, user.roles) || !access.scopeFor(ACCESS, user.roles, "application.review")) throw new HttpError(403, "Vai trò của bạn không có quyền duyệt đề xuất");
+  const { rows } = await pool.query(
+    "SELECT id, kind, severity, title, rationale, subject, coop, status, created_at, decided_by, decided_at, decision_note FROM agent_proposals ORDER BY (status = 'pending') DESC, id DESC LIMIT 100",
+  );
+  return rows.filter((r) => access.authorize(ACCESS, user, "application.review", { coop: r.coop }));
+}
+
+/** Người duyệt chọn duyệt hoặc từ chối một đề xuất. Duyệt thì hành động (gửi thông báo) được thực hiện trong cùng giao dịch. */
+async function decideProposal(user, id, decision, note) {
+  if (!["approve", "reject"].includes(decision)) throw new HttpError(400, "decision phải là approve hoặc reject");
+  const text = str(note, 500, "note");
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query("SELECT * FROM agent_proposals WHERE id = $1 FOR UPDATE", [Number(id) || 0]);
+    const p = rows[0];
+    if (!p || !access.authorize(ACCESS, user, "application.review", { coop: p.coop })) {
+      await client.query("ROLLBACK");
+      throw new HttpError(404, "Không tìm thấy đề xuất"); // không lộ sự tồn tại
+    }
+    requirePermission(user, "application.review", { coop: p.coop });
+    if (p.status !== "pending") {
+      await client.query("ROLLBACK");
+      throw new HttpError(409, `Đề xuất đã được ${p.status === "approved" ? "duyệt" : "từ chối"} trước đó`);
+    }
+    await client.query("UPDATE agent_proposals SET status = $2, decided_by = $3, decided_at = now(), decision_note = $4 WHERE id = $1", [p.id, decision === "approve" ? "approved" : "rejected", user.name, text]);
+    if (decision === "approve") {
+      const n = agent.notificationFor(p);
+      await client.query(
+        "INSERT INTO notifications (dedupe_key, kind, level, title, body, link, for_user, for_role, for_coop) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (dedupe_key) DO NOTHING",
+        [n.dedupe_key, n.kind, n.level, n.title, n.body, n.link, n.for_user, n.for_role, n.for_coop],
+      );
+    }
+    await client.query("COMMIT");
+    return { id: p.id, status: decision === "approve" ? "approved" : "rejected" };
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+// ---------- Hồ dữ liệu phân tích (Parquet + DuckDB) và truy vết nguồn gốc dữ liệu ----------
+const LAKE_INTERVAL_HOURS = Number(process.env.LAKE_INTERVAL_HOURS ?? 24);
+
+const lakeDeps = () => ({
+  pool,
+  s3: docsS3,
+  kiln: { analyze: kiln.analyze, pickProfile: kiln.pickProfile, config: KILN },
+  readArchive: (id) => lifecycle.readRun(pool, docsS3, id),
+});
+
+async function runLakeExport(triggeredBy) {
+  if (!docsS3) throw new HttpError(503, "Chưa cấu hình kho lưu trữ (DOCS_S3_ACCESS_KEY, DOCS_S3_SECRET_KEY)");
+  try {
+    return await lake.exportAll(lakeDeps(), triggeredBy);
+  } catch (e) {
+    console.error("[trace-api] lỗi xuất hồ dữ liệu:", e.message);
+    throw new HttpError(502, "Xuất hồ dữ liệu thất bại, dữ liệu nguồn không bị ảnh hưởng");
+  }
+}
+
+function startLakeScheduler() {
+  if (!docsS3 || !(LAKE_INTERVAL_HOURS > 0)) return;
+  const tick = () =>
+    runLakeExport("scheduler")
+      .then((r) => r.exported && console.log(`[trace-api] xuất hồ dữ liệu: ${r.exported.map((d) => `${d.dataset}=${d.rows}`).join(", ")}`))
+      .catch((e) => console.error("[trace-api] xuất hồ dữ liệu tự động lỗi:", e.message));
+  setTimeout(tick, 120_000).unref();
+  setInterval(tick, LAKE_INTERVAL_HOURS * 3600_000).unref();
+}
+
+// ---------- Thông báo, nhắc hạn, leo thang ----------
+const NOTIFY_INTERVAL_MINUTES = Number(process.env.NOTIFY_INTERVAL_MINUTES ?? 60);
+
+/** Quét hồ sơ, tạo thông báo còn thiếu (mỗi sự việc đúng một lần nhờ dedupe_key). Trả { scanned, created }. */
+async function scanReminders() {
+  const { rows } = await pool.query(
+    `SELECT a.code, a.product_name, a.owner_username AS owner, c.code AS coop, a.state, a.profile,
+       (SELECT max(h.created_at) FROM ocop_application_history h WHERE h.application_id = a.id AND h.to_state = a.state AND h.action <> 'archive') AS state_since,
+       (SELECT r.valid_until FROM ocop_results r WHERE r.application_id = a.id AND r.recognized ORDER BY r.id DESC LIMIT 1) AS valid_until
+     FROM ocop_applications a LEFT JOIN cooperatives c ON c.id = a.coop_id
+     WHERE a.state IN ('in_review','needs_revision','awaiting_result','recognized')`,
+  );
+  const now = new Date();
+  let created = 0;
+  for (const a of rows) {
+    for (const n of reminders.computeReminders(now, [a], ocop.getProfile(OCOP, a.profile))) {
+      created += await insertNotification(n);
+    }
+  }
+  return { scanned: rows.length, created };
+}
+
+/** Thêm một thông báo; trả 1 nếu mới, 0 nếu đã có (cùng dedupe_key). */
+async function insertNotification(n) {
+  const r = await pool.query(
+    `INSERT INTO notifications (dedupe_key, kind, level, title, body, link, for_user, for_role, for_coop)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (dedupe_key) DO NOTHING`,
+    [n.dedupe_key, n.kind, n.level, n.title, n.body, n.link ?? null, n.for_user ?? null, n.for_role ?? null, n.for_coop ?? null],
+  );
+  return r.rowCount;
+}
+
+/** Thông báo người dùng được thấy: gửi cho chính họ, hoặc cho vai trò của họ (nếu gắn HTX thì chỉ HTX đó, trừ vai trò có phạm vi toàn hệ thống). */
+async function visibleNotifications(user, limit = 300) {
+  const roles = [...access.expand(ACCESS, user.roles)];
+  const seeAll = access.scopeFor(ACCESS, user.roles, "application.read") === "all";
+  const { rows } = await pool.query(
+    `SELECT n.id, n.kind, n.level, n.title, n.body, n.link, n.for_user, n.for_coop, n.created_at, (r.username IS NOT NULL) AS read
+     FROM notifications n LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.username = $1
+     WHERE n.for_user = $1 OR n.for_role = ANY($2::text[])
+     ORDER BY n.created_at DESC, n.id DESC LIMIT $3`,
+    [user.name, roles, limit],
+  );
+  return rows.filter((n) => n.for_user === user.name || !n.for_coop || seeAll || n.for_coop === user.coop).map(({ for_user: _u, for_coop: _c, ...n }) => n);
+}
+
+async function listNotifications(user) {
+  const all = await visibleNotifications(user);
+  return { unread: all.filter((n) => !n.read).length, notifications: all.slice(0, 50) };
+}
+
+async function markNotificationsRead(user, id) {
+  const visible = await visibleNotifications(user);
+  const ids = id === null ? visible.filter((n) => !n.read).map((n) => n.id) : visible.filter((n) => String(n.id) === String(id)).map((n) => n.id);
+  if (id !== null && !ids.length) throw new HttpError(404, "Không tìm thấy thông báo");
+  if (ids.length) await pool.query("INSERT INTO notification_reads (notification_id, username) SELECT unnest($1::bigint[]), $2 ON CONFLICT DO NOTHING", [ids, user.name]);
+  return { marked: ids.length };
+}
+
+function startNotifyScheduler() {
+  if (!(NOTIFY_INTERVAL_MINUTES > 0)) return;
+  const tick = () =>
+    scanReminders()
+      .then((r) => r.created && console.log(`[trace-api] nhắc hạn: ${r.created} thông báo mới (quét ${r.scanned} hồ sơ)`))
+      .catch((e) => console.error("[trace-api] quét nhắc hạn lỗi:", e.message));
+  setTimeout(tick, 45_000).unref();
+  setInterval(tick, NOTIFY_INTERVAL_MINUTES * 60_000).unref();
+}
+
 // ---------- Neo băm nhật ký kiểm toán ----------
 const ANCHOR_INTERVAL_MINUTES = Number(process.env.ANCHOR_INTERVAL_MINUTES ?? 60);
 
@@ -903,6 +1091,59 @@ async function route(req, res) {
     const user = getUser(req);
     if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
     return send(res, 200, { username: user.name, roles: user.roles, coop: user.coop, permissions: access.permissionsOf(ACCESS, user.roles), pages: access.pagesOf(ACCESS, user.roles) });
+  }
+
+  if (parts[0] === "assistant" && parts[1] === "ask" && parts.length === 2 && m === "POST") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    const body = await readJson(req);
+    return send(res, 200, assistant.ask(ASSISTANT, body?.question));
+  }
+
+  if (parts[0] === "agent") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    if (parts.length === 2 && parts[1] === "proposals" && m === "GET") return send(res, 200, { proposals: await visibleProposals(user) });
+    if (parts.length === 4 && parts[1] === "proposals" && parts[3] === "decide" && m === "POST") {
+      const b = await readJson(req);
+      return send(res, 200, await decideProposal(user, parts[2], b?.decision, b?.note));
+    }
+    if (parts.length === 2 && parts[1] === "scan" && m === "POST") {
+      requirePermission(user, "audit.read"); // chỉ quản trị quét tay
+      return send(res, 200, await agentScan());
+    }
+  }
+
+  if (parts[0] === "lake") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    requirePermission(user, "archive.manage"); // hồ dữ liệu: chỉ quản trị
+    if (parts.length === 1 && m === "GET") return send(res, 200, await lake.overview(pool));
+    if (parts.length === 2 && parts[1] === "export" && m === "POST") return send(res, 200, await runLakeExport(user.name));
+    if (parts.length === 3 && parts[1] === "analytics" && m === "GET") {
+      if (!docsS3) throw new HttpError(503, "Chưa cấu hình kho lưu trữ");
+      let r;
+      try {
+        r = await lake.runAnalytics(pool, docsS3, parts[2]);
+      } catch (e) {
+        console.error("[trace-api] lỗi truy vấn hồ dữ liệu:", e.message);
+        throw new HttpError(502, "Không truy vấn được hồ dữ liệu");
+      }
+      if (!r) throw new HttpError(404, "Không có truy vấn phân tích này");
+      return send(res, 200, r);
+    }
+  }
+
+  if (parts[0] === "notifications") {
+    const user = getUser(req);
+    if (!access.canApi(ACCESS, user.roles)) throw new HttpError(403, "Vai trò của bạn không dùng được API này");
+    if (parts.length === 1 && m === "GET") return send(res, 200, await listNotifications(user));
+    if (parts.length === 2 && parts[1] === "scan" && m === "POST") {
+      requirePermission(user, "audit.read"); // chỉ quản trị quét tay
+      return send(res, 200, await scanReminders());
+    }
+    if (parts.length === 2 && parts[1] === "read-all" && m === "POST") return send(res, 200, await markNotificationsRead(user, null));
+    if (parts.length === 3 && parts[2] === "read" && m === "POST") return send(res, 200, await markNotificationsRead(user, parts[1]));
   }
 
   if (parts[0] === "insights" && parts[1] === "kilns" && parts.length === 2 && m === "GET") {
@@ -1014,6 +1255,8 @@ async function main() {
   }
   startArchiveScheduler();
   startAnchorScheduler();
+  startNotifyScheduler();
+  startLakeScheduler();
   server.listen(PORT, () => console.log(`[trace-api] lắng nghe cổng ${PORT}, database "${DB_NAME}"`));
 }
 

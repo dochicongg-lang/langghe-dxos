@@ -6,6 +6,10 @@ Số `#n` là pull request trên GitHub.
 ## [Chưa phát hành]
 
 ### Thêm
+- **Chuẩn bị triển khai Internet:** `scripts/prod-check.js` (rà soát mức sẵn sàng, có test), `scripts/set-public-urls.sh` (địa chỉ công khai của client đăng nhập), tham số hóa `KC_HOSTNAME_URL`, tài liệu `docs/TRIEN-KHAI-INTERNET.md`. Chưa triển khai thật.
+- **Trợ lý hỏi đáp có nguồn và tác tử đề xuất có người duyệt:** trợ lý trả lời bằng cách trích quy định OCOP, hồ sơ nung, vai trò và hướng dẫn của hệ thống (kho tri thức dựng từ cấu hình nên số liệu luôn khớp; không đoán khi không tìm thấy); tác tử tạo đề xuất khi mẻ nung cần xem lại hoặc cảnh báo, chỉ gửi thông báo sau khi người có thẩm quyền (đúng HTX) duyệt (`scripts/check-assistant-agent.js`).
+- **Hồ dữ liệu phân tích và truy vết nguồn gốc dữ liệu:** xuất bốn bộ dữ liệu (hồ sơ OCOP, lịch sử xử lý nóng và lạnh, mẻ nung, nhật ký kiểm toán) sang Parquet trong MinIO, phân tích bằng DuckDB (truy vấn mẫu cố định), sổ truy vết ghi nguồn và băm của mỗi lần xuất; thẻ "Hồ dữ liệu phân tích" ở trang Data (`scripts/check-lakehouse.js`).
+- **Nhắc hạn, leo thang và thông báo trong ứng dụng:** nhắc cán bộ HTX khi hồ sơ gần hạn sơ duyệt (ngày làm việc), leo thang khi quá hạn, nhắc người nộp bổ sung hồ sơ, nhắc gia hạn khi kết quả OCOP sắp hết hiệu lực; chuông thông báo ở thanh đầu với trạng thái đã đọc theo từng người (`scripts/check-notifications.js`).
 - **Neo nhật ký kiểm toán:** băm đầu chuỗi nhật ký được ghi định kỳ vào bucket riêng có Object Lock; kiểm tra toàn vẹn nay đối chiếu cả các bản neo nên phát hiện được việc cắt bớt dòng cuối và việc tính lại cả chuỗi (`scripts/check-audit-anchor.js`).
 - **Quét mã độc tệp tải lên bằng ClamAV:** tệp đính kèm hồ sơ được quét trước khi lưu, mặc định từ chối khi không quét được; ghi nhận công cụ quét và thời điểm quét (`scripts/check-malware-scan.js`).
 - **Sao lưu, khôi phục và tự phục hồi:** `scripts/backup.sh`, `scripts/restore.sh`, `scripts/heal.sh`; `trace-api` có healthcheck; kiểm chứng thật bằng `scripts/check-backup-restore.js`.
@@ -15,6 +19,8 @@ Số `#n` là pull request trên GitHub.
 - Vai trò chỉ-xem (`readonly`) không còn đọc được bucket tệp hồ sơ và bucket bản neo khi đi thẳng vào MinIO: policy dựng sẵn của MinIO được ghi đè bằng bản có Deny hai bucket nội bộ (`scripts/check-minio-direct.js`).
 
 ### Sửa
+- **Gói phát hành bị CRLF:** tệp `.tar.gz` tạo bằng `git archive` trên Windows (`core.autocrlf=true`) chứa dấu xuống dòng CRLF làm script bash lỗi trên Linux/macOS. Nay có `.gitattributes` (luôn LF) và `scripts/make-release-archive.sh <phiên-bản>` (tạo gói rồi kiểm: đủ tệp, không CRLF, không chứa mục cấm); CI chạy `--check`. Các gói v0.1.0 đến v0.2.1 đã đăng bị lỗi này, hãy dùng gói phát hành mới. Đã kiểm chứng trong container Debian và Alpine (Node 22): 168/168 test đơn vị, cú pháp mọi script, build giao diện; chưa chạy toàn bộ docker compose trên Linux/macOS.
+- Mã QR: đã kiểm chứng bản build chạy `-H 0.0.0.0` với `NEXT_PUBLIC_PUBLIC_BASE_URL` là địa chỉ LAN phục vụ `/verify/<mã>` và API công khai qua địa chỉ LAN; chưa thử bằng điện thoại thật.
 - Dockerfile của `trace-api` sao chép mọi tệp `.js` (trước đây liệt kê từng tệp nên thêm module mới làm container không khởi động).
 
 ## [0.2.1] - 2026-11-14

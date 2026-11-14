@@ -8,8 +8,10 @@
 #   - SHA256SUMS để restore.sh kiểm tra nguyên vẹn trước khi khôi phục.
 # Route của cổng gác không cần sao lưu: nằm trong etcd và được tạo lại bằng scripts/setup-apisix-routes.sh (upgrade.sh gọi nó).
 #
-# Dùng: bash scripts/backup.sh [thư-mục-đích] [--hot]
+# Dùng: bash scripts/backup.sh [thư-mục-đích] [--hot] [--keep N]
 #   Mặc định tạm dừng MinIO vài giây khi nén để dữ liệu nhất quán; --hot bỏ qua bước dừng (nhanh hơn, có thể lệch nếu đang ghi).
+#   --keep N: sau khi sao lưu xong, chỉ giữ N bản MỚI NHẤT trong backups/ (xóa bản cũ hơn; chỉ xóa thư mục tên <ngày>-<giờ> có SHA256SUMS).
+# Chạy định kỳ: bash scripts/backup-loop.sh [giờ] [số-bản-giữ], hoặc cron/Task Scheduler (xem docs/HUONG-DAN-CHAY.md, mục 13).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export MSYS_NO_PATHCONV=1 # Git Bash trên Windows: không đổi đường dẫn /data thành đường dẫn Windows
@@ -17,12 +19,22 @@ SUM="sha256sum"; command -v sha256sum >/dev/null 2>&1 || SUM="shasum -a 256" # m
 
 HOT=0
 DEST=""
+KEEP=0
+PREV=""
 for a in "$@"; do
+  if [ "$PREV" = "--keep" ]; then
+    case "$a" in '' | *[!0-9]* | 0) echo "LỖI: --keep cần một số nguyên dương"; exit 1 ;; esac
+    KEEP="$a"
+    PREV=""
+    continue
+  fi
   case "$a" in
     --hot) HOT=1 ;;
+    --keep) PREV="--keep" ;;
     *) DEST="$a" ;;
   esac
 done
+[ "$PREV" = "--keep" ] && { echo "LỖI: --keep cần một số nguyên dương"; exit 1; }
 
 set -a
 . ./.env
@@ -80,6 +92,14 @@ cp -r config/. "$DEST/config/"
 echo "==> [4/4] Mã kiểm tra nguyên vẹn"
 (cd "$DEST" && find . -type f ! -name SHA256SUMS | sort | xargs $SUM > SHA256SUMS)
 echo "  $(wc -l < "$DEST/SHA256SUMS") tệp"
+
+if [ "$KEEP" -gt 0 ]; then
+  # chỉ dọn trong backups/, chỉ thư mục dạng <8 chữ số>-<6 chữ số> có SHA256SUMS (không đụng thư mục khác)
+  OLD=$(ls -1d backups/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9] 2>/dev/null | sort | head -n "-$KEEP" || true)
+  for d in $OLD; do
+    [ -f "$d/SHA256SUMS" ] && rm -rf "$d" && echo "  đã xóa bản cũ: $d"
+  done
+fi
 
 echo
 echo "XONG. Bản sao lưu: $DEST"

@@ -3,6 +3,7 @@
 "use client";
 
 import { useAuth } from "./AuthProvider";
+import NotificationBell from "./NotificationBell";
 import { initials, visibleRoles } from "@/lib/roles";
 
 export default function Header({ onMenu }: { onMenu: () => void }) {
@@ -20,9 +21,10 @@ export default function Header({ onMenu }: { onMenu: () => void }) {
             <path d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <p className="hidden text-sm text-stone-500 sm:block">Cổng dịch vụ dùng chung · Tầng 2</p>
+        <p className="hidden text-sm text-stone-500 sm:block">Cổng dịch vụ dùng chung</p>
       </div>
       <div className="flex items-center gap-3">
+        <NotificationBell />
         <span
           aria-hidden="true"
           className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-800"

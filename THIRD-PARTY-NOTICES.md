@@ -43,6 +43,7 @@ Phiên bản chính xác nằm trong `package-lock.json` của từng thư mục
 | Thư viện | Phiên bản | Giấy phép | Dùng để |
 |---|---|---|---|
 | pg | 8.23.1 | MIT | Kết nối PostgreSQL |
+| @duckdb/node-api | 2.0.0-r.1 | MIT | Ghi/đọc tệp Parquet và truy vấn phân tích (DuckDB) cho hồ dữ liệu; kéo theo các gói nhị phân `@duckdb/node-bindings-*` (MIT) theo hệ điều hành |
 
 Phần còn lại của `trace-api` chỉ dùng thư viện chuẩn của Node.js (không phụ thuộc thêm).
 
@@ -54,7 +55,7 @@ Kiểm tra bằng cách đọc trường `license` trong `package.json` của t�
   CC-BY-4.0 (dữ liệu `caniuse-lite`), CC0-1.0, 0BSD, BlueOak-1.0.0, Python-2.0 (`argparse`, chỉ khi phát triển),
   và **một gói `Apache-2.0 AND LGPL-3.0-or-later`** (thư viện nhị phân tùy chọn của bộ tối ưu ảnh Next.js; dự án không dùng tính năng tối ưu
   ảnh, không sửa đổi và không phát hành kèm gói này).
-- **`services/trace-api/`:** MIT (12), ISC (2).
+- **`services/trace-api/`:** MIT (22), ISC (2), Apache-2.0 (1: `detect-libc`) (đọc ngày 14/11/2026 sau khi thêm DuckDB).
 
 Tất cả đều là giấy phép tự do, tương thích với việc phát hành mã của dự án theo Apache-2.0. Dự án không sửa đổi mã của bất kỳ thư viện nào.
 

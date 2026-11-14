@@ -161,7 +161,7 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 minioadmi
 
 (Dùng `MINIO_ROOT_USER` và `MINIO_ROOT_PASSWORD` trong `.env` của bạn nếu đã đổi.)
 
-Trang quản trị MinIO (xem tệp bằng giao diện): http://localhost:9001 (chỉ mở được từ chính máy chạy Docker; cổng này không được mở ra mạng vì không đi qua cổng gác). Bấm **Keycloak SSO** rồi đăng nhập `tester`/`tester`.
+Trang quản trị MinIO (xem tệp bằng giao diện) **mặc định KHÔNG được mở** vì nó đi thẳng vào MinIO mà không qua cổng gác. Cần dùng thì bật tạm cho quản trị viên (chỉ nghe trên chính máy chạy Docker): `docker compose -f docker-compose.yml -f docker-compose.console.yml up -d minio`, rồi mở http://localhost:9001, bấm **Keycloak SSO** và đăng nhập `tester`/`tester`. Dùng xong tắt lại bằng `docker compose up -d minio`.
 
 ## 9. Dừng và dọn dẹp
 
@@ -327,7 +327,9 @@ Nếu báo *"Chưa cấu hình tài khoản đọc MinIO"*: thêm hai dòng `TRA
 | `GOVERNANCE` (mặc định) | Người thường không phá được; quản trị viên (root) vẫn gỡ được bằng đặc quyền bypass. Dọn dẹp dữ liệu thử được. | Phát triển, thử nghiệm, demo |
 | `COMPLIANCE` | Đến cả root cũng không xóa/sửa được trước khi hết hạn. **Không hoàn tác**: dữ liệu thử cũng nằm lại đến hết hạn. | Triển khai thật |
 
-**Lưu ý quan trọng về độ tin cậy của chế độ Governance.** Qua kiểm thử, bản MinIO đang dùng cho phép **bất kỳ tài khoản đăng nhập nào** (kể cả chỉ-đọc) gỡ hạn khóa Governance nếu gửi yêu cầu `PutObjectRetention` rỗng kèm tiêu đề `x-amz-bypass-governance-retention: true`, bất chấp policy. Vì vậy cổng APISIX chặn mọi yêu cầu đổi khóa đi qua `s3.localhost` (`?retention`, `?legal-hold`, `?object-lock` và tiêu đề bypass); `scripts/check-iot-permissions.sh` kiểm tra điều này. Đường vào **không qua cổng gác** (console MinIO ở cổng 9001, hay truy cập trực tiếp trong mạng Docker) thì chưa được chặn: không mở các đường đó ra ngoài. Chế độ `COMPLIANCE` được thiết kế để chống việc gỡ khóa này ở tầng lưu trữ, nên là lựa chọn nên dùng khi triển khai thật (chưa được kiểm thử ở đây vì không hoàn tác được).
+**Khuyến nghị cho triển khai thật: dùng COMPLIANCE.** Đã kiểm chứng (`node scripts/check-minio-lock-modes.js --yes`) cùng một yêu cầu khai thác, gửi thẳng vào MinIO bằng tài khoản chỉ-xem: với đối tượng **GOVERNANCE** hạn khóa bị gỡ (HTTP 200), với đối tượng **COMPLIANCE** yêu cầu bị từ chối (HTTP 400) và hạn khóa còn nguyên. Vì COMPLIANCE không hoàn tác được (kể cả root không xóa được trước khi hết hạn) nên môi trường phát triển giữ GOVERNANCE để dọn dữ liệu thử; khi triển khai thật hãy đặt `IOT_LOCK_MODE=COMPLIANCE` và `IOT_LOCK_CONFIRM_COMPLIANCE=yes` (script thiết lập không cho chạy COMPLIANCE nếu thiếu xác nhận). Chưa có bản MinIO nào mới hơn để nâng cấp (kiểm tra ngày 2026-11-14).
+
+**Lưu ý về độ tin cậy của chế độ Governance.** Qua kiểm thử, bản MinIO đang dùng cho phép **bất kỳ tài khoản đăng nhập nào** (kể cả chỉ-đọc) gỡ hạn khóa Governance nếu gửi yêu cầu `PutObjectRetention` rỗng kèm tiêu đề `x-amz-bypass-governance-retention: true`, bất chấp policy. Vì vậy cổng APISIX chặn mọi yêu cầu đổi khóa đi qua `s3.localhost` (`?retention`, `?legal-hold`, `?object-lock` và tiêu đề bypass); `scripts/check-iot-permissions.sh` kiểm tra điều này. Đường vào **không qua cổng gác** (console MinIO ở cổng 9001, hay truy cập trực tiếp trong mạng Docker) thì chưa được chặn: không mở các đường đó ra ngoài. Chế độ `COMPLIANCE` được thiết kế để chống việc gỡ khóa này ở tầng lưu trữ, nên là lựa chọn nên dùng khi triển khai thật (chưa được kiểm thử ở đây vì không hoàn tác được).
 
 **Giới hạn:** khóa chỉ bảo vệ khi truy cập qua MinIO. Nếu ai xóa cả ổ đĩa Docker (`docker compose down -v`) hoặc có quyền máy chủ thì dữ liệu vẫn mất, nên cần sao lưu riêng. Khóa cũng **không chứng minh số liệu là thật lúc ghi**: gateway bị lộ khóa vẫn ghi được số liệu mới trông hợp lý.
 
@@ -367,6 +369,11 @@ bash scripts/backup.sh                 # ra backups/<ngày-giờ>/
 bash scripts/backup.sh /đường/dẫn/khác # hoặc chọn thư mục
 ```
 
+**Sao lưu định kỳ và giữ N bản:** `bash scripts/backup.sh --keep 7` sau khi sao lưu xong chỉ giữ 7 bản mới nhất trong `backups/` (chỉ xóa thư mục tên dạng ngày-giờ có `SHA256SUMS`, không đụng thư mục khác). Chạy lặp trong một cửa sổ: `bash scripts/backup-loop.sh 24 7` (mỗi 24 giờ, giữ 7 bản). Hệ thống KHÔNG tự cài lịch vào hệ điều hành; muốn chạy nền hãy tự đặt lịch:
+
+- Linux/macOS (cron): `0 2 * * * cd /đường/dẫn/dự-án && bash scripts/backup.sh --keep 7 >> backups/backup.log 2>&1`
+- Windows (Task Scheduler, mở PowerShell): `schtasks /Create /SC DAILY /ST 02:00 /TN "LangNgheSo-Backup" /TR "\"C:\Program Files\Git\bin\bash.exe\" -lc 'cd /c/đường/dẫn/dự-án && bash scripts/backup.sh --keep 7'"`
+
 Bản sao lưu gồm: từng CSDL PostgreSQL (Keycloak, Flowable, truy xuất), toàn bộ dữ liệu MinIO (mọi bucket, phiên bản, khóa Object Lock, tài khoản và policy), `.env`, thư mục `config/` và tệp mã kiểm tra `SHA256SUMS`. **Thư mục này chứa mật khẩu trong `.env`**: cất ở nơi an toàn, không đưa lên git (`backups/` đã được loại khỏi git).
 
 **Khôi phục** (XÓA dữ liệu hiện có và thay bằng bản sao lưu, nên bắt buộc có `--yes`):
@@ -396,3 +403,44 @@ Chuỗi băm của nhật ký một mình không phát hiện được việc c�
 Flowable REST không có phân quyền mịn: một tài khoản chỉ có quyền `access-rest-api` vẫn quản lý được engine, tạo/xóa người dùng và triển khai/xóa quy trình. Vì vậy hệ thống không dựa vào "người dùng Flowable ít quyền" mà giới hạn ở cổng gác. `trace-api` gọi Flowable qua một **route nội bộ** của APISIX trên cổng 9081 (chỉ trong mạng Docker, không publish ra máy chủ), kèm khóa riêng `FLOWABLE_PROXY_KEY` trong `.env`. Route này gắn mật khẩu admin của Flowable ở phía cổng gác và chỉ cho đúng ba thao tác: bắt đầu quy trình hồ sơ OCOP, xem việc của MỘT tiến trình, hoàn thành việc. Mọi thao tác khác trả 403, nên nếu `trace-api` bị chiếm thì kẻ tấn công cũng không xóa được quy trình hay tạo người dùng Flowable.
 
 Khi đổi `apisix/config.yaml` hoặc nạp lại route: `docker compose restart apisix` rồi `bash scripts/setup-apisix-routes.sh` (hoặc `bash scripts/upgrade.sh`). Kiểm chứng thật: `node scripts/check-flowable-internal.js` (thử từ bên trong container `trace-api` mọi thao tác nguy hiểm, cộng luồng OCOP đầy đủ).
+
+## 17. Nhắc hạn, leo thang và thông báo
+
+Hệ thống tự quét hồ sơ OCOP mỗi giờ (`NOTIFY_INTERVAL_MINUTES` trong `.env`, 0 để tắt) và tạo thông báo hiện ở **chuông** trên thanh đầu của giao diện:
+
+| Tình huống | Ai được nhắc | Mức |
+|---|---|---|
+| Hồ sơ chờ HTX sơ duyệt đủ 12 ngày làm việc | Cán bộ HTX của hợp tác xã đó | Cảnh báo |
+| Quá hạn sơ duyệt 15 ngày làm việc | Cán bộ HTX, quản trị và cán bộ đầu mối OCOP (leo thang) | Khẩn |
+| HTX yêu cầu bổ sung đã 7 ngày chưa nộp lại | Người nộp hồ sơ | Cảnh báo |
+| Đã sơ duyệt đạt, chờ kết quả chính thức 20 ngày | Cán bộ đầu mối OCOP | Cảnh báo |
+| Kết quả OCOP còn 180 ngày (mở cửa sổ gia hạn) | Chủ hồ sơ và cán bộ HTX | Cảnh báo |
+| Còn 120 ngày (nhắc gấp) hoặc đã hết hiệu lực | Chủ hồ sơ và cán bộ HTX | Khẩn |
+
+Mỗi sự việc chỉ thông báo một lần; trạng thái "đã đọc" riêng cho từng người; thông báo gắn với một hợp tác xã không hiện cho người của hợp tác xã khác. Các ngưỡng nằm trong `config/ocop-profiles.json` (`communeReviewWorkingDays`, `renewalWindowDays`, khối `reminders`). Quản trị có thể quét ngay bằng `POST /api/trace/notifications/scan`. **Giới hạn:** ngày làm việc chỉ trừ thứ Bảy và Chủ nhật (chưa trừ ngày lễ); chưa gửi email (cần máy chủ SMTP). Kiểm chứng thật: `node scripts/check-notifications.js`.
+
+## 18. Hồ dữ liệu phân tích và truy vết nguồn gốc dữ liệu
+
+Dữ liệu chính của hệ thống nằm ở PostgreSQL (đang dùng) và kho lưu trữ lạnh. Để phân tích nhanh mà không làm chậm hệ thống, quản trị có thể xuất bản sao dạng bảng cột (**Parquet**) sang MinIO (tiền tố `lake/` của bucket tệp) và chạy phân tích trên đó bằng **DuckDB**. Ở trang **Data**, thẻ "Hồ dữ liệu phân tích":
+
+- Nút **Xuất dữ liệu sang hồ ngay** (hoặc tự động mỗi `LAKE_INTERVAL_HOURS` giờ, mặc định 24, 0 để tắt) tạo bốn bộ dữ liệu: hồ sơ OCOP, lịch sử xử lý (gộp cả tầng nóng và các tệp đã lưu trữ lạnh), mẻ nung có bằng chứng cảm biến, nhật ký kiểm toán (đã bỏ đường dẫn và địa chỉ IP).
+- Mỗi lần xuất tạo tệp **mới** (không ghi đè) và ghi **truy vết nguồn gốc**: dữ liệu lấy từ bảng nào, từ tệp lưu trữ nào (kèm mã kiểm tra), số dòng, mã kiểm tra của chính tệp Parquet. Tệp được đọc lại và đối chiếu mã trước khi ghi sổ; khi phân tích, mã trong sổ phải khớp tệp thật, nếu không truy vấn bị từ chối.
+- Năm phân tích mẫu: hồ sơ theo trạng thái, hồ sơ theo tháng và số sao trung bình, lịch sử theo tầng lưu trữ, mẻ nung theo kết luận, yêu cầu API theo nhóm mã trạng thái. Hệ thống không nhận câu lệnh SQL tùy ý từ người dùng.
+
+**Giới hạn:** phân tích chỉ đọc lần xuất mới nhất của mỗi bộ dữ liệu (chưa gộp nhiều lần xuất); truy vết ở mức bộ dữ liệu (chưa tới từng cột). Chỉ quản trị dùng được; người dùng khác bị từ chối (403) và không đọc được bucket tệp. Kiểm chứng thật: `node scripts/check-lakehouse.js`.
+
+## 19. Trợ lý hỏi đáp và đề xuất của hệ thống (trang Intelligence)
+
+**Hỏi đáp.** Thẻ "Hỏi đáp về hồ sơ OCOP và hệ thống" trả lời các câu như "hồ sơ OCOP nhóm hàng thủ công cần giấy tờ gì", "bao nhiêu điểm thì được 4 sao", "kết quả OCOP có hiệu lực bao lâu". Trợ lý **tra cứu** trong quy định OCOP, hồ sơ nung, danh sách vai trò và hướng dẫn của hệ thống rồi **trích lại đoạn phù hợp nhất kèm nguồn**; nó không dùng mô hình sinh văn bản, nên không bịa: nếu không tìm thấy thì nói rõ là chưa có thông tin. Vì kho tri thức dựng từ chính các tệp cấu hình nên số liệu (hạng sao, hạn, hiệu lực, giấy tờ) luôn khớp hệ thống đang chạy. Muốn bổ sung hướng dẫn: sửa `config/assistant-faq.json` rồi khởi động lại `trace-api` (`docker compose restart trace-api`). Mọi vai trò dùng được API đều hỏi được.
+
+**Đề xuất chờ duyệt** (cán bộ HTX và quản trị). Khi phân tích mẻ nung cho kết luận **Cần xem lại** hoặc **Cảnh báo**, hệ thống tạo một đề xuất kèm lý do và căn cứ (tự động ngay khi công đoạn nung có bằng chứng cảm biến được ghi; quản trị cũng quét tay được bằng `POST /api/trace/agent/scan`). Hệ thống **không tự làm gì**: chỉ khi bạn bấm **Duyệt và gửi thông báo** thì thông báo mới tới cán bộ HTX của hợp tác xã sở hữu sản phẩm (hoặc quản trị nếu sản phẩm chưa thuộc hợp tác xã nào); bấm **Từ chối** thì không có gì được gửi. Cán bộ HTX chỉ thấy và duyệt đề xuất của hợp tác xã mình; một đề xuất không duyệt được hai lần.
+
+**Giới hạn:** chưa có mô hình ngôn ngữ (tìm kiếm theo từ khóa, chưa hiểu nghĩa); tác tử mới theo dõi mẻ nung; có thể gắn thêm mô hình mã nguồn mở chạy cục bộ (ví dụ Ollama) nếu có máy đủ mạnh. Kiểm chứng thật: `node scripts/check-assistant-agent.js`.
+
+## Gói phát hành và Linux/macOS
+
+Tạo gói phát hành bằng `bash scripts/make-release-archive.sh 0.3.0` (kiểm đủ tệp, không CRLF, không chứa `.env`/`backups`). Đừng tự chạy `git archive` trên Windows. Mã QR quét được bằng điện thoại khi build giao diện với `NEXT_PUBLIC_PUBLIC_BASE_URL=http://<IP-LAN>:3000`, rồi `npm run start -- -H 0.0.0.0` (điện thoại cùng Wi-Fi; Windows có thể hỏi mở cổng tường lửa). Đã kiểm chứng trang `/verify/<mã>` mở được qua địa chỉ LAN; chưa thử bằng điện thoại thật.
+
+## 20. Đưa hệ thống ra Internet
+
+Xem [TRIEN-KHAI-INTERNET.md](TRIEN-KHAI-INTERNET.md). Trước tiên chạy `node scripts/prod-check.js` để biết hệ thống còn thiếu gì (mật khẩu mẫu, khóa dữ liệu chưa ở chế độ COMPLIANCE, HTTPS, chế độ Keycloak, tài khoản thử...). Hệ thống hiện mới chạy thật trên máy phát triển, chưa triển khai thật lên Internet.

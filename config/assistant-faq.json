@@ -1,0 +1,70 @@
+{
+  "_doc": "Hướng dẫn sử dụng cho trợ lý hỏi đáp. Trợ lý chỉ trả lời bằng cách trích từ các đoạn này và từ cấu hình của hệ thống (quy định OCOP, hồ sơ nung, vai trò), luôn kèm nguồn. Sửa nội dung ở đây thì trợ lý đổi theo sau khi khởi động lại trace-api.",
+  "entries": [
+    {
+      "id": "lap-ho-so",
+      "title": "Cách lập và nộp hồ sơ OCOP",
+      "text": "Người nộp (chủ thể sản xuất) vào mục Hồ sơ OCOP, bấm lập hồ sơ mới: nhập tên sản phẩm, chọn nhóm sản phẩm, tự chấm điểm dự kiến ở từng phần, đánh dấu các giấy tờ đã có rồi tạo bản nháp. Mở hồ sơ, tải ảnh hoặc PDF lên từng giấy tờ, sau đó bấm Nộp hồ sơ. Nếu còn thiếu giấy tờ bắt buộc, hệ thống từ chối và nói rõ thiếu giấy tờ nào."
+    },
+    {
+      "id": "sau-khi-nop",
+      "title": "Sau khi nộp hồ sơ thì chuyện gì xảy ra",
+      "text": "Hồ sơ chuyển sang trạng thái Chờ HTX sơ duyệt. Cán bộ hợp tác xã xem hồ sơ và chọn một trong ba hướng: sơ duyệt đạt thì hồ sơ chờ cơ quan có thẩm quyền ghi kết quả chính thức; yêu cầu bổ sung (kèm lý do) thì hồ sơ trả về người nộp để bổ sung rồi nộp lại; không đạt (kèm lý do) thì hồ sơ kết thúc. Cán bộ đầu mối OCOP ghi điểm, số quyết định và ngày quyết định; hạng sao và ngày hết hiệu lực do hệ thống tự tính."
+    },
+    {
+      "id": "khac-biet-xac-nhan",
+      "title": "Khác nhau giữa xác nhận của nền tảng và kết quả OCOP chính thức",
+      "text": "Xác nhận của nền tảng chỉ cho biết hồ sơ đã được hợp tác xã sơ duyệt đạt trên hệ thống, chưa phải giấy chứng nhận OCOP. Kết quả OCOP chính thức (hạng sao, cơ quan, số quyết định, thời hạn hiệu lực) do cơ quan có thẩm quyền quyết định và cán bộ đầu mối nhập lại vào hệ thống. Hệ thống chỉ hỗ trợ và theo dõi, không tự cấp giấy chứng nhận. Trang tra cứu công khai hiển thị hai phần này tách riêng."
+    },
+    {
+      "id": "ma-qr",
+      "title": "Mã QR và trang tra cứu của người mua",
+      "text": "Mỗi sản phẩm có mã QR dẫn tới trang tra cứu công khai, người mua quét là xem được mà không cần đăng nhập. Trang kể hành trình sản phẩm theo ba chương: người làm ra, ngọn lửa (đường cong nhiệt độ lò nung và kết luận tự động) và chứng nhận (kết quả OCOP chính thức). Công đoạn chưa có bản ghi được hiển thị rõ là chưa có thay vì bị ẩn."
+    },
+    {
+      "id": "duong-cong-nung",
+      "title": "Đường cong nhiệt độ lò và kết luận tự động",
+      "text": "Số liệu cảm biến lò được ghi vào kho dữ liệu có khóa chống sửa và chống xóa. Khi gắn vào công đoạn nung, máy chủ tự đọc lại số liệu, tự tính nhiệt độ cao nhất, trung bình, thấp nhất và đường cong, người nhập hồ sơ không gõ tay các con số này. Kết luận được tính bằng bộ luật giải thích được (đỉnh nhiệt, thời gian giữ nhiệt, tốc độ gia nhiệt và làm nguội, so với các mẻ khác của cùng lò, độ tin cậy dữ liệu); kết luận chỉ hỗ trợ ra quyết định, không thay thế kiểm định chất lượng."
+    },
+    {
+      "id": "y-nghia-ket-luan",
+      "title": "Ý nghĩa các kết luận Đạt chuẩn nung, Cần xem lại, Cảnh báo, Chưa đủ dữ liệu",
+      "text": "Đạt chuẩn nung nghĩa là các chỉ số nằm trong ngưỡng của hồ sơ nung. Cần xem lại là có chỉ số lệch đáng chú ý (ví dụ gia nhiệt quá nhanh) nhưng chưa nguy hiểm. Cảnh báo là có chỉ số vượt ngưỡng nguy hiểm (ví dụ quá nhiệt) hoặc dữ liệu có dấu hiệu bị can thiệp. Chưa đủ dữ liệu là quá ít mẫu đo hoặc dữ liệu thiếu để đánh giá."
+    },
+    {
+      "id": "thong-bao",
+      "title": "Chuông thông báo",
+      "text": "Chuông ở góc trên bên phải cho biết số thông báo chưa đọc. Hệ thống nhắc cán bộ hợp tác xã khi hồ sơ sắp hết hạn sơ duyệt, leo thang tới quản trị và cán bộ đầu mối khi quá hạn, nhắc người nộp khi hồ sơ đang chờ bổ sung, nhắc chủ hồ sơ và cán bộ hợp tác xã khi kết quả OCOP sắp hết hiệu lực, và báo các đề xuất đã được duyệt. Trạng thái đã đọc là riêng của từng người."
+    },
+    {
+      "id": "de-xuat-tac-tu",
+      "title": "Đề xuất của hệ thống chờ duyệt",
+      "text": "Khi phân tích mẻ nung cho kết luận Cần xem lại hoặc Cảnh báo, hệ thống tạo một đề xuất kèm lý do và căn cứ. Hệ thống không tự hành động: cán bộ hợp tác xã hoặc quản trị xem đề xuất ở trang Intelligence rồi chọn duyệt hoặc từ chối. Chỉ khi được duyệt thì thông báo mới được gửi đi."
+    },
+    {
+      "id": "xac-minh-otp",
+      "title": "Mã xác minh OTP khi đăng nhập",
+      "text": "Cán bộ hợp tác xã phải nhập thêm mã xác minh 6 số khi đăng nhập bằng trình duyệt. Lần đầu hệ thống hướng dẫn cài một ứng dụng xác thực trên điện thoại (ví dụ Google Authenticator, Microsoft Authenticator hoặc FreeOTP) rồi nhập mã do ứng dụng tạo ra. Mã đổi sau mỗi 30 giây. Mất điện thoại thì liên hệ quản trị để đặt lại."
+    },
+    {
+      "id": "quen-mat-khau",
+      "title": "Quên mật khẩu",
+      "text": "Hệ thống chưa bật chức năng tự đặt lại mật khẩu qua email. Nếu quên mật khẩu, hãy liên hệ quản trị hệ thống hoặc cán bộ hợp tác xã để được đặt lại."
+    },
+    {
+      "id": "luu-tru",
+      "title": "Dữ liệu cũ được lưu trữ ở đâu",
+      "text": "Lịch sử xử lý của các hồ sơ đã kết thúc và quá thời hạn giữ ở kho đang dùng sẽ được nén gọn, gắn mã kiểm tra nguyên vẹn và chuyển sang kho lưu trữ. Dữ liệu vẫn đọc lại và phân tích được, chỉ quản trị mới xem được phần này. Số liệu cảm biến lò nằm trong kho có khóa chống sửa và chống xóa."
+    },
+    {
+      "id": "pham-vi-tro-ly",
+      "title": "Trợ lý này hoạt động thế nào",
+      "text": "Trợ lý tra cứu trong quy định và hướng dẫn của chính hệ thống rồi trích lại đoạn phù hợp nhất kèm nguồn. Trợ lý không tự suy diễn, không thay thế văn bản pháp luật hay quyết định của cơ quan có thẩm quyền; nếu không tìm thấy thông tin phù hợp, trợ lý sẽ nói rõ là chưa có."
+    },
+    {
+      "id": "khong-thay-muc",
+      "title": "Vì sao tôi không thấy một mục trên menu",
+      "text": "Menu hiển thị theo vai trò của bạn: người nộp hồ sơ chỉ thấy các mục liên quan sản phẩm và hồ sơ của mình, cán bộ hợp tác xã và cán bộ đầu mối thấy thêm Process và Data, người chỉ xem không có mục Hồ sơ OCOP. Vai trò của bạn và những việc bạn được làm xem ở trang Human. Cần thêm quyền thì nhờ quản trị."
+    }
+  ]
+}
