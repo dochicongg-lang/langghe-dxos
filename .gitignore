@@ -8,3 +8,6 @@ backups/
 
 # Ảnh minh họa (giấy phép Pexels, không đưa lên kho mã; xem frontend/public/photos/CREDITS.md)
 frontend/public/photos/*.jpg
+
+# Gói phát hành tạo bởi scripts/make-release-archive.sh
+dist/
