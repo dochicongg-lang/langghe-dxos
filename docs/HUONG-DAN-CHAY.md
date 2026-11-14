@@ -143,7 +143,7 @@ npm run dev
 
 Nếu trang ghi "Chưa có dữ liệu": simulator (bước 5b) chưa chạy hoặc chưa ghi tệp nào. Chạy nó, chờ vài chục giây.
 
-Các trang khác để tham khảo: **Human** (hồ sơ của bạn từ token), **Process** (danh sách quy trình Flowable), **Data** (mô tả).
+Các trang khác để tham khảo: **Human** (tài khoản, vai trò và những việc bạn được làm), **Process** (các bước xử lý hồ sơ của hệ thống), **Data** (vòng đời dữ liệu; quản trị còn thấy việc chuyển dữ liệu cũ và nhật ký hoạt động), **Intelligence** (nhận định các mẻ nung và số liệu cảm biến).
 
 ## 8. Tự kiểm tra từng lớp bằng dòng lệnh (tùy chọn, giúp hiểu hệ thống)
 
@@ -233,9 +233,9 @@ Sản phẩm mà bạn không được xem sẽ hiện như "không tìm thấy"
 
 Tài khoản thử (cho **môi trường phát triển**, mật khẩu = tên đăng nhập; đổi hoặc xóa trước khi triển khai thật), cùng HTX mẫu `htx-demo`:
 `hoa` (producer), `tuan` (coop-officer), `ocop` (ocop-officer), `tester` (editor = admin), `viewer` (readonly).
-Trang **Human** của giao diện hiện HTX và quyền hiệu lực của người đang đăng nhập.
+Trang **Human** của giao diện hiện tài khoản, hợp tác xã, vai trò (kèm mô tả một câu) và danh sách "Bạn có thể làm gì" bằng tiếng Việt thường. Mã quyền và tên policy chỉ hiện trong mục "Chi tiết kỹ thuật" dành cho quản trị.
 
-**Xác thực hai yếu tố (OTP) cho cán bộ HTX.** Tài khoản có vai trò `coop-officer` (như `tuan`) bị bắt dùng mã OTP khi đăng nhập trên trình duyệt: lần đầu Keycloak hiện màn hình "Mobile Authenticator Setup" để cài ứng dụng (Google Authenticator, FreeOTP...); các lần sau hỏi mã 6 số. Muốn thử mà không có điện thoại: ở màn hình cài OTP bấm **"Unable to scan?"** để lấy khóa chữ, rồi chạy `node scripts/totp.js <khóa>` (có thể dán cả khoảng trắng) để lấy mã. Muốn bật OTP cho vai trò khác: thêm `"mfa": true` vào vai trò đó trong `config/access.json` rồi chạy `bash scripts/upgrade.sh` (hiện chỉ hỗ trợ một vai trò). Đăng nhập bằng mật khẩu trực tiếp qua API (dùng trong các script kiểm tra) không bị đòi OTP. Nếu cần gỡ OTP của một người: Keycloak → Users → Credentials → xóa OTP.
+**Xác thực hai yếu tố (OTP) cho cán bộ HTX.** Tài khoản có vai trò `coop-officer` (như `tuan`) bị bắt dùng mã OTP khi đăng nhập trên trình duyệt: lần đầu Keycloak hiện màn hình "Cài đặt ứng dụng xác thực" để cài ứng dụng (Google Authenticator, FreeOTP...); các lần sau hỏi mã 6 số. Muốn thử mà không có điện thoại: ở màn hình cài OTP bấm **"Không quét được?"** để lấy khóa chữ, rồi chạy `node scripts/totp.js <khóa>` (có thể dán cả khoảng trắng) để lấy mã. Muốn bật OTP cho vai trò khác: thêm `"mfa": true` vào vai trò đó trong `config/access.json` rồi chạy `bash scripts/upgrade.sh` (hiện chỉ hỗ trợ một vai trò). Đăng nhập bằng mật khẩu trực tiếp qua API (dùng trong các script kiểm tra) chỉ không bị đòi OTP **chừng nào người đó chưa cài OTP**; sau khi `tuan` đã cài OTP, Keycloak cũng đòi mã OTP ở kiểu đăng nhập này nên các script đăng nhập bằng `tuan/tuan` (`check-iot-permissions.sh`, `check-ocop-flow.js`...) báo lỗi như "Không lấy được token persona". Khi đó chạy `bash scripts/reset-otp.sh` để xóa OTP của `tuan` (mặc định; có thể truyền tên người dùng khác), chạy lại script kiểm tra, rồi cài OTP lại ở lần đăng nhập trình duyệt kế tiếp. Cách thủ công: Keycloak → Users → Credentials → xóa OTP.
 
 **Muốn đổi quyền:** sửa duy nhất tệp `config/access.json` (ma trận vai trò × hành động × phạm vi `all`/`coop`/`own`/`self`), rồi chạy `bash scripts/upgrade.sh`.
 Từ tệp đó hệ thống tự sinh: kiểm tra quyền trong `trace-api`, đoạn kiểm tra ở cổng gác, policy MinIO và danh sách vai trò Keycloak, nên không phải sửa nhiều nơi.
@@ -347,13 +347,13 @@ Chạy test của backend Tầng 3: `cd services/trace-api` rồi `npm test`. Ki
 
 ## 12. Quy trình hồ sơ OCOP (bản khung trình diễn)
 
-Hệ thống chỉ **hỗ trợ và theo dõi** việc lập hồ sơ OCOP. Kết quả chính thức do cơ quan có thẩm quyền quyết định, cán bộ đầu mối nhập vào. Cấu hình mặc định là **Thành phố Hà Nội** trong `config/ocop-profiles.json`, và đang đánh dấu **chưa đối chiếu văn bản gốc**: trước khi dùng cho hồ sơ thật phải kiểm tra lại các quyết định được ghi ở đầu tệp đó.
+Hệ thống chỉ **hỗ trợ và theo dõi** việc lập hồ sơ OCOP. Kết quả chính thức do cơ quan có thẩm quyền quyết định, cán bộ đầu mối nhập vào. Cấu hình mặc định là **Thành phố Hà Nội** trong `config/ocop-profiles.json`, và đang đánh dấu **chưa đối chiếu văn bản gốc** (`"verified": false`; giao diện không hiện cảnh báo này, nó được ghi ở mục "Lưu ý cho nhóm phát triển" của README và trong issue công khai): trước khi dùng cho hồ sơ thật phải kiểm tra lại các quyết định được ghi ở đầu tệp đó.
 
 **Chuẩn bị:** chạy `bash scripts/upgrade.sh` (bước 4b nạp quy trình vào Flowable), rồi `cd frontend && npm run dev`.
 
 **Kịch bản trình diễn (mỗi bước đổi tài khoản; mật khẩu = tên đăng nhập):**
 1. `hoa` (nghệ nhân): vào mục **Hồ sơ OCOP**, tạo hồ sơ (chọn nhóm, tự chấm A/B/C, đánh dấu giấy tờ), mở hồ sơ rồi bấm **Nộp hồ sơ**. Nếu thiếu giấy tờ bắt buộc, hệ thống từ chối và nói rõ.
-2. `tuan` (cán bộ HTX): lần đầu đăng nhập bằng trình duyệt sẽ bị bắt cài OTP (xem mục về OTP; mã tính bằng `node scripts/totp.js <khóa>`). Mở hồ sơ, chọn **Sơ duyệt: Đạt**, **Yêu cầu bổ sung** hoặc **Không đạt** (hai trường hợp sau bắt buộc ghi lý do). Nếu yêu cầu bổ sung, `hoa` nộp lại.
+2. `tuan` (cán bộ HTX): lần đầu đăng nhập bằng trình duyệt sẽ bị bắt cài OTP (xem mục về OTP; mã tính bằng `node scripts/totp.js <khóa>`; cần cài lại thì `bash scripts/reset-otp.sh`). Mở hồ sơ, chọn **Sơ duyệt: Đạt**, **Yêu cầu bổ sung** hoặc **Không đạt** (hai trường hợp sau bắt buộc ghi lý do). Nếu yêu cầu bổ sung, `hoa` nộp lại.
 3. `ocop` (cán bộ đơn vị đầu mối): với hồ sơ đã sơ duyệt đạt, nhập điểm chính thức, số quyết định, ngày quyết định. Hạng sao và ngày hết hạn (36 tháng) do hệ thống tính từ cấu hình.
 
 Trang chi tiết hiển thị bước hiện tại của quy trình, lịch sử xử lý (chỉ ghi thêm) và kết quả chính thức. Tự kiểm tra toàn bộ quy trình thật qua cổng gác, Keycloak và Flowable: `node scripts/check-ocop-flow.js` (mỗi lần chạy tạo vài hồ sơ thử).
