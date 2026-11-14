@@ -12,16 +12,22 @@ export const metadata: Metadata = {
 };
 
 const values = [
-  { img: "qr", title: "Hành trình sản phẩm rõ ràng", text: "Ghi lại bảy công đoạn từ nguyên liệu đến phân phối. Người mua quét mã QR là thấy toàn bộ, không cần đăng nhập." },
+  { img: "qr", title: "Hành trình sản phẩm rõ ràng", text: "Ghi lại từng công đoạn của nghề, từ nguyên liệu đến phân phối. Người mua quét mã QR là thấy toàn bộ, không cần đăng nhập." },
   { img: "ocop", title: "Hồ sơ OCOP gọn gàng", text: "Lập hồ sơ, tải giấy tờ, tự chấm điểm dự kiến. Hợp tác xã sơ duyệt ngay trên hệ thống và nhắc việc khi sắp quá hạn." },
-  { img: "kiln", title: "Số liệu nung, nhuộm đáng tin", text: "Nhiệt độ lò nung, bể nhuộm do cảm biến ghi, được khóa không cho sửa. Hệ thống tự đối chiếu và phân tích từng mẻ, giải thích bằng lời dễ hiểu." },
+  { img: "kiln", title: "Số liệu cảm biến đáng tin", text: "Với công đoạn cần kiểm soát nhiệt, như nung gốm hay nhuộm lụa, nhiệt độ do cảm biến ghi và được khóa không cho sửa. Hệ thống tự đối chiếu và giải thích từng mẻ bằng lời dễ hiểu." },
 ];
 
 const steps = [
-  { stage: "nguyen-lieu", title: "Ghi từng công đoạn", text: "Nghệ nhân hoặc hợp tác xã ghi từng bước của nghề mình: gốm từ nguyên liệu, tạo hình, nung; lụa từ tơ, dệt, nhuộm; rồi kiểm định, đóng gói, phân phối." },
-  { stage: "nung-hoan-thien", title: "Cảm biến ghi mẻ nung, mẻ nhuộm", text: "Nhiệt độ lò hoặc bể nhuộm được ghi tự động và bảo vệ khỏi việc sửa hay xóa về sau." },
+  { stage: "nguyen-lieu", title: "Ghi từng công đoạn", text: "Nghệ nhân hoặc hợp tác xã ghi từng bước theo quy trình của nghề mình, rồi kiểm định, đóng gói, phân phối. Mỗi nghề có chuỗi công đoạn riêng." },
+  { stage: "nung-hoan-thien", title: "Cảm biến ghi số liệu", text: "Ở công đoạn cần đo (nhiệt độ lò nung, bể nhuộm...), số liệu được ghi tự động và bảo vệ khỏi việc sửa hay xóa về sau." },
   { stage: "kiem-dinh", title: "Duyệt hồ sơ OCOP", text: "Hợp tác xã sơ duyệt, cán bộ đầu mối ghi kết quả chính thức do cơ quan có thẩm quyền quyết định." },
-  { stage: "dong-goi", title: "Mã QR cho người mua", text: "In mã QR lên sản phẩm. Người mua quét để xem câu chuyện, đường cong nhiệt độ và chứng nhận." },
+  { stage: "dong-goi", title: "Mã QR cho người mua", text: "In mã QR lên sản phẩm. Người mua quét để xem câu chuyện, số liệu cảm biến (nếu có) và chứng nhận." },
+];
+
+const trades = [
+  { name: "Gốm sứ", chain: "Nguyên liệu → Sơ chế → Tạo hình → Nung → Kiểm định → Đóng gói → Phân phối", note: "Có cảm biến lò nung và phân tích từng mẻ nung." },
+  { name: "Lụa và dệt", chain: "Nguyên liệu tơ → Chuẩn bị sợi → Dệt → Chuội nhuộm → Kiểm định → Đóng gói → Phân phối", note: "Có cảm biến bể nhuộm và phân tích từng mẻ nhuộm." },
+  { name: "Nghề khác", chain: "Ví dụ: mây tre đan, thêu, đúc đồng, sơn mài...", note: "Thêm một nghề chỉ cần khai báo chuỗi công đoạn của nghề đó; phần phân tích riêng là việc làm thêm." },
 ];
 
 const audiences = [
@@ -50,6 +56,7 @@ export default function IntroPage() {
           <nav aria-label="Các mục trang giới thiệu" className="hidden items-center gap-6 text-sm text-stone-600 md:flex">
             <a href="#gia-tri" className="hover:text-stone-900">Giá trị</a>
             <a href="#cach-hoat-dong" className="hover:text-stone-900">Cách hoạt động</a>
+            <a href="#nghe" className="hover:text-stone-900">Các nghề</a>
             <a href="#danh-cho-ai" className="hover:text-stone-900">Dành cho ai</a>
             <a href="#cam-ket" className="hover:text-stone-900">Cam kết</a>
           </nav>
@@ -127,9 +134,20 @@ export default function IntroPage() {
                 </li>
               ))}
             </ol>
-            <figure className="mt-10 overflow-hidden rounded-2xl border border-stone-200">
-              <Photo src="/photos/chapter-ngon-lua.jpg" alt="Bình gốm men màu sau khi ra lò" hideFigure className="h-56 w-full object-cover sm:h-80" />
-            </figure>
+          </div>
+        </section>
+
+        <section id="nghe" aria-labelledby="ng-h" className="mx-auto max-w-6xl scroll-mt-16 px-4 py-14">
+          <h2 id="ng-h" className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">Cho nhiều làng nghề trên một nền tảng</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-stone-600">Mỗi nghề có chuỗi công đoạn riêng, còn tài khoản, hồ sơ OCOP, mã QR và nhật ký dùng chung. Mỗi hợp tác xã chỉ thấy dữ liệu của mình.</p>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {trades.map((t) => (
+              <article key={t.name} className="rounded-2xl border border-stone-200 bg-white p-5">
+                <h3 className="text-base font-semibold text-stone-900">{t.name}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-stone-700">{t.chain}</p>
+                <p className="mt-2 text-sm leading-relaxed text-stone-500">{t.note}</p>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -177,7 +195,7 @@ export default function IntroPage() {
 
       <footer className="border-t border-stone-200 bg-white px-4 py-6 text-xs text-stone-500">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">
-          <p>Làng Nghề Số · Hỗ trợ lập hồ sơ OCOP và truy xuất nguồn gốc làng nghề.</p>
+          <p>Làng Nghề Số · Hỗ trợ lập hồ sơ OCOP và truy xuất nguồn gốc cho nhiều làng nghề.</p>
           <p>Kết quả OCOP chính thức do cơ quan có thẩm quyền quyết định.</p>
         </div>
       </footer>

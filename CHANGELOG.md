@@ -6,6 +6,7 @@ Số `#n` là pull request trên GitHub.
 ## [Chưa phát hành]
 
 ### Thêm
+- Trang giới thiệu viết lại cho nhiều làng nghề: bỏ cách nói riêng của gốm, thêm mục "Cho nhiều làng nghề trên một nền tảng" (gốm, lụa, nghề khác) và bỏ ảnh bình gốm ở phần cách hoạt động.
 - Dấu "?" giải thích ngắn các thuật ngữ khó (tự chấm điểm, mã truy xuất, độ phủ dữ liệu, kết quả chính thức, xác nhận của nền tảng); `frontend/src/components/Tip.tsx`.
 
 ### Sửa
