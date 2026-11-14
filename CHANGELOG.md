@@ -28,7 +28,6 @@ Bản đầu tiên dùng cho cuộc thi OLP Phần mềm nguồn mở 2026 (đ�
 - **Giao diện và đăng nhập:** bảng màu đất nung, theme đăng nhập Keycloak tiếng Việt, chống dò mật khẩu, dashboard và menu theo vai trò (#16).
 - **Gói trình diễn:** kịch bản, dàn ý slide, nạp dữ liệu mẫu (`scripts/seed-demo.js`), minh họa Zero-Trust (`scripts/demo-zero-trust.js`) (#21).
 - **Kiểm thử:** 122 test đơn vị và 4 bộ kiểm tra chạy thật qua cổng gác, Keycloak, Flowable, MinIO (`scripts/check-*.sh|js`).
-
 - Giấy phép Apache-2.0 (`LICENSE`, `NOTICE`), dòng `SPDX-License-Identifier` ở đầu mọi tệp mã (`scripts/add-license-headers.js`, có chế độ `--check`), danh mục bên thứ ba (`THIRD-PARTY-NOTICES.md`), `CONTRIBUTING.md`, mẫu issue, quy trình CI (kiểm giấy phép, kiểu, lint, test).
 ### Bảo mật
 - Chặn ở cổng gác lỗ hổng của bản MinIO đang dùng (mọi tài khoản STS gỡ được khóa Governance bằng tiêu đề bypass); chặn thao tác ghi vào Flowable của người không phải quản trị (#12, #13).
