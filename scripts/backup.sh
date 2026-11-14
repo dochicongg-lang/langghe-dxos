@@ -13,6 +13,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export MSYS_NO_PATHCONV=1 # Git Bash trên Windows: không đổi đường dẫn /data thành đường dẫn Windows
+SUM="sha256sum"; command -v sha256sum >/dev/null 2>&1 || SUM="shasum -a 256" # macOS không có sha256sum
 
 HOT=0
 DEST=""
@@ -77,7 +78,7 @@ cp -r config/. "$DEST/config/"
 } > "$DEST/manifest.txt"
 
 echo "==> [4/4] Mã kiểm tra nguyên vẹn"
-(cd "$DEST" && find . -type f ! -name SHA256SUMS | sort | xargs sha256sum > SHA256SUMS)
+(cd "$DEST" && find . -type f ! -name SHA256SUMS | sort | xargs $SUM > SHA256SUMS)
 echo "  $(wc -l < "$DEST/SHA256SUMS") tệp"
 
 echo

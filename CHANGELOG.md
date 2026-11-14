@@ -5,6 +5,14 @@ Số `#n` là pull request trên GitHub.
 
 ## [Chưa phát hành]
 
+### Thêm
+- **Neo nhật ký kiểm toán:** băm đầu chuỗi nhật ký được ghi định kỳ vào bucket riêng có Object Lock; kiểm tra toàn vẹn nay đối chiếu cả các bản neo nên phát hiện được việc cắt bớt dòng cuối và việc tính lại cả chuỗi (`scripts/check-audit-anchor.js`).
+- **Quét mã độc tệp tải lên bằng ClamAV:** tệp đính kèm hồ sơ được quét trước khi lưu, mặc định từ chối khi không quét được; ghi nhận công cụ quét và thời điểm quét (`scripts/check-malware-scan.js`).
+- **Sao lưu, khôi phục và tự phục hồi:** `scripts/backup.sh`, `scripts/restore.sh`, `scripts/heal.sh`; `trace-api` có healthcheck; kiểm chứng thật bằng `scripts/check-backup-restore.js`.
+
+### Sửa
+- Dockerfile của `trace-api` sao chép mọi tệp `.js` (trước đây liệt kê từng tệp nên thêm module mới làm container không khởi động).
+
 ## [0.2.1] - 2026-11-14
 
 ### Sửa

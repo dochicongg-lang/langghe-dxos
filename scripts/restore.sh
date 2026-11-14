@@ -9,6 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export MSYS_NO_PATHCONV=1
+SUM="sha256sum"; command -v sha256sum >/dev/null 2>&1 || SUM="shasum -a 256" # macOS không có sha256sum
 
 SRC=""
 YES=0
@@ -27,7 +28,7 @@ set +a
 ABS=$(cd "$SRC" && (pwd -W 2>/dev/null || pwd))
 
 echo "==> [1/5] Kiểm tra nguyên vẹn bản sao lưu"
-(cd "$SRC" && sha256sum -c SHA256SUMS --quiet) || { echo "LỖI: bản sao lưu hỏng hoặc bị sửa, dừng (chưa đụng tới dữ liệu hiện tại)."; exit 1; }
+(cd "$SRC" && $SUM -c SHA256SUMS --quiet) || { echo "LỖI: bản sao lưu hỏng hoặc bị sửa, dừng (chưa đụng tới dữ liệu hiện tại)."; exit 1; }
 if ! diff -q .env "$SRC/env.backup" >/dev/null 2>&1; then
   echo "CẢNH BÁO: .env hiện tại KHÁC env.backup trong bản sao lưu. Nếu mật khẩu khác, hãy chép env.backup thành .env rồi chạy lại."
 fi

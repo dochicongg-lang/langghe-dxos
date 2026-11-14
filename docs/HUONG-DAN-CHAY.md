@@ -345,7 +345,7 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 minioadmi
 
 Chạy test của backend Tầng 3: `cd services/trace-api` rồi `npm test`. Kiểm thử script đồng bộ `.env`: `bash scripts/tests/test-env-sync.sh`. Kiểm tra phân quyền thật: `bash scripts/check-iot-permissions.sh`.
 
-## 12. Quy trình hồ sơ OCOP (bản khung trình diễn)
+## 12. Quy trình hồ sơ OCOP (bản khung)
 
 Hệ thống chỉ **hỗ trợ và theo dõi** việc lập hồ sơ OCOP. Kết quả chính thức do cơ quan có thẩm quyền quyết định, cán bộ đầu mối nhập vào. Cấu hình mặc định là **Thành phố Hà Nội** trong `config/ocop-profiles.json`, và đang đánh dấu **chưa đối chiếu văn bản gốc** (`"verified": false`; giao diện không hiện cảnh báo này, nó được ghi ở mục "Lưu ý cho nhóm phát triển" của README và trong issue công khai): trước khi dùng cho hồ sơ thật phải kiểm tra lại các quyết định được ghi ở đầu tệp đó.
 
@@ -357,3 +357,36 @@ Hệ thống chỉ **hỗ trợ và theo dõi** việc lập hồ sơ OCOP. Kế
 3. `ocop` (cán bộ đơn vị đầu mối): với hồ sơ đã sơ duyệt đạt, nhập điểm chính thức, số quyết định, ngày quyết định. Hạng sao và ngày hết hạn (36 tháng) do hệ thống tính từ cấu hình.
 
 Trang chi tiết hiển thị bước hiện tại của quy trình, lịch sử xử lý (chỉ ghi thêm) và kết quả chính thức. Tự kiểm tra toàn bộ quy trình thật qua cổng gác, Keycloak và Flowable: `node scripts/check-ocop-flow.js` (mỗi lần chạy tạo vài hồ sơ thử).
+
+## 13. Sao lưu, khôi phục và tự phục hồi
+
+**Sao lưu** (an toàn chạy khi hệ thống đang chạy; MinIO bị dừng vài giây để dữ liệu nhất quán, thêm `--hot` để bỏ qua bước dừng):
+
+```bash
+bash scripts/backup.sh                 # ra backups/<ngày-giờ>/
+bash scripts/backup.sh /đường/dẫn/khác # hoặc chọn thư mục
+```
+
+Bản sao lưu gồm: từng CSDL PostgreSQL (Keycloak, Flowable, truy xuất), toàn bộ dữ liệu MinIO (mọi bucket, phiên bản, khóa Object Lock, tài khoản và policy), `.env`, thư mục `config/` và tệp mã kiểm tra `SHA256SUMS`. **Thư mục này chứa mật khẩu trong `.env`**: cất ở nơi an toàn, không đưa lên git (`backups/` đã được loại khỏi git).
+
+**Khôi phục** (XÓA dữ liệu hiện có và thay bằng bản sao lưu, nên bắt buộc có `--yes`):
+
+```bash
+bash scripts/restore.sh backups/<ngày-giờ> --yes
+```
+
+Script kiểm tra mã `SHA256SUMS` trước tiên: bản sao lưu hỏng hoặc bị sửa thì dừng ngay, chưa đụng tới dữ liệu hiện tại. Nếu `.env` hiện tại khác `env.backup` trong bản sao lưu, hãy chép `env.backup` thành `.env` trước khi khôi phục (mật khẩu phải khớp với dữ liệu). Route của cổng gác nằm trong etcd và được tạo lại bằng `bash scripts/upgrade.sh` nếu cần.
+
+**Tự phục hồi:** mọi dịch vụ đã có `restart: unless-stopped`; `trace-api` có healthcheck. `bash scripts/heal.sh` khởi động lại container đang dừng hoặc báo unhealthy và sửa lỗi 502 ở cổng gác (APISIX giữ địa chỉ cũ của container đã được tạo lại). Chạy định kỳ bằng cron (`*/2 * * * * cd /đường/dẫn/dự-án && bash scripts/heal.sh`), Task Scheduler (Windows), hoặc `bash scripts/heal.sh --watch 60` giữ trong một cửa sổ.
+
+**Kiểm chứng thật:** `node scripts/check-backup-restore.js` tạo dấu thử ở cả ba kho (một sản phẩm, một đối tượng MinIO, một người dùng Keycloak), sao lưu, xóa, khôi phục, rồi kiểm tra cả ba trở lại và hệ thống vẫn dùng được (mất vài phút).
+
+## 14. Quét mã độc tệp tải lên
+
+Tệp đính kèm hồ sơ OCOP được quét bằng ClamAV (dịch vụ `clamav` trong `docker-compose.yml`) **trước khi** ghi vào kho tệp. Tệp nhiễm bị từ chối (mã 422) và không được lưu. Mặc định "đóng khi lỗi": ClamAV chưa sẵn sàng thì tải lên bị từ chối (mã 503) với thông báo thử lại sau; đặt `CLAMAV_REQUIRED=false` trong `.env` chỉ khi thử nghiệm.
+
+Lưu ý: ClamAV cần khoảng 1–2 GB RAM và vài phút để nạp cơ sở dữ liệu virus ở lần khởi động đầu (cần Internet để cập nhật; kiểm tra bằng `docker compose ps`, cột health). Kiểm chứng thật: `node scripts/check-malware-scan.js` (gồm tệp thử EICAR, tệp mang chuỗi thử riêng của dự án `clamav/dxos-selftest.ndb`, và việc tải lên bị từ chối khi tắt ClamAV).
+
+## 15. Neo nhật ký kiểm toán
+
+Chuỗi băm của nhật ký một mình không phát hiện được việc cắt bớt các dòng cuối hay tính lại cả chuỗi. Vì vậy `trace-api` ghi định kỳ (mặc định mỗi 60 phút, `ANCHOR_INTERVAL_MINUTES`; 0 để tắt) một bản neo gồm số thứ tự và băm của dòng cuối vào bucket `dxos-audit` (có Object Lock, tài khoản `trace-anchor` không xóa được). Nút "Kiểm tra toàn vẹn nhật ký" ở trang Data đối chiếu cả các bản neo. Quản trị có thể neo ngay bằng `POST /api/trace/audit/anchor`. Kiểm chứng thật, gồm cả hai kiểu tấn công và việc khôi phục sau đó: `node scripts/check-audit-anchor.js`.

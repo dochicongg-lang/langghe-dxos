@@ -97,7 +97,10 @@ node scripts/check-audit-log.js                     # nhật ký kiểm toán th
 ## Bảo mật
 - Chỉ cổng gác (9080) và Keycloak (8080) mở ra mạng; PostgreSQL, console MinIO và Admin API của APISIX chỉ nghe trên máy chủ; Flowable, API kho lưu trữ và `trace-api` không mở cổng nào.
 - Mật khẩu mặc định (PostgreSQL, MinIO, Keycloak admin) và tài khoản thử **phải đổi** trước khi triển khai thật. Chế độ khóa dữ liệu mặc định là Governance; khi triển khai thật nên dùng COMPLIANCE (không hoàn tác, cần xác nhận rõ ràng, xem hướng dẫn).
-- Giới hạn đã biết: chuỗi băm của nhật ký chưa neo ra ngoài nên không phát hiện được việc cắt bớt các dòng cuối; console MinIO chưa bị chặn kho tệp; cấu hình OCOP và ngưỡng nung chưa được xác nhận. Chi tiết ở mục "Lưu ý cho nhóm phát triển" bên dưới.
+- **Nhật ký kiểm toán** chỉ ghi thêm, có chuỗi băm; băm đầu chuỗi được **neo định kỳ vào một bucket riêng có Object Lock**, nên cắt bớt dòng cuối hay tính lại cả chuỗi đều bị phát hiện (`node scripts/check-audit-anchor.js`).
+- **Tệp tải lên được quét mã độc bằng ClamAV** trước khi lưu (dịch vụ `clamav`; mặc định đóng khi lỗi: không quét được thì từ chối). Cần khoảng 1–2 GB RAM cho ClamAV.
+- **Sao lưu, khôi phục, tự phục hồi:** `bash scripts/backup.sh`, `bash scripts/restore.sh <thư-mục> --yes`, `bash scripts/heal.sh` (xem `docs/HUONG-DAN-CHAY.md`, mục 13). Thư mục sao lưu chứa `.env` nên không được đưa lên git.
+- Giới hạn đã biết: console MinIO chưa bị chặn kho tệp; bản MinIO đang dùng cho phép gỡ khóa Governance bằng tiêu đề bypass (đã chặn ở cổng gác, chưa chặn khi vào thẳng MinIO); cấu hình OCOP và ngưỡng nung chưa được xác nhận. Chi tiết ở mục "Lưu ý cho nhóm phát triển" bên dưới.
 - Hệ thống **hỗ trợ và theo dõi** quy trình chứng nhận; không tự cấp giấy chứng nhận của cơ quan có thẩm quyền.
 
 ## Lưu ý cho nhóm phát triển
