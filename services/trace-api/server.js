@@ -34,6 +34,7 @@ const attachments = require("./attachments");
 const lifecycle = require("./lifecycle");
 const kiln = require("./kiln");
 const audit = require("./audit");
+const scan = require("./scan");
 const { createFlowableClient } = require("./flowable");
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -82,6 +83,11 @@ const docsS3 =
         bucket: process.env.DOCS_BUCKET ?? "dxos-docs",
       })
     : null;
+
+// Quét mã độc tệp tải lên bằng ClamAV (clamd). Không đặt CLAMAV_HOST thì tắt bước quét. Mặc định BẮT BUỘC: clamd không sẵn sàng thì từ chối
+// tải lên (CLAMAV_REQUIRED=false để cho qua khi không quét được, chỉ nên dùng khi thử nghiệm).
+const scanner = process.env.CLAMAV_HOST ? scan.createScanner({ host: process.env.CLAMAV_HOST, port: Number(process.env.CLAMAV_PORT ?? 3310) }) : null;
+const SCAN_REQUIRED = String(process.env.CLAMAV_REQUIRED ?? "true").toLowerCase() !== "false";
 
 // Tài khoản MinIO ghi/đọc BẢN NEO của nhật ký kiểm toán (bucket riêng có Object Lock). Không cấu hình thì tắt tính năng neo.
 const anchorS3 =
@@ -710,6 +716,19 @@ async function uploadAttachment(code, query, req, user) {
   }
   const dup = await pool.query("SELECT 1 FROM application_attachments WHERE application_id = $1 AND doc_key = $2 AND sha256 = $3 AND removed_at IS NULL", [a.id, docKey, info.sha256]);
   if (dup.rowCount) throw new HttpError(409, "Tệp này đã được đính kèm cho giấy tờ này");
+  // quét mã độc TRƯỚC khi ghi bất cứ thứ gì vào kho tệp
+  let scanEngine = null;
+  if (scanner) {
+    try {
+      const r = await scanner.scan(buf);
+      if (!r.clean) throw new HttpError(422, `Tệp bị chặn vì nghi chứa mã độc (${r.signature})`);
+      scanEngine = "clamav";
+    } catch (e) {
+      if (e instanceof HttpError) throw e;
+      console.error("[trace-api] không quét được tệp bằng ClamAV:", e.message);
+      if (SCAN_REQUIRED) throw new HttpError(503, "Dịch vụ quét mã độc chưa sẵn sàng, vui lòng thử lại sau ít phút");
+    }
+  }
   const key = attachments.objectKey(a.code, docKey, info.sha256, info.name);
   try {
     await docsS3.putObject(key, buf, info.type);
@@ -721,9 +740,9 @@ async function uploadAttachment(code, query, req, user) {
   try {
     await client.query("BEGIN");
     const { rows } = await client.query(
-      `INSERT INTO application_attachments (application_id, doc_key, filename, content_type, size, sha256, object_key, uploaded_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, doc_key, filename, content_type, size, sha256, uploaded_by, created_at`,
-      [a.id, docKey, info.name, info.type, info.size, info.sha256, key, user.name],
+      `INSERT INTO application_attachments (application_id, doc_key, filename, content_type, size, sha256, object_key, uploaded_by, scan_engine, scanned_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, CASE WHEN $9::text IS NULL THEN NULL ELSE now() END) RETURNING id, doc_key, filename, content_type, size, sha256, uploaded_by, created_at`,
+      [a.id, docKey, info.name, info.type, info.size, info.sha256, key, user.name, scanEngine],
     );
     // có tệp minh chứng thì giấy tờ được coi là đã có
     await client.query(
