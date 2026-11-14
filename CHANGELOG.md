@@ -19,6 +19,8 @@ Số `#n` là pull request trên GitHub.
 - Vai trò chỉ-xem (`readonly`) không còn đọc được bucket tệp hồ sơ và bucket bản neo khi đi thẳng vào MinIO: policy dựng sẵn của MinIO được ghi đè bằng bản có Deny hai bucket nội bộ (`scripts/check-minio-direct.js`).
 
 ### Sửa
+- **Gói phát hành bị CRLF:** tệp `.tar.gz` tạo bằng `git archive` trên Windows (`core.autocrlf=true`) chứa dấu xuống dòng CRLF làm script bash lỗi trên Linux/macOS. Nay có `.gitattributes` (luôn LF) và `scripts/make-release-archive.sh <phiên-bản>` (tạo gói rồi kiểm: đủ tệp, không CRLF, không chứa mục cấm); CI chạy `--check`. Các gói v0.1.0 đến v0.2.1 đã đăng bị lỗi này, hãy dùng gói phát hành mới. Đã kiểm chứng trong container Debian và Alpine (Node 22): 168/168 test đơn vị, cú pháp mọi script, build giao diện; chưa chạy toàn bộ docker compose trên Linux/macOS.
+- Mã QR: đã kiểm chứng bản build chạy `-H 0.0.0.0` với `NEXT_PUBLIC_PUBLIC_BASE_URL` là địa chỉ LAN phục vụ `/verify/<mã>` và API công khai qua địa chỉ LAN; chưa thử bằng điện thoại thật.
 - Dockerfile của `trace-api` sao chép mọi tệp `.js` (trước đây liệt kê từng tệp nên thêm module mới làm container không khởi động).
 
 ## [0.2.1] - 2026-11-14

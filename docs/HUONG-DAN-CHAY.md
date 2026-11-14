@@ -437,6 +437,10 @@ Dữ liệu chính của hệ thống nằm ở PostgreSQL (đang dùng) và kho
 
 **Giới hạn:** chưa có mô hình ngôn ngữ (tìm kiếm theo từ khóa, chưa hiểu nghĩa); tác tử mới theo dõi mẻ nung; có thể gắn thêm mô hình mã nguồn mở chạy cục bộ (ví dụ Ollama) nếu có máy đủ mạnh. Kiểm chứng thật: `node scripts/check-assistant-agent.js`.
 
+## Gói phát hành và Linux/macOS
+
+Tạo gói phát hành bằng `bash scripts/make-release-archive.sh 0.3.0` (kiểm đủ tệp, không CRLF, không chứa `.env`/`backups`). Đừng tự chạy `git archive` trên Windows. Mã QR quét được bằng điện thoại khi build giao diện với `NEXT_PUBLIC_PUBLIC_BASE_URL=http://<IP-LAN>:3000`, rồi `npm run start -- -H 0.0.0.0` (điện thoại cùng Wi-Fi; Windows có thể hỏi mở cổng tường lửa). Đã kiểm chứng trang `/verify/<mã>` mở được qua địa chỉ LAN; chưa thử bằng điện thoại thật.
+
 ## 20. Đưa hệ thống ra Internet
 
 Xem [TRIEN-KHAI-INTERNET.md](TRIEN-KHAI-INTERNET.md). Trước tiên chạy `node scripts/prod-check.js` để biết hệ thống còn thiếu gì (mật khẩu mẫu, khóa dữ liệu chưa ở chế độ COMPLIANCE, HTTPS, chế độ Keycloak, tài khoản thử...). Hệ thống hiện mới chạy thật trên máy phát triển, chưa triển khai thật lên Internet.

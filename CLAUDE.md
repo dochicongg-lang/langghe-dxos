@@ -28,6 +28,7 @@ Mục tiêu là xây dựng một mô hình thực hành số dựa trên Khung 
 - Chạy script giả lập IoT: `node backend/simulate-iot.js` (thêm `--post` để ghi lên MinIO)
 - Cài đặt/nâng cấp một lệnh (idempotent): `bash scripts/upgrade.sh` (đồng bộ `.env` chỉ bổ sung khóa thiếu và sinh khóa `change_me_*` ngẫu nhiên, `docker compose up`, `setup-keycloak-roles.sh`, `setup-apisix-routes.sh`, `check-iot-permissions.sh`)
 - Dữ liệu mẫu và minh họa: `node scripts/seed-demo.js` (nạp dữ liệu mẫu, lặp lại an toàn), `node scripts/demo-zero-trust.js` (minh họa Zero-Trust chạy trực tiếp, không đổi dữ liệu). Quy ước của chủ dự án: **không đưa lên GitHub** kịch bản, dàn ý slide hay hướng dẫn trình diễn/thi đấu; tài liệu loại này chỉ giữ cục bộ (thư mục `noi-dung-bao-cao/`, đã loại khỏi git).
+- Tạo gói phát hành (LF, có kiểm): `bash scripts/make-release-archive.sh <phiên-bản>` (CI chạy `--check`); gói v0.1.0–v0.2.1 đã đăng bị CRLF. Đã thử Debian/Alpine (test đơn vị, cú pháp, build giao diện), chưa chạy compose đầy đủ trên Linux/macOS.
 - Test backend Tầng 3: `cd services/trace-api && npm test` (node:test, không cần cài thêm; quy trình OCOP thật qua cổng gác: `node scripts/check-ocop-flow.js`); test script `.env`: `bash scripts/tests/test-env-sync.sh`
 
 ## Trạng thái hiện tại (cập nhật 2026-11-12)
