@@ -5,6 +5,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { config } from "@/lib/config";
 import { getKeycloak, initKeycloak } from "@/lib/keycloak";
+import Logo from "@/components/Logo";
 
 export interface UserInfo {
   username: string;
@@ -156,7 +157,7 @@ function Screen({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas p-6">
       <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-sm">
-        <span className="mx-auto mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 font-bold text-white">LN</span>
+        <Logo className="mx-auto mb-5 h-16 w-auto" />
         {children}
       </div>
     </div>

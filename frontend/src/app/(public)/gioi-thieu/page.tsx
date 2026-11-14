@@ -5,6 +5,7 @@ import Link from "next/link";
 import CodeLookup from "@/components/CodeLookup";
 import Photo from "@/components/Photo";
 import StageIcon from "@/components/StageIcon";
+import Logo from "@/components/Logo";
 
 export const metadata: Metadata = {
   title: "Giới thiệu · Làng Nghề Số",
@@ -50,8 +51,7 @@ export default function IntroPage() {
       <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link href="/gioi-thieu" className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 font-bold text-white">LN</span>
-            <span className="font-semibold text-stone-900">Làng Nghề Số</span>
+            <Logo className="h-11 w-auto" />
           </Link>
           <nav aria-label="Các mục trang giới thiệu" className="hidden items-center gap-6 text-sm text-stone-600 md:flex">
             <a href="#gia-tri" className="hover:text-stone-900">Giá trị</a>

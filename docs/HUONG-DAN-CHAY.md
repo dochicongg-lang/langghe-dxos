@@ -7,7 +7,7 @@ Mỗi bước có mục "Kết quả đúng trông như thế nào" để bạn 
 
 ```
 Cảm biến giả lập            MinIO (kho tệp)            Trình duyệt
-simulate-iot.js  ──ghi──▶   bucket dxos-iot    ◀─đọc──  Trang Intelligence
+simulate-iot.js  ──ghi──▶   bucket dxos-iot    ◀─đọc──  Trang Phân tích
         │                        ▲                           │
         └─── xin "thẻ ra vào" ───┤                           │
              (JWT) từ Keycloak   │                           │
@@ -17,7 +17,7 @@ simulate-iot.js  ──ghi──▶   bucket dxos-iot    ◀─đọc──  Tra
 - **Keycloak**: nơi đăng nhập, cấp "thẻ ra vào" (JWT).
 - **APISIX**: cổng gác, mọi yêu cầu đều đi qua đây.
 - **MinIO**: kho lưu tệp. Số liệu cảm biến được lưu thành tệp `.ndjson` (mỗi dòng là một bản ghi JSON).
-- **PostgreSQL, Flowable**: cơ sở dữ liệu và quy trình, chạy nền (trang Process dùng Flowable).
+- **PostgreSQL, Flowable**: cơ sở dữ liệu và quy trình, chạy nền (trang Việc đang xử lý dùng Flowable).
 - **Frontend (Next.js)**: giao diện web tại http://localhost:3000.
 
 ## 1. Cần cài sẵn
@@ -133,9 +133,9 @@ npm run dev
 
 1. Mở http://localhost:3000. Trang tự chuyển sang màn hình đăng nhập của Keycloak.
 2. Đăng nhập bằng tài khoản thử: **tester** / **tester**.
-3. Bạn quay lại giao diện Làng Nghề Số. Bấm **Intelligence** ở thanh bên trái.
+3. Bạn quay lại giao diện Làng Nghề Số. Bấm **Phân tích** ở thanh bên trái.
 
-**Kết quả đúng trên trang Intelligence:**
+**Kết quả đúng trên trang Phân tích:**
 - 4 thẻ: *Lò nung gốm số 1 – Nhiệt độ*, *Xưởng tạo hình – Nhiệt độ*, *Xưởng tạo hình – Độ ẩm*, *Kho đất sét – Độ ẩm*.
 - Mỗi thẻ có số lớn (giá trị mới nhất), biểu đồ đường xu hướng, và ba ô Thấp nhất / Trung bình / Cao nhất.
 - Bảng "10 bản ghi mới nhất" ở dưới.
@@ -143,7 +143,7 @@ npm run dev
 
 Nếu trang ghi "Chưa có dữ liệu": simulator (bước 5b) chưa chạy hoặc chưa ghi tệp nào. Chạy nó, chờ vài chục giây.
 
-Các trang khác để tham khảo: **Human** (tài khoản, vai trò và những việc bạn được làm), **Process** (các bước xử lý hồ sơ của hệ thống), **Data** (vòng đời dữ liệu; quản trị còn thấy việc chuyển dữ liệu cũ và nhật ký hoạt động), **Intelligence** (nhận định các mẻ nung và số liệu cảm biến).
+Các trang khác để tham khảo: **Tài khoản** (tài khoản, vai trò và những việc bạn được làm), **Việc đang xử lý** (các bước xử lý hồ sơ của hệ thống), **Dữ liệu** (vòng đời dữ liệu; quản trị còn thấy việc chuyển dữ liệu cũ và nhật ký hoạt động), **Phân tích** (nhận định các mẻ nung và số liệu cảm biến).
 
 ## 8. Tự kiểm tra từng lớp bằng dòng lệnh (tùy chọn, giúp hiểu hệ thống)
 
@@ -177,7 +177,7 @@ Trang quản trị MinIO (xem tệp bằng giao diện) **mặc định KHÔNG �
 | Trang web: "Không thể đăng nhập" | Keycloak chưa sẵn sàng | Chờ `docker compose ps` báo `(healthy)` rồi tải lại trang |
 | `[iot] ghi MinIO thất bại: STS 400 ... aud` hoặc `STS 4xx` | Realm Keycloak cũ, thiếu cấu hình mới | Xem mục "Cập nhật realm" bên dưới |
 | Simulator: `Keycloak trả về 401 khi lấy token` hoặc `thiếu KEYCLOAK_IOT_CLIENT_SECRET` | Thiếu hoặc sai `KEYCLOAK_IOT_CLIENT_ID/SECRET`, hoặc chưa tạo client thiết bị | Đảm bảo `.env` khớp `.env.example`, rồi chạy `bash scripts/setup-keycloak-roles.sh` |
-| Intelligence: "Không đọc được dữ liệu: Failed to fetch" | Route S3 chưa tạo, hoặc `s3.localhost` không phân giải được | Chạy lại bước 4; dùng Chrome/Edge (tự hiểu `*.localhost`) |
+| Phân tích: "Không đọc được dữ liệu: Failed to fetch" | Route S3 chưa tạo, hoặc `s3.localhost` không phân giải được | Chạy lại bước 4; dùng Chrome/Edge (tự hiểu `*.localhost`) |
 | Cổng đã bị chiếm (port is already allocated) | Chương trình khác dùng cổng 8080/9080/9000/5432 | Tắt chương trình đó hoặc đổi cổng trong `.env` |
 | `bash: ... not found` khi chạy script | Không dùng Git Bash | Mở Git Bash rồi chạy lại |
 
@@ -233,7 +233,7 @@ Sản phẩm mà bạn không được xem sẽ hiện như "không tìm thấy"
 
 Tài khoản thử (cho **môi trường phát triển**, mật khẩu = tên đăng nhập; đổi hoặc xóa trước khi triển khai thật), cùng HTX mẫu `htx-demo`:
 `hoa` (producer, làng gốm), `lua` (producer, làng lụa), `tuan` (coop-officer, HTX gốm), `htxlua` (coop-officer, HTX lụa), `ocop` (ocop-officer), `tester` (editor = admin), `viewer` (readonly). `tuan` và `htxlua` bắt buộc cài OTP lần đầu đăng nhập trình duyệt.
-Trang **Human** của giao diện hiện tài khoản, hợp tác xã, vai trò (kèm mô tả một câu) và danh sách "Bạn có thể làm gì" bằng tiếng Việt thường. Mã quyền và tên policy chỉ hiện trong mục "Chi tiết kỹ thuật" dành cho quản trị.
+Trang **Tài khoản** của giao diện hiện tài khoản, hợp tác xã, vai trò (kèm mô tả một câu) và danh sách "Bạn có thể làm gì" bằng tiếng Việt thường. Mã quyền và tên policy chỉ hiện trong mục "Chi tiết kỹ thuật" dành cho quản trị.
 
 **Xác thực hai yếu tố (OTP) cho cán bộ HTX.** Tài khoản có vai trò `coop-officer` (như `tuan`) bị bắt dùng mã OTP khi đăng nhập trên trình duyệt: lần đầu Keycloak hiện màn hình "Cài đặt ứng dụng xác thực" để cài ứng dụng (Google Authenticator, FreeOTP...); các lần sau hỏi mã 6 số. Muốn thử mà không có điện thoại: ở màn hình cài OTP bấm **"Không quét được?"** để lấy khóa chữ, rồi chạy `node scripts/totp.js <khóa>` (có thể dán cả khoảng trắng) để lấy mã. Muốn bật OTP cho vai trò khác: thêm `"mfa": true` vào vai trò đó trong `config/access.json` rồi chạy `bash scripts/upgrade.sh` (hiện chỉ hỗ trợ một vai trò). Đăng nhập bằng mật khẩu trực tiếp qua API (dùng trong các script kiểm tra) chỉ không bị đòi OTP **chừng nào người đó chưa cài OTP**; sau khi `tuan` đã cài OTP, Keycloak cũng đòi mã OTP ở kiểu đăng nhập này nên các script đăng nhập bằng `tuan/tuan` (`check-iot-permissions.sh`, `check-ocop-flow.js`...) báo lỗi như "Không lấy được token persona". Khi đó chạy `bash scripts/reset-otp.sh` để xóa OTP của `tuan` (mặc định; có thể truyền tên người dùng khác), chạy lại script kiểm tra, rồi cài OTP lại ở lần đăng nhập trình duyệt kế tiếp. Cách thủ công: Keycloak → Users → Credentials → xóa OTP.
 
@@ -354,7 +354,7 @@ Hệ thống chỉ **hỗ trợ và theo dõi** việc lập hồ sơ OCOP. Kế
 **Chuẩn bị:** chạy `bash scripts/upgrade.sh` (bước 4b nạp quy trình vào Flowable), rồi `cd frontend && npm run dev`.
 
 **Kịch bản trình diễn (mỗi bước đổi tài khoản; mật khẩu = tên đăng nhập):**
-1. `hoa` (nghệ nhân): vào mục **Hồ sơ OCOP**, tạo hồ sơ (chọn nhóm, tự chấm A/B/C, đánh dấu giấy tờ), mở hồ sơ rồi bấm **Nộp hồ sơ**. Nếu thiếu giấy tờ bắt buộc, hệ thống từ chối và nói rõ.
+1. `hoa` (nghệ nhân): vào mục **Hồ sơ OCOP**, tạo hồ sơ (nhóm sản phẩm được gắn sẵn, tự chấm A/B/C, tích giấy tờ và bấm Chọn tệp để đính kèm ngay; muốn lập nhiều mẫu giống nhau thì dùng nút Tạo và lập tiếp hồ sơ cho mẫu khác), mở hồ sơ rồi bấm **Nộp hồ sơ**. Nếu thiếu giấy tờ bắt buộc, hệ thống từ chối và nói rõ.
 2. `tuan` (cán bộ HTX): lần đầu đăng nhập bằng trình duyệt sẽ bị bắt cài OTP (xem mục về OTP; mã tính bằng `node scripts/totp.js <khóa>`; cần cài lại thì `bash scripts/reset-otp.sh`). Mở hồ sơ, chọn **Sơ duyệt: Đạt**, **Yêu cầu bổ sung** hoặc **Không đạt** (hai trường hợp sau bắt buộc ghi lý do). Nếu yêu cầu bổ sung, `hoa` nộp lại.
 3. `ocop` (cán bộ đơn vị đầu mối): với hồ sơ đã sơ duyệt đạt, nhập điểm chính thức, số quyết định, ngày quyết định. Hạng sao và ngày hết hạn (36 tháng) do hệ thống tính từ cấu hình.
 
@@ -396,7 +396,7 @@ Lưu ý: ClamAV cần khoảng 1–2 GB RAM và vài phút để nạp cơ sở 
 
 ## 15. Neo nhật ký kiểm toán
 
-Chuỗi băm của nhật ký một mình không phát hiện được việc cắt bớt các dòng cuối hay tính lại cả chuỗi. Vì vậy `trace-api` ghi định kỳ (mặc định mỗi 60 phút, `ANCHOR_INTERVAL_MINUTES`; 0 để tắt) một bản neo gồm số thứ tự và băm của dòng cuối vào bucket `dxos-audit` (có Object Lock, tài khoản `trace-anchor` không xóa được). Nút "Kiểm tra toàn vẹn nhật ký" ở trang Data đối chiếu cả các bản neo. Quản trị có thể neo ngay bằng `POST /api/trace/audit/anchor`. Kiểm chứng thật, gồm cả hai kiểu tấn công và việc khôi phục sau đó: `node scripts/check-audit-anchor.js`.
+Chuỗi băm của nhật ký một mình không phát hiện được việc cắt bớt các dòng cuối hay tính lại cả chuỗi. Vì vậy `trace-api` ghi định kỳ (mặc định mỗi 60 phút, `ANCHOR_INTERVAL_MINUTES`; 0 để tắt) một bản neo gồm số thứ tự và băm của dòng cuối vào bucket `dxos-audit` (có Object Lock, tài khoản `trace-anchor` không xóa được). Nút "Kiểm tra toàn vẹn nhật ký" ở trang Dữ liệu đối chiếu cả các bản neo. Quản trị có thể neo ngay bằng `POST /api/trace/audit/anchor`. Kiểm chứng thật, gồm cả hai kiểu tấn công và việc khôi phục sau đó: `node scripts/check-audit-anchor.js`.
 
 ## 16. Quyền của trace-api đối với Flowable
 
@@ -421,7 +421,7 @@ Mỗi sự việc chỉ thông báo một lần; trạng thái "đã đọc" ri�
 
 ## 18. Hồ dữ liệu phân tích và truy vết nguồn gốc dữ liệu
 
-Dữ liệu chính của hệ thống nằm ở PostgreSQL (đang dùng) và kho lưu trữ lạnh. Để phân tích nhanh mà không làm chậm hệ thống, quản trị có thể xuất bản sao dạng bảng cột (**Parquet**) sang MinIO (tiền tố `lake/` của bucket tệp) và chạy phân tích trên đó bằng **DuckDB**. Ở trang **Data**, thẻ "Hồ dữ liệu phân tích":
+Dữ liệu chính của hệ thống nằm ở PostgreSQL (đang dùng) và kho lưu trữ lạnh. Để phân tích nhanh mà không làm chậm hệ thống, quản trị có thể xuất bản sao dạng bảng cột (**Parquet**) sang MinIO (tiền tố `lake/` của bucket tệp) và chạy phân tích trên đó bằng **DuckDB**. Ở trang **Dữ liệu**, thẻ "Hồ dữ liệu phân tích":
 
 - Nút **Xuất dữ liệu sang hồ ngay** (hoặc tự động mỗi `LAKE_INTERVAL_HOURS` giờ, mặc định 24, 0 để tắt) tạo bốn bộ dữ liệu: hồ sơ OCOP, lịch sử xử lý (gộp cả tầng nóng và các tệp đã lưu trữ lạnh), mẻ nung có bằng chứng cảm biến, nhật ký kiểm toán (đã bỏ đường dẫn và địa chỉ IP).
 - Mỗi lần xuất tạo tệp **mới** (không ghi đè) và ghi **truy vết nguồn gốc**: dữ liệu lấy từ bảng nào, từ tệp lưu trữ nào (kèm mã kiểm tra), số dòng, mã kiểm tra của chính tệp Parquet. Tệp được đọc lại và đối chiếu mã trước khi ghi sổ; khi phân tích, mã trong sổ phải khớp tệp thật, nếu không truy vấn bị từ chối.
@@ -429,7 +429,7 @@ Dữ liệu chính của hệ thống nằm ở PostgreSQL (đang dùng) và kho
 
 **Giới hạn:** phân tích chỉ đọc lần xuất mới nhất của mỗi bộ dữ liệu (chưa gộp nhiều lần xuất); truy vết ở mức bộ dữ liệu (chưa tới từng cột). Chỉ quản trị dùng được; người dùng khác bị từ chối (403) và không đọc được bucket tệp. Kiểm chứng thật: `node scripts/check-lakehouse.js`.
 
-## 19. Trợ lý hỏi đáp và đề xuất của hệ thống (trang Intelligence)
+## 19. Trợ lý hỏi đáp và đề xuất của hệ thống (trang Phân tích)
 
 **Hỏi đáp.** Thẻ "Hỏi đáp về hồ sơ OCOP và hệ thống" trả lời các câu như "hồ sơ OCOP nhóm hàng thủ công cần giấy tờ gì", "bao nhiêu điểm thì được 4 sao", "kết quả OCOP có hiệu lực bao lâu". Trợ lý **tra cứu** trong quy định OCOP, hồ sơ nung, danh sách vai trò và hướng dẫn của hệ thống rồi **trích lại đoạn phù hợp nhất kèm nguồn**; nó không dùng mô hình sinh văn bản, nên không bịa: nếu không tìm thấy thì nói rõ là chưa có thông tin. Vì kho tri thức dựng từ chính các tệp cấu hình nên số liệu (hạng sao, hạn, hiệu lực, giấy tờ) luôn khớp hệ thống đang chạy. Muốn bổ sung hướng dẫn: sửa `config/assistant-faq.json` rồi khởi động lại `trace-api` (`docker compose restart trace-api`). Mọi vai trò dùng được API đều hỏi được.
 

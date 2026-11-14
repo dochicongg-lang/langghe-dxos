@@ -12,7 +12,7 @@ export default function Tip({ text, className = "" }: { text: string; className?
     <span className={`relative inline-flex align-middle ${className}`} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <button
         type="button"
-        aria-label="Giải thích"
+        aria-label="Giải thích" data-no-title
         aria-describedby={open ? id : undefined}
         onClick={(e) => {
           e.preventDefault();

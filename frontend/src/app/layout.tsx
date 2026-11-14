@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 The Làng Nghề Số contributors
+import AutoTitle from "@/components/AutoTitle";
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -24,7 +25,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="vi" className={`${beVietnam.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <AutoTitle />
+      </body>
     </html>
   );
 }

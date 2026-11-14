@@ -43,32 +43,26 @@ body {
   background: transparent;
 }
 
-/* Tiêu đề thương hiệu: tên miền (displayName của realm) kèm ô logo "DX", thay cho logo Keycloak */
+/* Tiêu đề thương hiệu: tên miền (displayName của realm) kèm logo, thay cho logo Keycloak */
 #kc-header-wrapper {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.4rem;
   padding: 0;
   color: var(--dx-ink) !important;
   font-weight: 700;
-  font-size: 1.5rem;
+  font-size: 0; /* chỉ hiện logo; chữ tên miền vẫn có cho trình đọc màn hình */
   letter-spacing: -0.01em;
   text-transform: none;
 }
 #kc-header-wrapper::before {
-  content: "DX";
-  display: grid;
-  place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 0.75rem;
-  background: var(--dx-brand-600);
-  color: #fff;
-  font-weight: 700;
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
-  box-shadow: 0 6px 16px -6px rgba(159, 58, 26, 0.6);
+  content: "";
+  display: block;
+  width: 9rem;
+  height: 6.2rem;
+  background: url("../img/logo.png") center / contain no-repeat;
 }
 .pf-v5-c-login__header {
   margin-bottom: 0.25rem;
@@ -116,12 +110,26 @@ body {
   color: var(--dx-brand-700);
 }
 
-/* Thông báo lỗi nổi bật, dễ nhận ra khi nhập sai */
-.pf-v5-c-alert.pf-m-danger {
+/* Mọi cảnh báo (lỗi, cảnh báo, nhắc đăng nhập lại) hiện màu đỏ cho dễ nhận ra; thông báo thành công giữ màu xanh lá */
+.pf-v5-c-alert.pf-m-danger,
+.pf-v5-c-alert.pf-m-warning,
+.pf-v5-c-alert.pf-m-info {
   border-radius: 0.5rem;
-}
-.pf-v5-c-alert.pf-m-inline.pf-m-danger {
   background: #fef2f2;
+  --pf-v5-c-alert--BorderTopColor: #dc2626;
+  --pf-v5-c-alert__icon--Color: #dc2626;
+  --pf-v5-c-alert__title--Color: #991b1b;
+  border-top-color: #dc2626;
+}
+.pf-v5-c-alert.pf-m-danger .pf-v5-c-alert__icon,
+.pf-v5-c-alert.pf-m-warning .pf-v5-c-alert__icon,
+.pf-v5-c-alert.pf-m-info .pf-v5-c-alert__icon {
+  color: #dc2626;
+}
+.pf-v5-c-alert.pf-m-danger .pf-v5-c-alert__title,
+.pf-v5-c-alert.pf-m-warning .pf-v5-c-alert__title,
+.pf-v5-c-alert.pf-m-info .pf-v5-c-alert__title {
+  color: #991b1b;
 }
 
 .pf-v5-c-login__main-footer {
