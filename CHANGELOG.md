@@ -10,6 +10,9 @@ Số `#n` là pull request trên GitHub.
 - **Quét mã độc tệp tải lên bằng ClamAV:** tệp đính kèm hồ sơ được quét trước khi lưu, mặc định từ chối khi không quét được; ghi nhận công cụ quét và thời điểm quét (`scripts/check-malware-scan.js`).
 - **Sao lưu, khôi phục và tự phục hồi:** `scripts/backup.sh`, `scripts/restore.sh`, `scripts/heal.sh`; `trace-api` có healthcheck; kiểm chứng thật bằng `scripts/check-backup-restore.js`.
 
+### Bảo mật
+- Vai trò chỉ-xem (`readonly`) không còn đọc được bucket tệp hồ sơ và bucket bản neo khi đi thẳng vào MinIO: policy dựng sẵn của MinIO được ghi đè bằng bản có Deny hai bucket nội bộ (`scripts/check-minio-direct.js`).
+
 ### Sửa
 - Dockerfile của `trace-api` sao chép mọi tệp `.js` (trước đây liệt kê từng tệp nên thêm module mới làm container không khởi động).
 

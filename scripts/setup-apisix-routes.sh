@@ -162,7 +162,9 @@ echo "OK: bucket bản neo '$ANCHOR_BUCKET' (Object Lock $IOT_LOCK_MODE, giữ $
 #   admin, editor (bí danh tạm), producer, coop-officer, ocop-officer: SINH từ config/access.json (xem bên dưới)
 #   iot-writer  chỉ PutObject vào THƯ MỤC RIÊNG của gateway: iot/${jwt:preferred_username}/* (= service-account-<client>),
 #               nên một gateway bị lộ khóa không ghi đè/giả số liệu của gateway khác; không đọc, không liệt kê
-#   readonly    dùng policy dựng sẵn của MinIO (đọc mọi bucket)
+#   readonly    GHI ĐÈ policy dựng sẵn của MinIO (MinIO cho phép, đã kiểm chứng): giữ nguyên quyền dựng sẵn (đọc đối tượng ở mọi bucket,
+#               cấm admin:CreateUser) và thêm Deny s3:* trên bucket tệp hồ sơ và bucket bản neo, để người chỉ-xem đi thẳng vào console
+#               MinIO cũng không đọc được hai bucket nội bộ. Volume mới tạo lại policy dựng sẵn nên bước này chạy mỗi lần thiết lập.
 docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
   && cat > /tmp/iot-writer.json <<'POLICY'
 {
@@ -173,6 +175,18 @@ docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_R
 }
 POLICY
   mc admin policy create local iot-writer /tmp/iot-writer.json >/dev/null"
+docker exec dxos-minio sh -c "mc alias set local http://localhost:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' >/dev/null \
+  && cat > /tmp/readonly.json <<'POLICY'
+{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [
+    { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:GetBucketLocation\"], \"Resource\": [\"arn:aws:s3:::*\"] },
+    { \"Effect\": \"Deny\", \"Action\": [\"admin:CreateUser\"], \"Resource\": [\"arn:aws:s3:::*\"] },
+    { \"Effect\": \"Deny\", \"Action\": [\"s3:*\"], \"Resource\": [\"arn:aws:s3:::$DOCS_BUCKET\", \"arn:aws:s3:::$DOCS_BUCKET/*\", \"arn:aws:s3:::$ANCHOR_BUCKET\", \"arn:aws:s3:::$ANCHOR_BUCKET/*\"] }
+  ]
+}
+POLICY
+  mc admin policy create local readonly /tmp/readonly.json >/dev/null"
 # Policy của admin/editor và các vai trò nghiệp vụ (producer, coop-officer, ocop-officer): SINH từ config/access.json.
 # Tên policy = tên role Keycloak. Mọi policy đều Deny ghi/xóa/đổi khóa/bypass trên bucket IoT; vai trò nghiệp vụ chỉ được ĐỌC bucket IoT.
 GEN_DIR="scripts/.generated/minio-policies"
