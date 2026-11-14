@@ -11,6 +11,7 @@ import StageIcon from "@/components/StageIcon";
 import { flagText, fmtDuration, fmtTime } from "@/components/KilnEvidence";
 import KilnInsightPanel, { VerdictBadge } from "@/components/KilnInsight";
 import { fmtDate, stageLabels, stageOrder, type ProductDetail, type TraceEvent } from "@/lib/trace";
+import Tip from "@/components/Tip";
 
 type Stage = { key: string; label: string };
 interface Chapter {
@@ -146,6 +147,7 @@ function FireStory({ ev }: { ev: TraceEvent }) {
       {iot.verifiedAt && (
         <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
           <span aria-hidden="true">✓</span> Máy chủ đã đối chiếu với dữ liệu cảm biến lưu trên hệ thống
+          <Tip text="Số liệu do hệ thống tự đọc từ cảm biến, không phải người nhập." />
         </p>
       )}
     </div>
@@ -285,6 +287,7 @@ function Verify() {
                       <section className="rounded-xl border border-stone-200 bg-white p-4" aria-labelledby="ocop-official">
                         <h3 id="ocop-official" className="text-sm font-semibold text-stone-800">
                           Kết quả OCOP chính thức
+                          <Tip text="Do cơ quan có thẩm quyền quyết định, nền tảng chỉ ghi lại." />
                         </h3>
                         {official ? (
                           <>
@@ -307,6 +310,7 @@ function Verify() {
                       <section className="rounded-xl border border-stone-200 bg-stone-50 p-4" aria-labelledby="ocop-platform">
                         <h3 id="ocop-platform" className="text-sm font-semibold text-stone-800">
                           Xác nhận của nền tảng
+                          <Tip text="Hợp tác xã đã sơ duyệt hồ sơ. Chưa phải giấy chứng nhận OCOP." />
                         </h3>
                         {product.ocop.platform ? (
                           <>

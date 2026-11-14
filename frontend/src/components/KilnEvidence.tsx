@@ -2,6 +2,7 @@
 // Copyright 2026 The Làng Nghề Số contributors
 import KilnInsightPanel from "./KilnInsight";
 import type { IotEvidence, KilnInsight } from "@/lib/trace";
+import Tip from "@/components/Tip";
 
 export const flagText = (flag: string, q: NonNullable<IotEvidence["quality"]>) =>
   ({
@@ -65,7 +66,7 @@ export default function KilnEvidence({ iot, insight }: { iot: IotEvidence; insig
       {iot.quality && (
         <>
           <p className="mt-2 text-xs text-stone-500">
-            Độ phủ dữ liệu {Math.round(iot.quality.coverage * 100)}% · khoảng trống lớn nhất {iot.quality.maxGapSec} giây
+            Độ phủ dữ liệu <Tip text="Tỉ lệ thời gian cảm biến có gửi số liệu. Thấp là có đoạn mất kết nối." /> {Math.round(iot.quality.coverage * 100)}% · khoảng trống lớn nhất {iot.quality.maxGapSec} giây
           </p>
           {iot.quality.flags.map((f) => (
             <p key={f} className="mt-1 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
@@ -76,7 +77,7 @@ export default function KilnEvidence({ iot, insight }: { iot: IotEvidence; insig
       )}
       {insight && <KilnInsightPanel insight={insight} />}
       {iot.verifiedAt && (
-        <p className="mt-2 text-xs font-medium text-emerald-700">✓ Máy chủ đã đối chiếu với dữ liệu cảm biến lưu trên hệ thống</p>
+        <p className="mt-2 text-xs font-medium text-emerald-700">✓ Máy chủ đã đối chiếu với dữ liệu cảm biến lưu trên hệ thống<Tip text="Số liệu do hệ thống tự đọc từ cảm biến, không phải người nhập." /></p>
       )}
       <p className="mt-1 text-xs text-stone-500">
         {fmtTime(iot.from)} → {fmtTime(iot.to)} ({fmtDuration(iot.from, iot.to)})
