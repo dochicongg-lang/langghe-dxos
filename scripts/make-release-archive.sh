@@ -29,7 +29,21 @@ done
 for banned in .env node_modules backups handoff noi-dung-bao-cao .claude; do
   [ -e "$CHK/$NAME/$banned" ] && { echo "GÓI CHỨA mục không được phát hành: $banned"; fail=1; }
 done
-CR=$(grep -rIl $'\r' "$CHK/$NAME" 2>/dev/null | sed "s#$CHK/$NAME/##" || true)
+# Tìm CR trong tệp văn bản bằng Node (đọc từng byte, giống nhau trên mọi hệ điều hành; grep của MSYS trên Windows cho kết quả không đáng tin)
+CR=$(node -e '
+const fs = require("fs"), path = require("path");
+const root = process.argv[1], out = [];
+(function walk(d) {
+  for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const p = path.join(d, e.name);
+    if (e.isDirectory()) walk(p);
+    else if (e.isFile()) {
+      const b = fs.readFileSync(p);
+      if (!b.subarray(0, 8000).includes(0) && b.includes(13)) out.push(path.relative(root, p).split(path.sep).join("/"));
+    }
+  }
+})(root);
+console.log(out.join("\n"));' "$CHK/$NAME")
 if [ -n "$CR" ]; then echo "CÁC TỆP VĂN BẢN CHỨA CRLF ($(echo "$CR" | wc -l | tr -d ' ') tệp), ví dụ:"; echo "$CR" | head -5; fail=1; fi
 rm -rf "$CHK"
 if [ "$fail" != 0 ]; then rm -f "$FILE"; echo "KHÔNG ĐẠT: gói phát hành không hợp lệ."; exit 1; fi
