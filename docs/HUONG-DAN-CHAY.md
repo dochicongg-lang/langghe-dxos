@@ -428,3 +428,11 @@ Dữ liệu chính của hệ thống nằm ở PostgreSQL (đang dùng) và kho
 - Năm phân tích mẫu: hồ sơ theo trạng thái, hồ sơ theo tháng và số sao trung bình, lịch sử theo tầng lưu trữ, mẻ nung theo kết luận, yêu cầu API theo nhóm mã trạng thái. Hệ thống không nhận câu lệnh SQL tùy ý từ người dùng.
 
 **Giới hạn:** phân tích chỉ đọc lần xuất mới nhất của mỗi bộ dữ liệu (chưa gộp nhiều lần xuất); truy vết ở mức bộ dữ liệu (chưa tới từng cột). Chỉ quản trị dùng được; người dùng khác bị từ chối (403) và không đọc được bucket tệp. Kiểm chứng thật: `node scripts/check-lakehouse.js`.
+
+## 19. Trợ lý hỏi đáp và đề xuất của hệ thống (trang Intelligence)
+
+**Hỏi đáp.** Thẻ "Hỏi đáp về hồ sơ OCOP và hệ thống" trả lời các câu như "hồ sơ OCOP nhóm hàng thủ công cần giấy tờ gì", "bao nhiêu điểm thì được 4 sao", "kết quả OCOP có hiệu lực bao lâu". Trợ lý **tra cứu** trong quy định OCOP, hồ sơ nung, danh sách vai trò và hướng dẫn của hệ thống rồi **trích lại đoạn phù hợp nhất kèm nguồn**; nó không dùng mô hình sinh văn bản, nên không bịa: nếu không tìm thấy thì nói rõ là chưa có thông tin. Vì kho tri thức dựng từ chính các tệp cấu hình nên số liệu (hạng sao, hạn, hiệu lực, giấy tờ) luôn khớp hệ thống đang chạy. Muốn bổ sung hướng dẫn: sửa `config/assistant-faq.json` rồi khởi động lại `trace-api` (`docker compose restart trace-api`). Mọi vai trò dùng được API đều hỏi được.
+
+**Đề xuất chờ duyệt** (cán bộ HTX và quản trị). Khi phân tích mẻ nung cho kết luận **Cần xem lại** hoặc **Cảnh báo**, hệ thống tạo một đề xuất kèm lý do và căn cứ (tự động ngay khi công đoạn nung có bằng chứng cảm biến được ghi; quản trị cũng quét tay được bằng `POST /api/trace/agent/scan`). Hệ thống **không tự làm gì**: chỉ khi bạn bấm **Duyệt và gửi thông báo** thì thông báo mới tới cán bộ HTX của hợp tác xã sở hữu sản phẩm (hoặc quản trị nếu sản phẩm chưa thuộc hợp tác xã nào); bấm **Từ chối** thì không có gì được gửi. Cán bộ HTX chỉ thấy và duyệt đề xuất của hợp tác xã mình; một đề xuất không duyệt được hai lần.
+
+**Giới hạn:** chưa có mô hình ngôn ngữ (tìm kiếm theo từ khóa, chưa hiểu nghĩa); tác tử mới theo dõi mẻ nung; có thể gắn thêm mô hình mã nguồn mở chạy cục bộ (ví dụ Ollama) nếu có máy đủ mạnh. Kiểm chứng thật: `node scripts/check-assistant-agent.js`.

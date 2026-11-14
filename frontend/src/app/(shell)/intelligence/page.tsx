@@ -4,7 +4,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Card, { PageTitle } from "@/components/Card";
+import AssistantPanel from "@/components/AssistantPanel";
 import KilnInsights from "@/components/KilnInsights";
+import ProposalsPanel from "@/components/ProposalsPanel";
 import { fetchReadings, toSeries, type Reading, type Series } from "@/lib/iot";
 
 const REFRESH_MS = 10_000;
@@ -96,6 +98,11 @@ export default function IntelligencePage() {
 
       <div className="mb-6">
         <KilnInsights />
+      </div>
+
+      <div className="mb-6 space-y-6">
+        <ProposalsPanel />
+        <AssistantPanel />
       </div>
 
       <div className="mb-4 flex items-center justify-between text-sm text-stone-500">

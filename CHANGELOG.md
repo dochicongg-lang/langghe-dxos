@@ -6,6 +6,7 @@ Số `#n` là pull request trên GitHub.
 ## [Chưa phát hành]
 
 ### Thêm
+- **Trợ lý hỏi đáp có nguồn và tác tử đề xuất có người duyệt:** trợ lý trả lời bằng cách trích quy định OCOP, hồ sơ nung, vai trò và hướng dẫn của hệ thống (kho tri thức dựng từ cấu hình nên số liệu luôn khớp; không đoán khi không tìm thấy); tác tử tạo đề xuất khi mẻ nung cần xem lại hoặc cảnh báo, chỉ gửi thông báo sau khi người có thẩm quyền (đúng HTX) duyệt (`scripts/check-assistant-agent.js`).
 - **Hồ dữ liệu phân tích và truy vết nguồn gốc dữ liệu:** xuất bốn bộ dữ liệu (hồ sơ OCOP, lịch sử xử lý nóng và lạnh, mẻ nung, nhật ký kiểm toán) sang Parquet trong MinIO, phân tích bằng DuckDB (truy vấn mẫu cố định), sổ truy vết ghi nguồn và băm của mỗi lần xuất; thẻ "Hồ dữ liệu phân tích" ở trang Data (`scripts/check-lakehouse.js`).
 - **Nhắc hạn, leo thang và thông báo trong ứng dụng:** nhắc cán bộ HTX khi hồ sơ gần hạn sơ duyệt (ngày làm việc), leo thang khi quá hạn, nhắc người nộp bổ sung hồ sơ, nhắc gia hạn khi kết quả OCOP sắp hết hiệu lực; chuông thông báo ở thanh đầu với trạng thái đã đọc theo từng người (`scripts/check-notifications.js`).
 - **Neo nhật ký kiểm toán:** băm đầu chuỗi nhật ký được ghi định kỳ vào bucket riêng có Object Lock; kiểm tra toàn vẹn nay đối chiếu cả các bản neo nên phát hiện được việc cắt bớt dòng cuối và việc tính lại cả chuỗi (`scripts/check-audit-anchor.js`).

@@ -242,6 +242,7 @@ services:
       - ./config/access.json:/app/config/access.json:ro
       - ./config/ocop-profiles.json:/app/config/ocop-profiles.json:ro
       - ./config/kiln-profiles.json:/app/config/kiln-profiles.json:ro
+      - ./config/assistant-faq.json:/app/config/assistant-faq.json:ro
     depends_on:
       postgres:
         condition: service_healthy
