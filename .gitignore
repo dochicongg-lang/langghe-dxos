@@ -2,3 +2,6 @@
 
 # Tệp sinh ra từ config/access.json khi chạy script thiết lập
 scripts/.generated/
+
+# Bản sao lưu (chứa .env và dữ liệu): không bao giờ đưa lên git
+backups/
