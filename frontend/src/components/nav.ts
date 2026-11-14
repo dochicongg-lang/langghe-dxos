@@ -15,7 +15,7 @@ export const businessNav: NavItem[] = [
 
 export const platformNav: NavItem[] = [
   { href: "/human", letter: "H", title: "Human", desc: "Con người & danh tính" },
-  { href: "/process", letter: "P", title: "Process", desc: "Quy trình & workflow" },
+  { href: "/process", letter: "P", title: "Process", desc: "Quy trình xử lý hồ sơ" },
   { href: "/data", letter: "D", title: "Data", desc: "Dữ liệu & lưu trữ" },
-  { href: "/intelligence", letter: "I", title: "Intelligence", desc: "Phân tích & AI" },
+  { href: "/intelligence", letter: "I", title: "Intelligence", desc: "Nhận định & phân tích" },
 ];

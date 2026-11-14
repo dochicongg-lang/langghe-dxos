@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Card from "./Card";
 import { useAuth } from "./AuthProvider";
+import { visibleRoles } from "@/lib/roles";
 
 interface Row {
   id: number;
@@ -54,7 +55,7 @@ export default function AuditLog() {
         if (before) p.set("before", String(before));
         const res = await apiFetch(`/api/trace/audit?${p}`);
         const body = await res.json();
-        if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
+        if (!res.ok) throw new Error(body.error ?? `Hệ thống báo lỗi (mã ${res.status})`);
         setRows((prev) => (before && prev ? [...prev, ...(body.rows as Row[])] : (body.rows as Row[])));
         setError(null);
       } catch (e) {
@@ -79,7 +80,7 @@ export default function AuditLog() {
     try {
       const res = await apiFetch("/api/trace/audit/verify");
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
+      if (!res.ok) throw new Error(body.error ?? `Hệ thống báo lỗi (mã ${res.status})`);
       setVerify(body as Verify);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Lỗi không xác định");
@@ -91,7 +92,7 @@ export default function AuditLog() {
   return (
     <Card title="Nhật ký kiểm toán">
       <p className="text-sm text-stone-600">
-        Cổng gác ghi lại từng yêu cầu: ai gọi gì, khi nào, kết quả. Không lưu token. Nhật ký chỉ được ghi thêm (cơ sở dữ liệu chặn sửa/xóa) và mỗi dòng nối băm SHA-256 với dòng trước nên mọi sửa lén đều bị phát hiện. Người dùng ở yêu cầu bị từ chối chỉ là <em>tự khai</em> vì chưa xác thực được.
+        Hệ thống ghi lại ai đã làm gì, vào lúc nào và có thành công hay không. Nhật ký chỉ được thêm, không sửa hay xóa được; nếu có ai sửa lén thì nút kiểm tra toàn vẹn sẽ chỉ ra dòng bị sửa. Tên người ở lần bị từ chối chỉ là tên họ tự khai vì hệ thống chưa xác nhận được họ.
       </p>
 
       <form
@@ -131,7 +132,7 @@ export default function AuditLog() {
           Lọc
         </button>
         <button type="button" onClick={() => void check()} disabled={busy} className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50">
-          Kiểm tra toàn vẹn chuỗi băm
+          Kiểm tra toàn vẹn nhật ký
         </button>
       </form>
 
@@ -140,7 +141,7 @@ export default function AuditLog() {
           role="status"
           className={`mt-3 rounded-lg border px-3 py-2 text-sm ${verify.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}
         >
-          {verify.ok ? `✓ Toàn vẹn: ${verify.rows} dòng nối băm liền mạch, không có dòng nào bị sửa, xóa hay chèn.` : `⛔ Phát hiện can thiệp tại dòng #${verify.broken?.id}: ${verify.broken?.reason}.`}
+          {verify.ok ? `✓ Toàn vẹn: ${verify.rows} dòng liền mạch, không có dòng nào bị sửa, xóa hay chèn.` : `⛔ Phát hiện can thiệp tại dòng #${verify.broken?.id}: ${verify.broken?.reason}.`}
         </p>
       )}
       {error && (
@@ -172,7 +173,7 @@ export default function AuditLog() {
                       <>
                         <span className="font-medium text-stone-800">{r.actor}</span>
                         {!r.verified && <span className="ml-1 text-[11px] text-amber-700">(tự khai)</span>}
-                        {r.roles && <span className="block text-[11px] text-stone-400">{r.roles.split(",").filter((x) => !x.startsWith("default-") && x !== "offline_access" && x !== "uma_authorization").join(", ")}</span>}
+                        {r.roles && <span className="block text-[11px] text-stone-400">{visibleRoles(r.roles.split(",")).join(", ")}</span>}
                       </>
                     ) : (
                       <span className="text-stone-400">ẩn danh · {r.ip}</span>

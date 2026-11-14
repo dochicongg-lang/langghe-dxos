@@ -72,7 +72,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         // Chờ quyền hiệu lực từ máy chủ rồi mới hiển thị, để biểu mẫu không nhấp nháy ẩn/hiện
         return fetchMe(kc.token).then((me) => setUser({ ...base, coop: me?.coop ?? base.coop, permissions: me?.permissions ?? {}, pages: me?.pages ?? [] }));
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Không kết nối được Keycloak"));
+      .catch((e) => setError(e instanceof Error ? e.message : "Không kết nối được dịch vụ đăng nhập"));
   }, []);
 
   const logout = useCallback(() => {
@@ -114,7 +114,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       <Screen>
         <p className="text-lg font-semibold text-stone-900">Không thể kết nối hệ thống đăng nhập</p>
         <p className="mt-2 text-sm text-stone-600">
-          {error}. Kiểm tra Keycloak tại {config.keycloakUrl} đã chạy chưa, rồi thử lại.
+          Hãy thử lại sau ít phút. Nếu vẫn không được, báo người quản trị hệ thống. (Chi tiết cho kỹ thuật viên: {error}; dịch vụ đăng nhập tại {config.keycloakUrl}.)
         </p>
         <button onClick={() => window.location.reload()} className="mt-5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
           Thử lại

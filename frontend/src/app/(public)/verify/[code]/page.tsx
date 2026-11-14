@@ -3,10 +3,107 @@
 "use client";
 
 // Trang tra cứu công khai cho người mua: không đăng nhập, chỉ hiện thông tin được phép công bố.
+// Trình bày như một câu chuyện ba chương (người làm ra, ngọn lửa, chứng nhận); công đoạn thiếu hiện thành khoảng trống nhìn thấy được, không bị giấu.
 import { useParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
-import KilnEvidence from "@/components/KilnEvidence";
-import { fmtDate, stageLabels, type ProductDetail } from "@/lib/trace";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import KilnCurve from "@/components/KilnCurve";
+import { flagText, fmtDuration, fmtTime } from "@/components/KilnEvidence";
+import KilnInsightPanel, { VerdictBadge } from "@/components/KilnInsight";
+import { fmtDate, stageLabels, stageOrder, type ProductDetail, type TraceEvent } from "@/lib/trace";
+
+const chapters = [
+  { id: "nguoi-lam", no: "01", title: "Người làm ra", lead: "Nguyên liệu và đôi tay tạo hình", stages: ["nguyen-lieu", "so-che", "tao-hinh"] },
+  { id: "ngon-lua", no: "02", title: "Ngọn lửa", lead: "Mẻ nung để lại dấu vân tay nhiệt", stages: ["nung-hoan-thien"] },
+  { id: "chung-nhan", no: "03", title: "Chứng nhận và hành trình", lead: "Kiểm định, kết quả OCOP và đường tới người mua", stages: ["kiem-dinh", "dong-goi", "phan-phoi"] },
+] as const;
+
+function useActiveChapter(ids: string[], enabled: boolean) {
+  const [active, setActive] = useState(ids[0]);
+  useEffect(() => {
+    if (!enabled) return;
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
+      { rootMargin: "-35% 0px -55% 0px" },
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) io.observe(el);
+    });
+    return () => io.disconnect();
+  }, [ids, enabled]);
+  return active;
+}
+
+function Gap({ stage }: { stage: string }) {
+  return (
+    <li className="relative border-l-2 border-dashed border-stone-300 pb-6 pl-6 last:pb-0">
+      <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-dashed border-stone-400 bg-canvas" />
+      <p className="text-sm font-semibold text-stone-500">{stageLabels[stage] ?? stage}</p>
+      <p className="text-sm text-stone-500">Chưa có bản ghi được công bố cho công đoạn này.</p>
+    </li>
+  );
+}
+
+function Step({ ev }: { ev: TraceEvent }) {
+  return (
+    <li className="relative border-l-2 border-brand-200 pb-6 pl-6 last:pb-0">
+      <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-brand-600" />
+      <p className="text-base font-semibold text-stone-900">{stageLabels[ev.stage] ?? ev.stage}</p>
+      <p className="text-xs text-stone-500">
+        {fmtDate(ev.created_at)}
+        {ev.location ? ` · ${ev.location}` : ""}
+      </p>
+      {ev.note && <p className="mt-1.5 text-sm leading-relaxed text-stone-700">{ev.note}</p>}
+    </li>
+  );
+}
+
+/** Công đoạn nung có dữ liệu cảm biến: đường cong là hiện vật trung tâm của câu chuyện. */
+function FireStory({ ev }: { ev: TraceEvent }) {
+  const iot = ev.iot!;
+  const tiles: [string, string][] = [
+    ["Nhiệt độ đỉnh", `${iot.max} ${iot.unit}`],
+    ["Trung bình", `${iot.avg} ${iot.unit}`],
+    ["Thấp nhất", `${iot.min} ${iot.unit}`],
+    ["Thời gian nung", fmtDuration(iot.from, iot.to)],
+  ];
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+      <p className="text-xs font-semibold uppercase tracking-widest text-brand-700">Dấu vân tay nhiệt</p>
+      <p className="mt-1 text-sm text-stone-600">
+        {fmtDate(ev.created_at)}
+        {ev.location ? ` · ${ev.location}` : ""} · cảm biến {iot.deviceName || iot.deviceId}
+      </p>
+      {ev.note && <p className="mt-2 text-sm leading-relaxed text-stone-700">{ev.note}</p>}
+      {ev.insight && <KilnInsightPanel insight={ev.insight} />}
+      <div className="mt-4 rounded-xl bg-stone-50 p-3 sm:p-4">
+        <KilnCurve iot={iot} />
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {tiles.map(([k, v]) => (
+          <div key={k} className="rounded-xl bg-brand-50 p-3 text-center">
+            <dt className="text-xs text-stone-600">{k}</dt>
+            <dd className="mt-0.5 text-lg font-semibold text-brand-800">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {iot.quality?.flags.map((f) => (
+        <p key={f} className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
+          ⚠ {flagText(f, iot.quality!)}
+        </p>
+      ))}
+      <p className="mt-4 text-xs text-stone-500">
+        {iot.count} mẫu đo · {fmtTime(iot.from)} → {fmtTime(iot.to)}
+        {iot.quality ? ` · độ phủ dữ liệu ${Math.round(iot.quality.coverage * 100)}%` : ""}
+      </p>
+      {iot.verifiedAt && (
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+          <span aria-hidden="true">✓</span> Máy chủ đã đối chiếu với dữ liệu cảm biến lưu trên hệ thống
+        </p>
+      )}
+    </div>
+  );
+}
 
 function Verify() {
   const { code } = useParams<{ code: string }>();
@@ -28,93 +125,173 @@ function Verify() {
     };
   }, [code]);
 
+  const ids = useMemo(() => chapters.map((c) => c.id), []);
+  const active = useActiveChapter(ids, Boolean(product));
+
+  // công đoạn lạ (không nằm trong 7 công đoạn chuẩn) được xếp vào chương cuối để không mất thông tin
+  const byChapter = useMemo(() => {
+    const known = new Set<string>(stageOrder);
+    return chapters.map((c, i) => {
+      const own = (product?.events ?? []).filter((e) => (c.stages as readonly string[]).includes(e.stage) || (i === chapters.length - 1 && !known.has(e.stage)));
+      return { ...c, events: own };
+    });
+  }, [product]);
+
+  const fire = product?.events.find((e) => e.iot && e.insight);
+  const official = product?.ocop?.official;
+
   return (
-    <div className="min-h-screen bg-stone-50 px-4 py-10">
-      <div className="mx-auto max-w-2xl">
-        <p className="text-center text-sm font-medium text-brand-600">Làng Nghề Số · Tra cứu nguồn gốc</p>
-        {error && <p className="mt-8 rounded-lg border border-red-200 bg-red-50 p-4 text-center text-sm text-red-700">{error}</p>}
-        {!error && !product && <p className="mt-8 text-center text-sm text-stone-500">Đang tải…</p>}
-        {product && (
-          <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-            <p className="inline-block rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-              ✓ Sản phẩm có thông tin truy xuất
-            </p>
-            <h1 className="mt-3 text-2xl font-bold text-stone-900">{product.name}</h1>
-            <p className="font-mono text-sm text-stone-500">{product.code}</p>
-            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-              {[
-                ["Danh mục", product.category],
-                ["Làng nghề", product.village],
-                ["Nghệ nhân / cơ sở", product.artisan],
-              ].map(([k, v]) => (
-                <div key={k} className="rounded-lg bg-stone-50 p-3">
-                  <dt className="text-xs text-stone-500">{k}</dt>
-                  <dd className="mt-0.5 font-medium text-stone-800">{v || "—"}</dd>
-                </div>
-              ))}
-            </dl>
-
-            {product.ocop && (
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <section className="rounded-xl border border-stone-200 p-4" aria-labelledby="ocop-official">
-                  <h2 id="ocop-official" className="text-sm font-semibold text-stone-800">
-                    Kết quả OCOP chính thức
-                  </h2>
-                  {product.ocop.official ? (
-                    <>
-                      <p className="mt-1 text-2xl text-amber-500" aria-label={`${product.ocop.official.stars} sao`}>
-                        {"★".repeat(product.ocop.official.stars)}
-                      </p>
-                      <p className="text-xs text-stone-600">{product.ocop.official.authority}</p>
-                      <p className="mt-1 text-xs text-stone-600">
-                        {product.ocop.official.decision_no} ({product.ocop.official.decided_at})
-                      </p>
-                      <p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${product.ocop.official.active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                        {product.ocop.official.active ? "Còn hiệu lực" : "Đã hết hiệu lực"} đến {product.ocop.official.valid_until}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="mt-1 text-sm text-stone-500">Chưa có kết quả chính thức từ cơ quan có thẩm quyền.</p>
-                  )}
-                </section>
-                <section className="rounded-xl border border-stone-200 bg-stone-50 p-4" aria-labelledby="ocop-platform">
-                  <h2 id="ocop-platform" className="text-sm font-semibold text-stone-800">
-                    Xác nhận của nền tảng
-                  </h2>
-                  {product.ocop.platform ? (
-                    <>
-                      <p className="mt-1 text-sm text-stone-700">{product.ocop.platform.note}</p>
-                      <p className="mt-1 text-xs text-stone-500">Ngày xác nhận: {fmtDate(product.ocop.platform.confirmed_at)}</p>
-                    </>
-                  ) : (
-                    <p className="mt-1 text-sm text-stone-500">Chưa có.</p>
-                  )}
-                </section>
+    <div className="min-h-screen bg-canvas">
+      <header className="relative overflow-hidden bg-stone-900 text-white">
+        <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_at_85%_0%,rgba(217,96,44,0.55),transparent_55%),radial-gradient(ellipse_at_0%_100%,rgba(130,50,25,0.6),transparent_50%)]" />
+        <div className="relative mx-auto max-w-5xl px-4 pb-16 pt-8 sm:pt-12">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-300">Làng Nghề Số · Tra cứu nguồn gốc</p>
+          {error && <p className="mt-10 rounded-lg border border-red-300/40 bg-red-950/40 p-4 text-sm text-red-100">{error}</p>}
+          {!error && !product && <p className="mt-10 text-sm text-stone-300">Đang tải…</p>}
+          {product && (
+            <>
+              <h1 className="mt-8 max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">{product.name}</h1>
+              <p className="mt-3 font-mono text-sm text-stone-300">{product.code}</p>
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white ring-1 ring-white/20">
+                  <span aria-hidden="true">✓</span> Có thông tin truy xuất
+                </span>
+                {fire?.insight && <VerdictBadge verdict={fire.insight.verdict} />}
+                {official && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                    <span aria-hidden="true">★</span> OCOP {official.stars} sao{official.active ? "" : " (hết hiệu lực)"}
+                  </span>
+                )}
               </div>
-            )}
+            </>
+          )}
+        </div>
+      </header>
 
-            <h2 className="mb-3 mt-6 text-base font-semibold text-stone-800">Hành trình sản phẩm</h2>
-            {product.events.length === 0 ? (
-              <p className="text-sm text-stone-500">Chưa có công đoạn nào được công bố.</p>
-            ) : (
-              <ol className="relative ml-2 border-l-2 border-stone-200">
-                {product.events.map((ev, i) => (
-                  <li key={i} className="mb-5 ml-5 last:mb-0">
-                    <span className="absolute -left-[7px] mt-1.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
-                    <p className="text-sm font-semibold text-stone-800">{stageLabels[ev.stage] ?? ev.stage}</p>
-                    <p className="text-xs text-stone-500">
-                      {fmtDate(ev.created_at)}
-                      {ev.location ? ` · ${ev.location}` : ""}
-                    </p>
-                    {ev.note && <p className="mt-1 text-sm text-stone-600">{ev.note}</p>}
-                    {ev.iot && <KilnEvidence iot={ev.iot} insight={ev.insight} />}
+      {product && (
+        <main className="mx-auto max-w-5xl px-4 pb-16">
+          {/* tấm biển bảo tàng: nhãn ngắn gọn cho hiện vật */}
+          <dl className="relative -mt-8 grid gap-px overflow-hidden rounded-2xl border border-stone-200 bg-stone-200 shadow-md sm:grid-cols-3">
+            {[
+              ["Danh mục", product.category],
+              ["Làng nghề", product.village],
+              ["Nghệ nhân / cơ sở", product.artisan],
+            ].map(([k, v]) => (
+              <div key={k} className="bg-white p-4">
+                <dt className="text-xs font-medium uppercase tracking-wide text-stone-500">{k}</dt>
+                <dd className="mt-1 text-base font-semibold text-stone-900">{v || "—"}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="mt-10 lg:grid lg:grid-cols-[200px_1fr] lg:gap-10">
+            <nav aria-label="Các chương" className="sticky top-0 z-20 -mx-4 mb-6 bg-canvas/95 px-4 py-2 backdrop-blur lg:top-8 lg:mx-0 lg:mb-0 lg:self-start lg:bg-transparent lg:px-0 lg:py-0">
+              <ol className="flex gap-2 overflow-x-auto [scrollbar-width:none] lg:flex-col lg:overflow-visible lg:gap-1 lg:border-l lg:border-stone-300">
+                {chapters.map((c) => (
+                  <li key={c.id} className="shrink-0">
+                    <a
+                      href={`#${c.id}`}
+                      aria-current={active === c.id ? "true" : undefined}
+                      className={`block whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors lg:-ml-px lg:rounded-none lg:border-l-2 lg:py-2 lg:pl-4 ${
+                        active === c.id
+                          ? "bg-brand-600 font-semibold text-white lg:border-brand-600 lg:bg-transparent lg:text-brand-700"
+                          : "bg-stone-100 text-stone-600 hover:text-stone-900 lg:border-transparent lg:bg-transparent"
+                      }`}
+                    >
+                      <span className="mr-1.5 font-mono text-xs opacity-70">{c.no}</span>
+                      {c.title}
+                    </a>
                   </li>
                 ))}
               </ol>
-            )}
+            </nav>
+
+            <div className="space-y-14">
+              {byChapter.map((c) => (
+                <section key={c.id} id={c.id} aria-labelledby={`${c.id}-h`} className="scroll-mt-16">
+                  <p className="font-mono text-sm text-brand-700">{c.no}</p>
+                  <h2 id={`${c.id}-h`} className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
+                    {c.title}
+                  </h2>
+                  <p className="mt-1 text-sm text-stone-600">{c.lead}</p>
+
+                  {c.id === "chung-nhan" && product.ocop && (
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <section className="rounded-xl border border-stone-200 bg-white p-4" aria-labelledby="ocop-official">
+                        <h3 id="ocop-official" className="text-sm font-semibold text-stone-800">
+                          Kết quả OCOP chính thức
+                        </h3>
+                        {official ? (
+                          <>
+                            <p className="mt-1 text-3xl text-amber-500" aria-label={`${official.stars} sao`}>
+                              {"★".repeat(official.stars)}
+                            </p>
+                            <p className="text-sm text-stone-700">{official.authority}</p>
+                            <p className="mt-1 text-xs text-stone-600">
+                              {official.decision_no} ({official.decided_at})
+                            </p>
+                            <p className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${official.active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                              <span aria-hidden="true">{official.active ? "✓" : "⛔"}</span>
+                              {official.active ? "Còn hiệu lực" : "Đã hết hiệu lực"} đến {official.valid_until}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="mt-1 text-sm text-stone-600">Chưa có kết quả chính thức từ cơ quan có thẩm quyền.</p>
+                        )}
+                      </section>
+                      <section className="rounded-xl border border-stone-200 bg-stone-50 p-4" aria-labelledby="ocop-platform">
+                        <h3 id="ocop-platform" className="text-sm font-semibold text-stone-800">
+                          Xác nhận của nền tảng
+                        </h3>
+                        {product.ocop.platform ? (
+                          <>
+                            <p className="mt-1 text-sm text-stone-700">{product.ocop.platform.note}</p>
+                            <p className="mt-1 text-xs text-stone-600">Ngày xác nhận: {fmtDate(product.ocop.platform.confirmed_at)}</p>
+                          </>
+                        ) : (
+                          <p className="mt-1 text-sm text-stone-600">Chưa có.</p>
+                        )}
+                      </section>
+                    </div>
+                  )}
+
+                  <ol className="mt-6">
+                    {c.stages.map((st) => {
+                      const evs = c.events.filter((e) => e.stage === st);
+                      if (evs.length === 0) return <Gap key={st} stage={st} />;
+                      return evs.map((ev, i) =>
+                        ev.iot ? (
+                          <li key={`${st}-${i}`} className="relative border-l-2 border-brand-200 pb-6 pl-6 last:pb-0">
+                            <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-brand-600" />
+                            <p className="mb-3 text-base font-semibold text-stone-900">{stageLabels[st] ?? st}</p>
+                            <FireStory ev={ev} />
+                          </li>
+                        ) : (
+                          <Step key={`${st}-${i}`} ev={ev} />
+                        ),
+                      );
+                    })}
+                    {c.events
+                      .filter((e) => !(c.stages as readonly string[]).includes(e.stage))
+                      .map((ev, i) => (
+                        <Step key={`x-${i}`} ev={ev} />
+                      ))}
+                  </ol>
+                </section>
+              ))}
+            </div>
           </div>
-        )}
-      </div>
+
+          <aside className="mt-14 rounded-2xl border border-stone-200 bg-white p-5 text-sm text-stone-700">
+            <h2 className="text-base font-semibold text-stone-900">Vì sao có thể tin trang này</h2>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Số liệu cảm biến lò được ghi vào kho dữ liệu có khóa chống sửa và chống xóa; nếu bị ghi đè, hệ thống chỉ dùng bản ghi đầu tiên và gắn cờ cảnh báo.</li>
+              <li>Máy chủ tự đọc lại dữ liệu cảm biến để tính nhiệt độ và đường cong, người nhập hồ sơ không gõ tay các con số này.</li>
+              <li>Kết quả OCOP chính thức do cơ quan có thẩm quyền quyết định, được hiển thị tách khỏi xác nhận của nền tảng.</li>
+            </ul>
+          </aside>
+        </main>
+      )}
     </div>
   );
 }

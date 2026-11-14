@@ -105,7 +105,7 @@ export default function AttachmentList({ code, docKey, items, canEdit, rules, on
           body: f,
         });
         const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((body as { error?: string }).error ?? `API trả về ${res.status}`);
+        if (!res.ok) throw new Error((body as { error?: string }).error ?? `Hệ thống báo lỗi (mã ${res.status})`);
       } catch (ex) {
         setErr(`"${f.name}": ${ex instanceof Error ? ex.message : "Lỗi không xác định"}`);
       }
@@ -120,7 +120,7 @@ export default function AttachmentList({ code, docKey, items, canEdit, rules, on
     setErr(null);
     try {
       const res = await apiFetch(`/api/trace/applications/${encodeURIComponent(code)}/attachments/${a.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `API trả về ${res.status}`);
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Hệ thống báo lỗi (mã ${res.status})`);
     } catch (ex) {
       setErr(ex instanceof Error ? ex.message : "Lỗi không xác định");
     }

@@ -36,7 +36,7 @@ function Application() {
     try {
       const res = await apiFetch(`/api/trace/applications/${encodeURIComponent(code)}`);
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
+      if (!res.ok) throw new Error(body.error ?? `Hệ thống báo lỗi (mã ${res.status})`);
       setApp(body as OcopDetail);
       setDocs((body as OcopDetail).documents);
       setError(null);
@@ -60,7 +60,7 @@ function Application() {
         body: JSON.stringify(payload),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? `API trả về ${res.status}`);
+      if (!res.ok) throw new Error(body.error ?? `Hệ thống báo lỗi (mã ${res.status})`);
       setApp(body as OcopDetail);
       setDocs((body as OcopDetail).documents);
       setNote("");
